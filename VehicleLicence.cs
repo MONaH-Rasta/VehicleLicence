@@ -22,7 +22,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.47")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.48")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -237,7 +237,7 @@ namespace Oxide.Plugins
             {
                 Subscribe(nameof(OnEntityTakeDamage));
             }
-            if (configData.global.preventDamagePlayer)
+            if (configData.global.preventDamagePlayer || configData.global.safeTrainDismount)
             {
                 Subscribe(nameof(OnEntityEnter));
             }
@@ -255,7 +255,11 @@ namespace Oxide.Plugins
                 Subscribe(nameof(OnEntityDismounted));
                 timer.Every(configData.global.checkVehiclesInterval, CheckVehicles);
             }
-            if(configData.global.InstantMiniTakeoff || configData.global.InstantAttackHeliTakeoff)
+            else if (configData.normalVehicles.miniCopter.flyHackPause > 0 || configData.normalVehicles.transportHelicopter.flyHackPause > 0 || configData.normalVehicles.attackHelicopter.flyHackPause > 0)
+            {
+                Subscribe(nameof(OnEntityDismounted));
+            }
+            if(configData.normalVehicles.miniCopter.instantTakeoff || configData.normalVehicles.attackHelicopter.instantTakeoff)
             {
                 Subscribe(nameof(OnEngineStarted));
             }
@@ -315,16 +319,20 @@ namespace Oxide.Plugins
             vehicle.OnDismount();
         }
         
+        // TODO: Fix/finish
         private void OnEngineStarted(BaseMountable entity, BasePlayer player)
         {
             if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE)) return;
             BaseVehicle mounted = player.GetMountedVehicle();
-            if (mounted is Minicopter)
+            // Only allows vehicles spawned with the plugin to use instant take off.
+            if (mounted == null || !vehiclesCache.ContainsKey(mounted)) return;
+
+            if (mounted is Minicopter && configData.normalVehicles.miniCopter.instantTakeoff)
             {
                 (mounted as Minicopter).engineController.FinishStartingEngine();
                 return;
             }
-            if (mounted is AttackHelicopter)
+            if (mounted is AttackHelicopter && configData.normalVehicles.attackHelicopter.instantTakeoff)
             {
                 (mounted as AttackHelicopter).engineController.FinishStartingEngine();
             }
@@ -356,14 +364,12 @@ namespace Oxide.Plugins
             {
                 foreach (var mountPointInfo in vehicleParent.allMountPoints)
                 {
-                    if (mountPointInfo != null && mountPointInfo.mountable == entity)
+                    if (mountPointInfo == null || mountPointInfo.mountable != entity) continue;
+                    if (!mountPointInfo.isDriver)
                     {
-                        if (!mountPointInfo.isDriver)
-                        {
-                            return null;
-                        }
-                        break;
+                        return null;
                     }
+                    break;
                 }
             }
             if (HasAdminPermission(friend))
@@ -430,15 +436,13 @@ namespace Oxide.Plugins
             {
                 return;
             }
-            if (hitInfo.damageTypes.Has(DamageType.Decay))
+            if (!hitInfo.damageTypes.Has(DamageType.Decay)) return;
+            Vehicle vehicle;
+            if (!TryGetVehicle(entity, out vehicle))
             {
-                Vehicle vehicle;
-                if (!TryGetVehicle(entity, out vehicle))
-                {
-                    return;
-                }
-                hitInfo.damageTypes.Scale(DamageType.Decay, 0);
+                return;
             }
+            hitInfo.damageTypes.Scale(DamageType.Decay, 0);
         }
 
         #endregion Decay
@@ -487,27 +491,32 @@ namespace Oxide.Plugins
                 return null;
             }
             var sourceEntity = triggerHurtNotChild.SourceEntity;
-            if (vehiclesCache.ContainsKey(sourceEntity))
+            
+            if (!vehiclesCache.ContainsKey(sourceEntity)) return null;
+            
+            var baseVehicle = sourceEntity as BaseVehicle;
+            
+            if ((baseVehicle == null || !player.userID.IsSteamId()) && configData.global.preventDamagePlayer) return _false;
+            
+            
+            if (baseVehicle is TrainEngine)
             {
-                var baseVehicle = sourceEntity as BaseVehicle;
-                if (baseVehicle != null && player.userID.IsSteamId())
-                {
-                    if (baseVehicle is TrainEngine)
-                    {
-                        var transform = triggerHurtNotChild.transform;
-                        MoveToPosition(player, transform.position + (Random.value >= 0.5f ? -transform.right : transform.right) * 2.5f);
-                        return _false;
-                    }
-                    Vector3 pos;
-                    if (GetDismountPosition(baseVehicle, player, out pos))
-                    {
-                        MoveToPosition(player, pos);
-                    }
-                }
-                //triggerHurtNotChild.enabled = false;
-                return _false;
+                if (!configData.global.safeTrainDismount && configData.global.preventDamagePlayer) return _false;
+                
+                if (!configData.global.safeTrainDismount) return null;
+                
+                var transform = triggerHurtNotChild.transform;
+                MoveToPosition(player, transform.position + (Random.value >= 0.5f ? -transform.right : transform.right) * 2.5f);
+                
+                return configData.global.preventDamagePlayer ? _false : null;
             }
-            return null;
+            Vector3 pos;
+            if (GetDismountPosition(baseVehicle, player, out pos))
+            {
+                MoveToPosition(player, pos);
+            }
+            //triggerHurtNotChild.enabled = false;
+            return _false;
         }
 
         // HotAirBalloon
@@ -1422,6 +1431,10 @@ namespace Oxide.Plugins
                 Print(player, Lang("PleaseWait", player.UserIDString));
                 return;
             }
+            
+            // TODO: 
+            // Use TerrainMeta.HeightMap.GetHeight to get height of map at a given point!
+            
             // Debug.Log($"INFO: {player.AirFactor()}");
             // if (player.metabolism.oxygen.value == 1)
             // {
@@ -2040,56 +2053,35 @@ namespace Oxide.Plugins
         {
             var settings = GetBaseVehicleSettings(vehicle.VehicleType);
             settings.PreRecallVehicle(player, vehicle, position, rotation);
-            if(configData.global.recallKill)
+            BaseEntity vehicleEntity = vehicle.Entity;
+            
+            if(vehicleEntity.IsOn()) vehicleEntity.SetFlag(BaseEntity.Flags.On, false);
+            if (vehicleEntity is TrainEngine)
             {
-                if (vehicle.Entity is Tugboat)
-                {
-                    Tugboat tug = vehicle.Entity as Tugboat;
-                    if (tug.children.Count < 4)
-                    {
-                        KillVehicle(player, vehicle.VehicleType, false);
-                        SpawnVehicle(player, vehicle, position, rotation, false);
-                        AuthTeamOnTugboat(tug, player);
-                    }
-                    else
-                    {
-                        tug.transform.SetPositionAndRotation(position, rotation);
-                        tug.transform.hasChanged = true;
-                        if(configData.normalVehicles.tugboat.autoAuth)
-                        {
-                            AuthTeamOnTugboat(tug, player);
-                        }
-                        settings.PostRecallVehicle(player, vehicle, position, rotation);
-                    }
-                    
-                }
-                else
-                {
-                    KillVehicle(player, vehicle.VehicleType, false);
-                    SpawnVehicle(player, vehicle, position, rotation, false);
-                }
+                TrainEngine train = vehicleEntity as TrainEngine;
+                train.completeTrain.trackSpeed = 0;
             }
             else
             {
-                if (vehicle.Entity is Tugboat)
-                {
-                    Tugboat tug = vehicle.Entity as Tugboat;
-                    AuthTeamOnTugboat(tug, player);
-                }
-                vehicle.Entity.transform.SetPositionAndRotation(position, rotation);
-                vehicle.Entity.transform.hasChanged = true;
-                settings.PostRecallVehicle(player, vehicle, position, rotation);
+                vehicleEntity.SetVelocity(Vector3.zero);
+                vehicleEntity.SetAngularVelocity(Vector3.zero);
             }
-
+            vehicleEntity.transform.SetPositionAndRotation(position, rotation);
+            vehicleEntity.transform.hasChanged = true;
+            vehicleEntity.UpdateNetworkGroup();
+            vehicleEntity.SendNetworkUpdateImmediate();
+            
+            
+            settings.PostRecallVehicle(player, vehicle, position, rotation);
             vehicle.OnRecall();
 
-            if (vehicle.Entity == null || vehicle.Entity.IsDestroyed)
+            if (vehicleEntity == null || vehicleEntity.IsDestroyed)
             {
                 Print(player, Lang("NotSpawnedOrRecalled", player.UserIDString, settings.DisplayName));
                 return;
             }
 
-            Interface.CallHook("OnLicensedVehicleRecalled", vehicle.Entity, player, vehicle.VehicleType);
+            Interface.CallHook("OnLicensedVehicleRecalled", vehicleEntity, player, vehicle.VehicleType);
             Print(player, Lang("VehicleRecalled", player.UserIDString, settings.DisplayName));
         }
 
@@ -2734,6 +2726,37 @@ namespace Oxide.Plugins
                             type = TrainComponentType.UnloadableLoot
                         }
                     }
+                },
+                ["Locomotive"] = new TrainVehicleSettings
+                {
+                    Purchasable = true,
+                    DisplayName = "Locomotive",
+                    Distance = 12,
+                    MinDistanceForPlayers = 6,
+                    UsePermission = true,
+                    Permission = "vehiclelicence.locomotive",
+                    Commands = new List<string>
+                    {
+                        "loco", "locomotive"
+                    },
+                    PurchasePrices = new Dictionary<string, PriceInfo>
+                    {
+                        ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
+                    },
+                    SpawnCooldown = 1800,
+                    RecallCooldown = 30,
+                    CooldownPermissions = new Dictionary<string, CooldownPermission>
+                    {
+                        ["vehiclelicence.vip"] = new CooldownPermission
+                        {
+                            spawnCooldown = 900,
+                            recallCooldown = 10
+                        }
+                    },
+                    TrainComponents = new List<TrainComponent>
+                    {
+                        new TrainComponent { type = TrainComponentType.Locomotive }
+                    }
                 }
             };
 
@@ -2776,9 +2799,6 @@ namespace Oxide.Plugins
 
         public class GlobalSettings
         {
-            [JsonProperty(PropertyName = "Kill all vehicles on recall and respawn instead of recalling (besides Tugboat)")]
-            public bool recallKill = false;
-            
             [JsonProperty(PropertyName = "Store Vehicle On Plugin Unloaded / Server Restart")]
             public bool storeVehicle = true;
 
@@ -2805,6 +2825,9 @@ namespace Oxide.Plugins
 
             [JsonProperty(PropertyName = "Prevent vehicles from damaging players")]
             public bool preventDamagePlayer = true;
+            
+            [JsonProperty(PropertyName = "Safe dismount players who jump off train")]
+            public bool safeTrainDismount = true;
 
             [JsonProperty(PropertyName = "Prevent vehicles from shattering")]
             public bool preventShattering = true;
@@ -2862,12 +2885,6 @@ namespace Oxide.Plugins
 
             [JsonProperty(PropertyName = "Use Combat Blocker (Need NoEscape Plugin)")]
             public bool useCombatBlocker;
-            
-            [JsonProperty(PropertyName = "Allow minicopters to take off instantly")]
-            public bool InstantMiniTakeoff = false;
-            
-            [JsonProperty(PropertyName = "Allow Attack Helicopters to take off instantly")]
-            public bool InstantAttackHeliTakeoff = false;
         }
 
         public class NormalVehicleSettings
@@ -2902,7 +2919,6 @@ namespace Oxide.Plugins
             {
                 Purchasable = true,
                 DisplayName = "Sedan",
-                speedMultiplier = 1,
                 Distance = 5,
                 MinDistanceForPlayers = 3,
                 UsePermission = true,
@@ -3090,6 +3106,7 @@ namespace Oxide.Plugins
                 rotationScale = 1.0f,
                 flyHackPause = 0,
                 liftFraction = 0.25f,
+                instantTakeoff = false,
                 UsePermission = true,
                 Permission = "vehiclelicence.minicopter",
                 Commands = new List<string> { "mini", "minicopter" },
@@ -3119,6 +3136,7 @@ namespace Oxide.Plugins
                 rotationScale = 1.0f,
                 flyHackPause = 0,
                 liftFraction = 0.33f,
+                instantTakeoff = false,
                 UsePermission = true,
                 Permission = "vehiclelicence.attackhelicopter",
                 Commands = new List<string> { "attack", "aheli", "attackheli", "attackhelicopter"},
@@ -3566,12 +3584,6 @@ namespace Oxide.Plugins
                         }
                     }
                 }
-                // if (entity is Horse)
-                // {
-                //     Debug.Log($"Horse Found");
-                // }
-                // if(entity is RidableHorse)
-                //     Debug.Log($"RidableHorse Found");
                 if (!configData.global.preventShattering) return;
                 var magnetLiftable = entity.GetComponent<MagnetLiftable>();
                 if (magnetLiftable != null)
@@ -4262,8 +4274,6 @@ namespace Oxide.Plugins
 
         public class SedanSettings : BaseVehicleSettings
         {
-            [JsonProperty(PropertyName = "Speed Multiplier")]
-            public float speedMultiplier { get; set; } = 1;
         }
 
         public class ChinookSettings : BaseVehicleSettings
@@ -4340,6 +4350,9 @@ namespace Oxide.Plugins
             
             [JsonProperty("Seconds to pause flyhack when dismount from Mini Copter.")]
             public int flyHackPause;
+            
+            [JsonProperty("Instant Engine Start-up (instant take-off)")]
+            public bool instantTakeoff;
 
             protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
             {
@@ -4359,6 +4372,9 @@ namespace Oxide.Plugins
             
             [JsonProperty("Seconds to pause flyhack when dismount from Attack Helicopter.")]
             public int flyHackPause;
+            
+            [JsonProperty("Instant Engine Start-up (instant take-off)")]
+            public bool instantTakeoff;
 
             protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
             {
@@ -4368,6 +4384,7 @@ namespace Oxide.Plugins
             protected override IEnumerable<ItemContainer> GetInventories(BaseEntity entity)
             {
                 yield return (entity as AttackHelicopter)?.GetRockets().inventory;
+                yield return (entity as AttackHelicopter)?.GetTurret().inventory;
             }
         }
 
@@ -4443,14 +4460,8 @@ namespace Oxide.Plugins
 
             protected override bool TryGetPositionAndRotation(BasePlayer player, Vehicle vehicle, out string reason, out Vector3 original, out Quaternion rotation)
             {
-                if (base.TryGetPositionAndRotation(player, vehicle, out reason, out original, out rotation))
-                {
-                    if (!TryGetTrainCarPositionAndRotation(player, vehicle, ref reason, ref original, ref rotation))
-                    {
-                        return false;
-                    }
-                }
-                return true;
+                return !base.TryGetPositionAndRotation(player, vehicle, out reason, out original, out rotation) 
+                       || TryGetTrainCarPositionAndRotation(player, vehicle, ref reason, ref original, ref rotation);
             }
         }
 
@@ -4496,13 +4507,13 @@ namespace Oxide.Plugins
                     return;
                 }
                 var ammoContainer = (entity as BaseSubmarine)?.GetTorpedoContainer();
-                if (ammoContainer != null && ammoContainer.inventory != null)
+                
+                if (ammoContainer == null || ammoContainer.inventory == null) return;
+                
+                var ammoItem = ItemManager.CreateByItemID(AMMO_ITEM_ID, SpawnAmmoAmount);
+                if (!ammoItem.MoveToContainer(ammoContainer.inventory))
                 {
-                    var ammoItem = ItemManager.CreateByItemID(AMMO_ITEM_ID, SpawnAmmoAmount);
-                    if (!ammoItem.MoveToContainer(ammoContainer.inventory))
-                    {
-                        ammoItem.Remove();
-                    }
+                    ammoItem.Remove();
                 }
             }
         }
@@ -5026,21 +5037,20 @@ namespace Oxide.Plugins
             protected override void CollectVehicleItems(List<Item> items, Vehicle vehicle, bool isCrash, bool isUnload)
             {
                 // Refund primary engine fuel only
-                if (CanRefundFuel(isCrash, isUnload))
+                if (!CanRefundFuel(isCrash, isUnload)) return;
+                
+                var trainCar = vehicle.Entity as TrainCar;
+
+                if (trainCar == null) return;
+                var fuelSystem = GetFuelSystem(trainCar);
+                
+                if (fuelSystem == null) return;
+                
+                var fuelContainer = fuelSystem.GetFuelContainer()?.inventory;
+                
+                if (fuelContainer != null)
                 {
-                    var trainCar = vehicle.Entity as TrainCar;
-                    if (trainCar != null)
-                    {
-                        var fuelSystem = GetFuelSystem(trainCar);
-                        if (fuelSystem != null)
-                        {
-                            var fuelContainer = fuelSystem.GetFuelContainer()?.inventory;
-                            if (fuelContainer != null)
-                            {
-                                items.AddRange(fuelContainer.itemList);
-                            }
-                        }
-                    }
+                    items.AddRange(fuelContainer.itemList);
                 }
             }
 
@@ -5050,14 +5060,9 @@ namespace Oxide.Plugins
 
             protected override bool TryGetPositionAndRotation(BasePlayer player, Vehicle vehicle, out string reason, out Vector3 original, out Quaternion rotation)
             {
-                if (base.TryGetPositionAndRotation(player, vehicle, out reason, out original, out rotation))
-                {
-                    if (!TryGetTrainCarPositionAndRotation(player, vehicle, ref reason, ref original, ref rotation))
-                    {
-                        return false;
-                    }
-                }
-                return true;
+                if (!base.TryGetPositionAndRotation(player, vehicle, out reason, out original, out rotation)) return true;
+                
+                return TryGetTrainCarPositionAndRotation(player, vehicle, ref reason, ref original, ref rotation);
             }
 
             // protected override void CorrectPositionAndRotation(BasePlayer player, Vehicle vehicle, Vector3 original, Quaternion rotation, out Vector3 spawnPos, out Quaternion spawnRot)
@@ -5213,55 +5218,100 @@ namespace Oxide.Plugins
             }
             //Interface.Oxide.DataFileSystem.WriteObject(Name + "_old", jObject);
             VersionNumber oldVersion;
-            if (GetConfigVersionPre(config, out oldVersion))
+            if (!GetConfigVersionPre(config, out oldVersion)) return;
+            if (oldVersion >= Version) return;
+            if (oldVersion < new VersionNumber(1, 7, 35))
             {
-                if (oldVersion < Version)
+                try
                 {
-                    if (oldVersion < new VersionNumber(1, 7, 35))
+                    if (config["Train Vehicle Settings"] == null)
                     {
-                        try
-                        {
-                            if (config["Train Vehicle Settings"] == null)
-                            {
-                                config["Train Vehicle Settings"] = JObject.FromObject(new ConfigData().trainVehicles);
-                            }
-                            var workCartAboveGround = GetConfigValue(config, "Normal Vehicle Settings", "Work Cart Above Ground Vehicle");
-                            if (workCartAboveGround != null)
-                            {
-                                var settings = workCartAboveGround.ToObject<TrainVehicleSettings>();
-                                settings.TrainComponents = new List<TrainComponent>
-                                {
-                                    new TrainComponent
-                                    {
-                                        type = TrainComponentType.Engine
-                                    }
-                                };
-                                config["Train Vehicle Settings"]["WorkCartAboveGround"] = JObject.FromObject(settings);
-                                ;
-                            }
-                            var coveredWorkCart = GetConfigValue(config, "Normal Vehicle Settings", "Covered Work Cart Vehicle");
-                            if (coveredWorkCart != null)
-                            {
-                                var settings = coveredWorkCart.ToObject<TrainVehicleSettings>();
-                                settings.TrainComponents = new List<TrainComponent>
-                                {
-                                    new TrainComponent
-                                    {
-                                        type = TrainComponentType.CoveredEngine
-                                    }
-                                };
-                                config["Train Vehicle Settings"]["WorkCartCovered"] = JObject.FromObject(settings);
-                            }
-                        }
-                        catch
-                        {
-                            // ignored
-                        }
+                        config["Train Vehicle Settings"] = JObject.FromObject(new ConfigData().trainVehicles);
                     }
-                    Config.WriteObject(config);
-                    // Interface.Oxide.DataFileSystem.WriteObject(Name + "_new", jObject);
+                    var workCartAboveGround = GetConfigValue(config, "Normal Vehicle Settings", "Work Cart Above Ground Vehicle");
+                    if (workCartAboveGround != null)
+                    {
+                        var settings = workCartAboveGround.ToObject<TrainVehicleSettings>();
+                        settings.TrainComponents = new List<TrainComponent>
+                        {
+                            new TrainComponent
+                            {
+                                type = TrainComponentType.Engine
+                            }
+                        };
+                        config["Train Vehicle Settings"]["WorkCartAboveGround"] = JObject.FromObject(settings);
+                    }
+                    var coveredWorkCart = GetConfigValue(config, "Normal Vehicle Settings", "Covered Work Cart Vehicle");
+                    if (coveredWorkCart != null)
+                    {
+                        var settings = coveredWorkCart.ToObject<TrainVehicleSettings>();
+                        settings.TrainComponents = new List<TrainComponent>
+                        {
+                            new TrainComponent
+                            {
+                                type = TrainComponentType.CoveredEngine
+                            }
+                        };
+                        config["Train Vehicle Settings"]["WorkCartCovered"] = JObject.FromObject(settings);
+                    }
+                }
+                catch
+                {
+                    // ignored
                 }
             }
+
+            if (oldVersion < new VersionNumber(1, 7, 48))
+            {
+                try
+                {
+                    var locomotive = GetConfigValue(config, "Train Vehicle Settings", "Locomotive");
+                    if (locomotive == null)
+                    {
+                        var settings = new TrainVehicleSettings
+                        {
+                            Purchasable = true,
+                            DisplayName = "Locomotive",
+                            Distance = 12,
+                            MinDistanceForPlayers = 6,
+                            UsePermission = true,
+                            Permission = "vehiclelicence.locomotive",
+                            Commands = new List<string>
+                            {
+                                "loco", "locomotive"
+                            },
+                            PurchasePrices = new Dictionary<string, PriceInfo>
+                            {
+                                ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
+                            },
+                            SpawnCooldown = 1800,
+                            RecallCooldown = 30,
+                            CooldownPermissions = new Dictionary<string, CooldownPermission>
+                            {
+                                ["vehiclelicence.vip"] = new CooldownPermission
+                                {
+                                    spawnCooldown = 900,
+                                    recallCooldown = 10
+                                }
+                            },
+                            TrainComponents = new List<TrainComponent>
+                            {
+                                new TrainComponent
+                                {
+                                    type = TrainComponentType.Locomotive
+                                }
+                            }
+                        };
+                        config["Train Vehicle Settings"]["Locomotive"] = JObject.FromObject(settings);
+                    }
+                }
+                catch
+                {
+                    // Still ignored.
+                }
+            }
+            Config.WriteObject(config);
+            // Interface.Oxide.DataFileSystem.WriteObject(Name + "_new", jObject);
         }
 
         private JObject GetConfigValue(JObject config, params string[] path)
@@ -5315,11 +5365,11 @@ namespace Oxide.Plugins
                 for (var i = 1; i < path.Length; i++)
                 {
                     var jObject = jToken.ToObject<JObject>();
-                    if (jObject == null || !jObject.TryGetValue(path[i], out jToken))
-                    {
-                        value = default(T);
-                        return false;
-                    }
+                    
+                    if (jObject != null && jObject.TryGetValue(path[i], out jToken)) continue;
+                    
+                    value = default(T);
+                    return false;
                 }
                 value = jToken.ToObject<T>();
                 return true;
