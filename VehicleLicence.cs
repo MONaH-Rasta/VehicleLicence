@@ -1,4 +1,5 @@
-﻿using System;
+﻿//#define DEBUG
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,7 +14,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.1")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.3")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -377,7 +378,7 @@ namespace Oxide.Plugins
                         {
                             if (CanRefundFuel(baseVehicleS, isCrash, isUnload))
                             {
-                                var fuelContainer = (entity as MotorRowboat)?.fuelSystem?.GetFuelContainer()?.inventory;
+                                var fuelContainer = (entity as MotorRowboat)?.GetFuelSystem()?.GetFuelContainer()?.inventory;
                                 if (fuelContainer != null) collect.AddRange(fuelContainer.itemList);
                             }
 
@@ -922,7 +923,12 @@ namespace Oxide.Plugins
         private static bool IsLookingAtWater(BasePlayer player, float distance)
         {
             var lookingAt = GetLookingAtGroundPos(player, distance);
-            return WaterLevel.Test(lookingAt);
+            var list = Facepunch.Pool.GetList<Collider>();
+            Vis.Colliders(lookingAt, 0.5f, list);
+            var flag = list.Any(x => x.gameObject?.layer == (int)Rust.Layer.Water);
+            Facepunch.Pool.FreeList(ref list);
+            return flag;
+            //return WaterLevel.Test(lookingAt);
         }
 
         private static Vector3 GetGroundPosition(Vector3 position)
@@ -1382,6 +1388,13 @@ namespace Oxide.Plugins
                 reason = Lang("NotLookingAtWater", player.UserIDString, baseVehicleS.displayName);
                 return false;
             }
+#if DEBUG
+            if (player.IsAdmin)
+            {
+                reason = null;
+                return true;
+            }
+#endif
             var spawnCooldown = GetSpawnCooldown(player, baseVehicleS);
             if (spawnCooldown > 0)
             {
@@ -1609,6 +1622,13 @@ namespace Oxide.Plugins
                 reason = Lang("NotLookingAtWater", player.UserIDString, baseVehicleS.displayName);
                 return false;
             }
+#if DEBUG
+            if (player.IsAdmin)
+            {
+                reason = null;
+                return true;
+            }
+#endif
             var recallCooldown = GetRecallCooldown(player, baseVehicleS);
             if (recallCooldown > 0)
             {
@@ -1713,6 +1733,11 @@ namespace Oxide.Plugins
                 if (configData.globalS.anyMountedKill && VehicleAnyMounted(vehicle.entity))
                 {
                     Print(player, Lang("PlayerMountedOnVehicle", player.UserIDString, baseVehicleS.displayName));
+                    return false;
+                }
+                if (baseVehicleS.killMaxDistance > 0 && Vector3.Distance(player.transform.position, vehicle.entity.transform.position) > baseVehicleS.killMaxDistance)
+                {
+                    Print(player, Lang("KillTooFar", player.UserIDString, baseVehicleS.killMaxDistance, baseVehicleS.displayName));
                     return false;
                 }
                 vehicle.entity.Kill(BaseNetworkable.DestroyMode.Gib);
@@ -2005,6 +2030,9 @@ namespace Oxide.Plugins
                     }
                 },
             };
+
+            [JsonProperty(PropertyName = "Version")]
+            public VersionNumber version = new VersionNumber(1, 7, 0);
         }
 
         public class ChatSettings
@@ -2015,7 +2043,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Spawn Chat Command")] public string spawnCommand = "spawn";
             [JsonProperty(PropertyName = "Recall Chat Command")] public string recallCommand = "recall";
             [JsonProperty(PropertyName = "Kill Chat Command")] public string killCommand = "kill";
-            [JsonProperty(PropertyName = "Chat Prefix")] public string prefix = "<color=#B366FF>[VehicleLicense]</color>: ";
+            [JsonProperty(PropertyName = "Chat Prefix")] public string prefix = "<color=#00FFFF>[VehicleLicense]</color>: ";
             [JsonProperty(PropertyName = "Chat SteamID Icon")] public ulong steamIDIcon = 76561198924840872;
         }
 
@@ -2280,6 +2308,7 @@ namespace Oxide.Plugins
 
             [JsonProperty(PropertyName = "Maximum Health")] public float maxHealth { get; set; }
             [JsonProperty(PropertyName = "Can Recall Maximum Distance")] public float recallMaxDistance { get; set; }
+            [JsonProperty(PropertyName = "Can Kill Maximum Distance")] public float killMaxDistance { get; set; }
             [JsonProperty(PropertyName = "Remove License Once Crashed")] public bool removeLicenseOnceCrash { get; set; }
 
             [JsonProperty(PropertyName = "Purchase Prices")] public Dictionary<string, PriceInfo> purchasePrices { get; set; }
@@ -2474,7 +2503,13 @@ namespace Oxide.Plugins
             {
                 configData = Config.ReadObject<ConfigData>();
                 if (configData == null)
+                {
                     LoadDefaultConfig();
+                }
+                else
+                {
+                    UpdateConfigValues();
+                }
             }
             catch
             {
@@ -2490,7 +2525,22 @@ namespace Oxide.Plugins
             configData = new ConfigData();
         }
 
-        protected override void SaveConfig() => Config.WriteObject(configData);
+        protected override void SaveConfig() => Config.WriteObject(configData, true);
+
+        private void UpdateConfigValues()
+        {
+            if (configData.version < Version)
+            {
+                if (configData.version <= new VersionNumber(1, 7, 0))
+                {
+                    if (configData.chatS.prefix == "[VehicleLicense]: ")
+                    {
+                        configData.chatS.prefix = "<color=#00FFFF>[VehicleLicense]</color>: ";
+                    }
+                }
+                configData.version = Version;
+            }
+        }
 
         #endregion ConfigurationFile
 
@@ -2635,6 +2685,7 @@ namespace Oxide.Plugins
                 ["NoResourcesToRecallVehicle"] = "You don't have enough resources to recall a <color=#009EFF>{0}</color>. You are missing: {1}",
                 ["MountedOrParented"] = "You cannot spawn or recall a <color=#009EFF>{0}</color> when mounted or parented.",
                 ["RecallTooFar"] = "You must be within <color=#FF1919>{0}</color> meters of <color=#009EFF>{1}</color> to recall.",
+                ["KillTooFar"] = "You must be within <color=#FF1919>{0}</color> meters of <color=#009EFF>{1}</color> to kill.",
             }, this);
             lang.RegisterMessages(new Dictionary<string, string>
             {
@@ -2642,7 +2693,7 @@ namespace Oxide.Plugins
                 ["HelpLicence1"] = "<color=#4DFF4D>/{0}</color> -- 购买一辆载具",
                 ["HelpLicence2"] = "<color=#4DFF4D>/{0}</color> -- 生成一辆载具",
                 ["HelpLicence3"] = "<color=#4DFF4D>/{0}</color> -- 召回一辆载具",
-                ["HelpLicence4"] = "<color=#4DFF4D>/{0}</color> -- 删除一辆载具",
+                ["HelpLicence4"] = "<color=#4DFF4D>/{0}</color> -- 摧毁一辆载具",
                 ["HelpLicence5"] = "<color=#4DFF4D>/{0}</color> -- 购买，生成，召回一辆 <color=#009EFF>{1}</color>",
 
                 ["HelpBuy"] = "<color=#4DFF4D>/{0} {1}</color> -- 购买一辆 <color=#009EFF>{2}</color>",
@@ -2651,7 +2702,7 @@ namespace Oxide.Plugins
                 ["HelpSpawnPrice"] = "<color=#4DFF4D>/{0} {1}</color> -- 生成一辆 <color=#009EFF>{2}</color>，价格: {3}",
                 ["HelpRecall"] = "<color=#4DFF4D>/{0} {1}</color> -- 召回一辆 <color=#009EFF>{2}</color>",
                 ["HelpRecallPrice"] = "<color=#4DFF4D>/{0} {1}</color> -- 召回一辆 <color=#009EFF>{2}</color>，价格: {3}",
-                ["HelpKill"] = "<color=#4DFF4D>/{0} {1}</color> -- 删除一辆 <color=#009EFF>{2}</color>",
+                ["HelpKill"] = "<color=#4DFF4D>/{0} {1}</color> -- 摧毁一辆 <color=#009EFF>{2}</color>",
 
                 ["NotAllowed"] = "您没有权限使用该命令",
                 ["RaidBlocked"] = "<color=#FF1919>您被突袭阻止了，不能使用该命令</color>",
@@ -2665,7 +2716,7 @@ namespace Oxide.Plugins
                 ["VehicleNotYetPurchased"] = "您还没有购买 <color=#009EFF>{0}</color>, 输入 <color=#4DFF4D>/{1}</color> 了解更多信息",
                 ["VehicleSpawned"] = "您生成了您的 <color=#009EFF>{0}</color>",
                 ["VehicleRecalled"] = "您召回了您的 <color=#009EFF>{0}</color>",
-                ["VehicleKilled"] = "您删除了您的 <color=#009EFF>{0}</color>",
+                ["VehicleKilled"] = "您摧毁了您的 <color=#009EFF>{0}</color>",
                 ["VehicleOnSpawnCooldown"] = "您必须等待 <color=#FF1919>{0}</color> 秒，才能生成您的 <color=#009EFF>{1}</color>",
                 ["VehicleOnRecallCooldown"] = "您必须等待 <color=#FF1919>{0}</color> 秒，才能召回您的 <color=#009EFF>{1}</color>",
                 ["NotLookingAtWater"] = "您必须看着水面才能生成您的 <color=#009EFF>{0}</color>",
@@ -2679,6 +2730,7 @@ namespace Oxide.Plugins
                 ["NoResourcesToRecallVehicle"] = "您没有足够的资源召回 <color=#009EFF>{0}</color>，还需要: {1}",
                 ["MountedOrParented"] = "当您坐着或者在附着在实体上时无法生成或召回 <color=#009EFF>{0}</color>",
                 ["RecallTooFar"] = "您必须在 <color=#FF1919>{0}</color> 米内才能召回您的 <color=#009EFF>{1}</color>",
+                ["KillTooFar"] = "您必须在 <color=#FF1919>{0}</color> 米内才能摧毁您的 <color=#009EFF>{1}</color>",
             }, this, "zh-CN");
             lang.RegisterMessages(new Dictionary<string, string>
             {
@@ -2723,6 +2775,7 @@ namespace Oxide.Plugins
                 ["NoResourcesToRecallVehicle"] = "У вас недостаточно ресурсов для покупки <color=#009EFF>{0}</color>. Вам не хватает: {1}",
                 ["MountedOrParented"] = "Вы не можете создать <color=#009EFF>{0}</color> когда сидите или привязаны к объекту.",
                 ["RecallTooFar"] = "Вы должны быть в пределах <color=#FF1919>{0}</color> метров от <color=#009EFF>{1}</color>, чтобы вызывать.",
+                ["KillTooFar"] = "Вы должны быть в пределах <color=#FF1919>{0}</color> метров от <color=#009EFF>{1}</color>, уничтожить.",
             }, this, "ru");
         }
 
