@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.4.4")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.4.5")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -100,8 +100,6 @@ namespace Oxide.Plugins
                     RefundFuel(entry.Key, entry.Value);
                     entry.Key.Kill(BaseNetworkable.DestroyMode.Gib);
                 }
-                if (storedData.playerData.ContainsKey(entry.Value.playerID) && storedData.playerData[entry.Value.playerID].ContainsKey(entry.Value.vehicleType))
-                    storedData.playerData[entry.Value.playerID][entry.Value.vehicleType].entityID = 0;
             }
             SaveData();
         }
@@ -143,7 +141,8 @@ namespace Oxide.Plugins
             Vehicle vehicle;
             if (!vehiclesCache.TryGetValue(entity, out vehicle)) return;
             vehiclesCache.Remove(entity);
-            RefundFuel(entity, vehicle);
+            if (!configData.settings.notRefundFuelOnCrash)
+                RefundFuel(entity, vehicle);
             if (storedData.playerData.ContainsKey(vehicle.playerID) && storedData.playerData[vehicle.playerID].ContainsKey(vehicle.vehicleType))
             {
                 if (configData.settings.removeVehicleOnCrash)
@@ -151,7 +150,6 @@ namespace Oxide.Plugins
                     storedData.playerData[vehicle.playerID].Remove(vehicle.vehicleType);
                     return;
                 }
-                storedData.playerData[vehicle.playerID][vehicle.vehicleType].entityID = 0;
                 storedData.playerData[vehicle.playerID][vehicle.vehicleType].lastDeath = CurrentTime;
             }
         }
@@ -169,11 +167,14 @@ namespace Oxide.Plugins
             foreach (var playerID in users) UserPermissionChanged(playerID);
         }
 
-        private void OnUserGroupAdded(string playerID, string groupName) => UserPermissionChanged(playerID);
+        private void OnUserGroupAdded(string playerID, string groupName)
+        {
+            if (!permission.GroupHasPermission(groupName, PERMISSION_BYPASS_COST)) return;
+            UserPermissionChanged(playerID);
+        }
 
         private void UserPermissionChanged(string playerIDString)
         {
-            if (!permission.UserHasPermission(playerIDString, PERMISSION_BYPASS_COST)) return;
             var playerID = ulong.Parse(playerIDString);
             if (!storedData.playerData.ContainsKey(playerID)) storedData.playerData.Add(playerID, new Dictionary<VehicleType, Vehicle>());
             foreach (int value in Enum.GetValues(typeof(VehicleType)))
@@ -193,10 +194,6 @@ namespace Oxide.Plugins
 
         private void UpdataData()
         {
-            foreach (var entry in storedData.playerData)
-                foreach (var vehicle in entry.Value)
-                    vehicle.Value.entityID = 0;
-
             Dictionary<ulong, LicencedPlayer> licencedPlayer;
             try { licencedPlayer = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<ulong, LicencedPlayer>>(Name); }
             catch { return; }
@@ -253,6 +250,7 @@ namespace Oxide.Plugins
                 if (entry.Key == null || entry.Key.IsDestroyed) continue;
                 if (VehicleAnyMounted(entry.Key)) continue;
                 if (VehicleIsActive(entry.Value)) continue;
+                RefundFuel(entry.Key, entry.Value);
                 entry.Key.Kill(BaseNetworkable.DestroyMode.Gib);
             }
             timer.Once(configData.settings.checkVehiclesTime, CheckVehicles);
@@ -343,7 +341,6 @@ namespace Oxide.Plugins
         private void RefundFuel(BaseEntity entity, Vehicle vehicle)
         {
             ItemContainer itemContainer = null;
-            var player = BasePlayer.FindAwakeOrSleeping(vehicle.playerID.ToString());
             switch (vehicle.vehicleType)
             {
                 case VehicleType.Chinook:
@@ -366,10 +363,10 @@ namespace Oxide.Plugins
 
                 case VehicleType.RidableHorse:
                     //itemContainer = (entity as RidableHorse)?.inventory;
-                    if (itemContainer == null || player == null) return;
                     break;
             }
             if (itemContainer == null) return;
+            var player = BasePlayer.FindAwakeOrSleeping(vehicle.playerID.ToString());
             if (player == null) itemContainer.Drop(PREFAB_ITEM_DROP, entity.GetDropPosition(), entity.transform.rotation);
             else if (itemContainer?.itemList?.Count > 0)
             {
@@ -786,6 +783,7 @@ namespace Oxide.Plugins
                                 Print(player, Lang("PlayerMountedOnVehicle", player.UserIDString, vehicleName));
                                 return;
                             }
+                            RefundFuel(entry.Key, entry.Value);
                             entry.Key.Kill(BaseNetworkable.DestroyMode.Gib);
                         }
                         Print(player, Lang("VehicleRecalled", player.UserIDString, vehicleName));
@@ -840,6 +838,9 @@ namespace Oxide.Plugins
 
                 [JsonProperty(PropertyName = "Remove Vehicles On Crash")]
                 public bool removeVehicleOnCrash = false;
+
+                [JsonProperty(PropertyName = "Not Refund Fuel On Crash")]
+                public bool notRefundFuelOnCrash = false;
 
                 [JsonProperty(PropertyName = "Clear Vehicle Data On Map Wipe")]
                 public bool clearVehicleOnWipe = false;
@@ -976,8 +977,8 @@ namespace Oxide.Plugins
 
         private class Vehicle
         {
-            public uint entityID;
             public double lastDeath;
+            [JsonIgnore] public uint entityID;
             [JsonIgnore] public ulong playerID;
             [JsonIgnore] public double lastDismount;
             [JsonIgnore] public VehicleType vehicleType;
