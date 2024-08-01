@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.12")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.13")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -377,10 +377,10 @@ namespace Oxide.Plugins
         {
             if (RustTranslationAPI != null)
             {
-                displayName = GetItemTranslationByShortName(language, itemShortName);
-                if (!string.IsNullOrEmpty(displayName))
+                var displayName1 = GetItemTranslationByShortName(language, itemShortName);
+                if (!string.IsNullOrEmpty(displayName1))
                 {
-                    return displayName;
+                    return displayName1;
                 }
             }
             return displayName;
