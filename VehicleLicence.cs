@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.5.0")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.5.1")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -33,7 +33,7 @@ namespace Oxide.Plugins
         private const string PREFAB_ITEM_DROP = "assets/prefabs/misc/item drop/item_drop.prefab";
 
         private readonly Dictionary<BaseEntity, Vehicle> vehiclesCache = new Dictionary<BaseEntity, Vehicle>();
-        private readonly static int LAYER_GROUND = Rust.Layers.Solid | Rust.Layers.Mask.Water;
+        private readonly static int LAYER_GROUND = Rust.Layers.Solid | Rust.Layers.Mask.Water;//LayerMask.GetMask("Terrain", "World", "Construction", "Deployed","Water");
 
         private enum VehicleType
         {
@@ -138,66 +138,13 @@ namespace Oxide.Plugins
 
         private void OnEntityDeath(BaseCombatEntity entity, HitInfo info) => CheckEntity(entity, true);
 
-        private void OnEntityKill(BaseEntity entity) => CheckEntity(entity);
+        private void OnEntityKill(BaseCombatEntity entity) => CheckEntity(entity);
 
         #endregion Oxide Hooks
 
-        #region Update Old Data
-
-        private void UpdataOldData()
-        {
-            Dictionary<ulong, LicencedPlayer> licencedPlayer;
-            try { licencedPlayer = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<ulong, LicencedPlayer>>(Name); }
-            catch { return; }
-            foreach (var entry in licencedPlayer)
-            {
-                if (entry.Value.Vehicles.Count > 0)
-                {
-                    var vehicleTypes = new Dictionary<VehicleType, Vehicle>();
-                    foreach (var vehicle in entry.Value.Vehicles)
-                        vehicleTypes.Add(GetVehiclePrefab(vehicle.Value.Prefab), new Vehicle());
-                    storedData.playerData.Add(entry.Key, vehicleTypes);
-                }
-            }
-            SaveData();
-        }
-
-        private class LicencedPlayer
-        {
-            public readonly ulong Userid;
-            public Dictionary<string, Vehicle1> Vehicles;
-        }
-
-        private class Vehicle1
-        {
-            public ulong Userid;
-            public string Prefab;
-            public uint Id;
-            public TimeSpan Spawned;
-            public DateTime LastDismount;
-        }
-
-        private VehicleType GetVehiclePrefab(string prefab)
-        {
-            switch (prefab)
-            {
-                case PREFAB_ROWBOAT: return VehicleType.Rowboat;
-                case PREFAB_RHIB: return VehicleType.RHIB;
-                case PREFAB_SEDAN: return VehicleType.Sedan;
-                case PREFAB_HOTAIRBALLOON: return VehicleType.HotAirBalloon;
-                case PREFAB_MINICOPTER: return VehicleType.MiniCopter;
-                case PREFAB_TRANSPORTCOPTER: return VehicleType.TransportHelicopter;
-                case PREFAB_CHINOOK: return VehicleType.Chinook;
-                case PREFAB_RIDABLEHORSE: return VehicleType.RidableHorse;
-            }
-            return default(VehicleType);
-        }
-
-        #endregion Update Old Data
-
         #region Helpers
 
-        private void CheckEntity(BaseEntity entity, bool onCrash = false)
+        private void CheckEntity(BaseCombatEntity entity, bool onCrash = false)
         {
             if (entity == null) return;
             Vehicle vehicle;
@@ -268,20 +215,20 @@ namespace Oxide.Plugins
 
                 case VehicleType.MiniCopter:
                 case VehicleType.TransportHelicopter:
-                    itemContainer = (entity as MiniCopter)?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory;
+                    itemContainer = (entity as MiniCopter)?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory ?? null;
                     break;
 
                 case VehicleType.HotAirBalloon:
-                    itemContainer = (entity as HotAirBalloon)?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory;
+                    itemContainer = (entity as HotAirBalloon)?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory ?? null;
                     break;
 
                 case VehicleType.RHIB:
                 case VehicleType.Rowboat:
-                    itemContainer = (entity as MotorRowboat)?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory;
+                    itemContainer = (entity as MotorRowboat)?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory ?? null;
                     break;
 
                 case VehicleType.RidableHorse:
-                    itemContainer = (entity as RidableHorse)?.inventory;
+                    itemContainer = (entity as RidableHorse)?.inventory ?? null;
                     break;
             }
             if (itemContainer == null) return;
@@ -407,7 +354,7 @@ namespace Oxide.Plugins
             if (Physics.Raycast(ray, out hit, distance, LAYER_GROUND))
                 return hit.point;
             var position = ray.origin + ray.direction * distance;
-            if (Physics.Raycast(position + Vector3.up * 100, Vector3.down, out hit, 200, LAYER_GROUND))
+            if (Physics.Raycast(position + Vector3.up * 200, Vector3.down, out hit, 500, LAYER_GROUND))
                 return hit.point;
             position.y = TerrainMeta.HeightMap.GetHeight(position);
             return position;
@@ -422,7 +369,7 @@ namespace Oxide.Plugins
         private Vector3 GetGroundPosition(Vector3 position)
         {
             RaycastHit hitInfo;
-            if (Physics.Raycast(position + Vector3.up * 200, Vector3.down, out hitInfo, 250f, LAYER_GROUND)) position.y = hitInfo.point.y;
+            if (Physics.Raycast(position + Vector3.up * 200, Vector3.down, out hitInfo, 500f, LAYER_GROUND)) position.y = hitInfo.point.y;
             else position.y = TerrainMeta.HeightMap.GetHeight(position);
             return position;
         }
@@ -439,6 +386,28 @@ namespace Oxide.Plugins
         }
 
         private List<string> GetPlayerVehicles(ulong playerID) => storedData.playerData.ContainsKey(playerID) ? storedData.playerData[playerID].Keys.Select(x => x.ToString()).ToList() : new List<string>();
+
+        private uint GetPlayerVehicleID(ulong playerID, string type)
+        {
+            VehicleType vehicleType;
+            if (!Enum.TryParse(type, true, out vehicleType)) return 0;
+            if (storedData.playerData.ContainsKey(playerID) && storedData.playerData[playerID].ContainsKey(vehicleType))
+                return storedData.playerData[playerID][vehicleType].entityID;
+            return 0;
+        }
+
+        private bool IsVLVehicle(uint entityID)
+        {
+            foreach (var playerData in storedData.playerData)
+            {
+                foreach (var vehicle in playerData.Value)
+                {
+                    if (vehicle.Value.entityID == entityID)
+                        return true;
+                }
+            }
+            return false;
+        }
 
         #endregion API
 
@@ -836,12 +805,13 @@ namespace Oxide.Plugins
             var vehicleS = configData.vehicleS[vehicleType];
             Vector3 position; Quaternion rotation;
             GetVehicleSpawnPos(player, vehicleS.distance, checkWater, out position, out rotation);
-            var entity = GameManager.server.CreateEntity(prefab, position, rotation);
+            var entity = GameManager.server.CreateEntity(prefab, position, rotation) as BaseCombatEntity;
             if (entity == null) return;
             entity.enableSaving = false;
             entity.OwnerID = player.userID;
             entity.Spawn();
-
+            if (vehicleS.maxHealth > 0 && vehicleS.maxHealth != entity.MaxHealth())
+                entity.InitializeHealth(vehicleS.maxHealth, vehicleS.maxHealth);
             if (configData.globalS.noServerGibs && entity is BaseVehicle)
                 (entity as BaseVehicle).serverGibs.guid = string.Empty;
             if (configData.globalS.noFireBall && entity is BaseHelicopterVehicle)
@@ -852,6 +822,7 @@ namespace Oxide.Plugins
                 helicopter.mapMarkerInstance?.Kill();
                 helicopter.mapMarkerEntityPrefab.guid = string.Empty;
             }
+
             var vehicle = new Vehicle { playerID = player.userID, vehicleType = vehicleType, entityID = entity.net.ID, lastDismount = TimeEx.currentTimestamp };
             vehiclesCache.Add(entity, vehicle);
             storedData.playerData[player.userID][vehicleType] = vehicle;
@@ -1174,6 +1145,7 @@ namespace Oxide.Plugins
                 {
                     purchasable = true,
                     displayName = "Row Boat",
+                    maxHealth = 400,
                     cooldown = 180,
                     distance = 5,
                     permission = "vehiclelicence.rowboat",
@@ -1184,6 +1156,7 @@ namespace Oxide.Plugins
                 {
                     purchasable = true,
                     displayName = "RHIB",
+                    maxHealth = 500,
                     cooldown = 300,
                     distance = 10,
                     permission = "vehiclelicence.rhib",
@@ -1194,6 +1167,7 @@ namespace Oxide.Plugins
                 {
                     purchasable = true,
                     displayName = "Sedan",
+                    maxHealth = 300,
                     cooldown = 180,
                     distance = 5,
                     permission = "vehiclelicence.sedan",
@@ -1204,6 +1178,7 @@ namespace Oxide.Plugins
                 {
                     purchasable = true,
                     displayName = "Hot Air Balloon",
+                    maxHealth = 1500,
                     cooldown = 900,
                     distance = 20,
                     permission = "vehiclelicence.hotairballoon",
@@ -1214,6 +1189,7 @@ namespace Oxide.Plugins
                 {
                     purchasable = true,
                     displayName = "Mini Copter",
+                    maxHealth = 750,
                     cooldown = 1800,
                     distance = 8,
                     permission = "vehiclelicence.minicopter",
@@ -1224,6 +1200,7 @@ namespace Oxide.Plugins
                 {
                     purchasable = true,
                     displayName = "Transport Copter",
+                    maxHealth = 1000,
                     cooldown = 2400,
                     distance = 10,
                     permission = "vehiclelicence.transportcopter",
@@ -1234,6 +1211,7 @@ namespace Oxide.Plugins
                 {
                     purchasable = true,
                     displayName = "Chinook",
+                    maxHealth = 1000,
                     cooldown = 3000,
                     distance = 20,
                     permission = "vehiclelicence.chinook",
@@ -1244,6 +1222,7 @@ namespace Oxide.Plugins
                 {
                     purchasable = true,
                     displayName = "Ridable Horse",
+                    maxHealth = 400,
                     cooldown = 3000,
                     distance = 5,
                     permission = "vehiclelicence.ridablehorse",
@@ -1258,6 +1237,7 @@ namespace Oxide.Plugins
                 [JsonProperty(PropertyName = "Use Permission")] public bool usePermission = true;
                 [JsonProperty(PropertyName = "Permission")] public string permission;
                 [JsonProperty(PropertyName = "Vehicle Display Name")] public string displayName;
+                [JsonProperty(PropertyName = "Max Health")] public float maxHealth;
                 [JsonProperty(PropertyName = "Distance To Spawn")] public float distance;
                 [JsonProperty(PropertyName = "Can Recall Min Distance")] public float recallMinDis;
                 [JsonProperty(PropertyName = "Cooldown (Seconds)")] public double cooldown;
@@ -1335,7 +1315,6 @@ namespace Oxide.Plugins
             catch
             {
                 storedData = new StoredData();
-                UpdataOldData();
                 SaveData();
             }
         }
