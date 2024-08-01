@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.4.9")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.4.10")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -107,6 +107,12 @@ namespace Oxide.Plugins
 
         private void OnServerSave() => timer.Once(UnityEngine.Random.Range(0f, 60f), SaveData);
 
+        private void OnPlayerConnected(BasePlayer player)
+        {
+            if (permission.UserHasPermission(player.UserIDString, PERMISSION_BYPASS_COST))
+                PurchaseAllVehicles(player.userID);
+        }
+
         private void OnEntityDismounted(BaseMountable entity, BasePlayer player)
         {
             var vehicleParent = entity?.VehicleParent();
@@ -137,25 +143,6 @@ namespace Oxide.Plugins
         private void OnEntityDeath(BaseCombatEntity entity, HitInfo info) => CheckEntity(entity, true);
 
         private void OnEntityKill(BaseEntity entity) => CheckEntity(entity);
-
-        private void OnUserPermissionGranted(string playerID, string permName)
-        {
-            if (permName != PERMISSION_BYPASS_COST) return;
-            UserPermissionChanged(playerID);
-        }
-
-        private void OnGroupPermissionGranted(string groupName, string permName)
-        {
-            if (permName != PERMISSION_BYPASS_COST) return;
-            var users = permission.GetUsersInGroup(groupName);
-            foreach (var playerID in users) UserPermissionChanged(playerID);
-        }
-
-        private void OnUserGroupAdded(string playerID, string groupName)
-        {
-            if (!permission.GroupHasPermission(groupName, PERMISSION_BYPASS_COST)) return;
-            UserPermissionChanged(playerID);
-        }
 
         #endregion Oxide Hooks
 
@@ -234,9 +221,8 @@ namespace Oxide.Plugins
             }
         }
 
-        private void UserPermissionChanged(string playerIDString)
+        private void PurchaseAllVehicles(ulong playerID)
         {
-            var playerID = ulong.Parse(playerIDString);
             if (!storedData.playerData.ContainsKey(playerID)) storedData.playerData.Add(playerID, new Dictionary<VehicleType, Vehicle>());
             foreach (int value in Enum.GetValues(typeof(VehicleType)))
             {
