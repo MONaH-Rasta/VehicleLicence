@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.4.7")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.4.8")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -39,7 +39,7 @@ namespace Oxide.Plugins
         private const string PREFAB_ITEM_DROP = "assets/prefabs/misc/item drop/item_drop.prefab";
 
         private readonly DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0);
-        private Dictionary<BaseEntity, Vehicle> vehiclesCache = new Dictionary<BaseEntity, Vehicle>();
+        private readonly Dictionary<BaseEntity, Vehicle> vehiclesCache = new Dictionary<BaseEntity, Vehicle>();
         private readonly static int LAYER_GROUND = LayerMask.GetMask("Terrain", "World", "Construction", "Deployed");
         private double CurrentTime => DateTime.Now.Subtract(epoch).TotalSeconds;
 
@@ -190,8 +190,6 @@ namespace Oxide.Plugins
 
         #endregion Oxide Hooks
 
-        #region Helpers
-
         #region Update Old Data
 
         private void UpdataOldData()
@@ -244,6 +242,8 @@ namespace Oxide.Plugins
         }
 
         #endregion Update Old Data
+
+        #region Helpers
 
         private void CheckVehicles()
         {
@@ -412,7 +412,7 @@ namespace Oxide.Plugins
             return storedData.playerData.ContainsKey(playerID) && storedData.playerData[playerID].ContainsKey(vehicleType);
         }
 
-        private List<string> GetVehicleTypes(ulong playerID) => storedData.playerData.ContainsKey(playerID) ? storedData.playerData[playerID].Keys.Select(x => x.ToString()).ToList() : new List<string>();
+        private List<string> GetPlayerVehicles(ulong playerID) => storedData.playerData.ContainsKey(playerID) ? storedData.playerData[playerID].Keys.Select(x => x.ToString()).ToList() : new List<string>();
 
         #endregion API
 
@@ -698,9 +698,14 @@ namespace Oxide.Plugins
             if (string.IsNullOrEmpty(prefab)) return;
             var vehicleSetting = configData.vehicleS[vehicleType];
 
-            var position = player.transform.position + (UnityEngine.Random.onUnitSphere * vehicleSetting.distance) + new Vector3(0f, 2 * vehicleSetting.distance, 0f);
+            Vector3 position = Vector3.zero;
+            if (configData.settings.spawnLookingAt) position = player.transform.position + player.eyes.HeadForward() * vehicleSetting.distance;
+            else
+            {
+                var circle = UnityEngine.Random.insideUnitCircle * vehicleSetting.distance;
+                position = player.transform.position + new Vector3(circle.x, 0, circle.y);
+            }
             position = GetGroundPosition(position);
-
             var entity = GameManager.server.CreateEntity(prefab, position + new Vector3(0f, 1.8f, 0f), player.transform.rotation);
             if (entity == null) return;
             entity.enableSaving = false;
@@ -719,8 +724,9 @@ namespace Oxide.Plugins
 
         private Vector3 GetGroundPosition(Vector3 position)
         {
+            position.y += 100f;
             RaycastHit hitInfo;
-            if (Physics.Raycast(position, Vector3.down, out hitInfo, 100f, LAYER_GROUND)) position.y = hitInfo.point.y;
+            if (Physics.Raycast(position, Vector3.down, out hitInfo, 200f, LAYER_GROUND)) position.y = hitInfo.point.y;
             else position.y = TerrainMeta.HeightMap.GetHeight(position);
             return position;
         }
@@ -834,6 +840,9 @@ namespace Oxide.Plugins
                 [JsonProperty(PropertyName = "Check if any player mounted when recalling a vehicle")]
                 public bool checkAnyMounted = true;
 
+                [JsonProperty(PropertyName = "Spawn vehicle in the direction you are looking at")]
+                public bool spawnLookingAt = true;
+
                 [JsonProperty(PropertyName = "Use Clans")]
                 public bool useClans = true;
 
@@ -920,7 +929,7 @@ namespace Oxide.Plugins
                 [VehicleType.HotAirBalloon] = new VehicleSetting { displayName = "Hot Air Balloon", purchasable = true, cooldown = 900, distance = 20, commands = new List<string> { "hab", "hotairballoon" }, price = new Dictionary<string, VehicleSetting.ItemInfo> { ["scrap"] = new VehicleSetting.ItemInfo { amount = 5000, displayName = "Scrap" } } },
                 [VehicleType.MiniCopter] = new VehicleSetting { displayName = "Mini Copter", purchasable = true, cooldown = 1800, distance = 8, commands = new List<string> { "mini", "minicopter" }, price = new Dictionary<string, VehicleSetting.ItemInfo> { ["scrap"] = new VehicleSetting.ItemInfo { amount = 10000, displayName = "Scrap" } } },
                 [VehicleType.TransportHelicopter] = new VehicleSetting { displayName = "Transport Copter", purchasable = true, cooldown = 2400, distance = 10, commands = new List<string> { "scrapcopter", "transportcopter" }, price = new Dictionary<string, VehicleSetting.ItemInfo> { ["scrap"] = new VehicleSetting.ItemInfo { amount = 20000, displayName = "Scrap" } } },
-                [VehicleType.Chinook] = new VehicleSetting { displayName = "Chinook", purchasable = true, cooldown = 3000, distance = 25, commands = new List<string> { "ch47", "chinook" }, price = new Dictionary<string, VehicleSetting.ItemInfo> { ["scrap"] = new VehicleSetting.ItemInfo { amount = 30000, displayName = "Scrap" } } },
+                [VehicleType.Chinook] = new VehicleSetting { displayName = "Chinook", purchasable = true, cooldown = 3000, distance = 20, commands = new List<string> { "ch47", "chinook" }, price = new Dictionary<string, VehicleSetting.ItemInfo> { ["scrap"] = new VehicleSetting.ItemInfo { amount = 30000, displayName = "Scrap" } } },
                 [VehicleType.RidableHorse] = new VehicleSetting { displayName = "Ridable Horse", purchasable = true, cooldown = 3000, distance = 5, commands = new List<string> { "horse", "ridablehorse" }, price = new Dictionary<string, VehicleSetting.ItemInfo> { ["scrap"] = new VehicleSetting.ItemInfo { amount = 700, displayName = "Scrap" } } }
             };
 
