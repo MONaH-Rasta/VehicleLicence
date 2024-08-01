@@ -20,9 +20,11 @@ using UnityEngine;
 using Debug = UnityEngine.Debug;
 using Random = UnityEngine.Random;
 
+// TODO: Fix mincopters spawning above user.
+
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.1")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.2")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -31,65 +33,65 @@ namespace Oxide.Plugins
         [PluginReference]
         private readonly Plugin Economics, ServerRewards, Friends, Clans, NoEscape, LandOnCargoShip, RustTranslationAPI, ZoneManager;
 
-        private static readonly string PERMISSION_USE = "vehiclelicence.use";
-        private static readonly string PERMISSION_ALL = "vehiclelicence.all";
-        private static readonly string PERMISSION_ADMIN = "vehiclelicence.admin";
+        private readonly string PERMISSION_USE = "vehiclelicence.use";
+        private readonly string PERMISSION_ALL = "vehiclelicence.all";
+        private readonly string PERMISSION_ADMIN = "vehiclelicence.admin";
 
-        private static readonly string PERMISSION_BYPASS_COST = "vehiclelicence.bypasscost";
-        private static readonly string PERMISSION_NO_DAMAGE = "vehiclelicence.nodamage";
-        private static readonly string PERMISSION_NO_COLLISION_DAMAGE = "vehiclelicence.nocollisiondamage";
+        private readonly string PERMISSION_BYPASS_COST = "vehiclelicence.bypasscost";
+        private readonly string PERMISSION_NO_DAMAGE = "vehiclelicence.nodamage";
+        private readonly string PERMISSION_NO_COLLISION_DAMAGE = "vehiclelicence.nocollisiondamage";
 
-        private static readonly int ITEMID_FUEL = -946369541;
-        private static readonly int ITEMID_HOTAIRBALLOON_ARMOR = -1989600732;
-        private static readonly string PREFAB_ITEM_DROP = "assets/prefabs/misc/item drop/item_drop.prefab";
+        private const int ITEMID_FUEL = -946369541;
+        private const int ITEMID_HOTAIRBALLOON_ARMOR = -1989600732;
+        private const string PREFAB_ITEM_DROP = "assets/prefabs/misc/item drop/item_drop.prefab";
 
-        private static readonly string PREFAB_TUGBOAT = "assets/content/vehicles/boats/tugboat/tugboat.prefab";
-        private static readonly string PREFAB_ROWBOAT = "assets/content/vehicles/boats/rowboat/rowboat.prefab";
-        private static readonly string PREFAB_RHIB = "assets/content/vehicles/boats/rhib/rhib.prefab";
-        private static readonly string PREFAB_SEDAN = "assets/content/vehicles/sedan_a/sedantest.entity.prefab";
-        private static readonly string PREFAB_HOTAIRBALLOON = "assets/prefabs/deployable/hot air balloon/hotairballoon.prefab";
-        private static readonly string PREFAB_MINICOPTER = "assets/content/vehicles/minicopter/minicopter.entity.prefab";
-        private static readonly string PREFAB_ATTACKHELICOPTER = "assets/content/vehicles/attackhelicopter/attackhelicopter.entity.prefab";
-        private static readonly string PREFAB_TRANSPORTCOPTER = "assets/content/vehicles/scrap heli carrier/scraptransporthelicopter.prefab";
-        private static readonly string PREFAB_CHINOOK = "assets/prefabs/npc/ch47/ch47.entity.prefab";
-        private static readonly string PREFAB_RIDABLEHORSE = "assets/rust.ai/nextai/testridablehorse.prefab";
-        private static readonly string PREFAB_WORKCART = "assets/content/vehicles/trains/workcart/workcart.entity.prefab";
-        private static readonly string PREFAB_SEDANRAIL = "assets/content/vehicles/sedan_a/sedanrail.entity.prefab";
-        private static readonly string PREFAB_MAGNET_CRANE = "assets/content/vehicles/crane_magnet/magnetcrane.entity.prefab";
-        private static readonly string PREFAB_SUBMARINE_DUO = "assets/content/vehicles/submarine/submarineduo.entity.prefab";
-        private static readonly string PREFAB_SUBMARINE_SOLO = "assets/content/vehicles/submarine/submarinesolo.entity.prefab";
+        private const string PREFAB_TUGBOAT = "assets/content/vehicles/boats/tugboat/tugboat.prefab";
+        private const string PREFAB_ROWBOAT = "assets/content/vehicles/boats/rowboat/rowboat.prefab";
+        private const string PREFAB_RHIB = "assets/content/vehicles/boats/rhib/rhib.prefab";
+        private const string PREFAB_SEDAN = "assets/content/vehicles/sedan_a/sedantest.entity.prefab";
+        private const string PREFAB_HOTAIRBALLOON = "assets/prefabs/deployable/hot air balloon/hotairballoon.prefab";
+        private const string PREFAB_MINICOPTER = "assets/content/vehicles/minicopter/minicopter.entity.prefab";
+        private const string PREFAB_ATTACKHELICOPTER = "assets/content/vehicles/attackhelicopter/attackhelicopter.entity.prefab";
+        private const string PREFAB_TRANSPORTCOPTER = "assets/content/vehicles/scrap heli carrier/scraptransporthelicopter.prefab";
+        private const string PREFAB_CHINOOK = "assets/prefabs/npc/ch47/ch47.entity.prefab";
+        private const string PREFAB_RIDABLEHORSE = "assets/rust.ai/nextai/testridablehorse.prefab";
+        private const string PREFAB_WORKCART = "assets/content/vehicles/trains/workcart/workcart.entity.prefab";
+        private const string PREFAB_SEDANRAIL = "assets/content/vehicles/sedan_a/sedanrail.entity.prefab";
+        private const string PREFAB_MAGNET_CRANE = "assets/content/vehicles/crane_magnet/magnetcrane.entity.prefab";
+        private const string PREFAB_SUBMARINE_DUO = "assets/content/vehicles/submarine/submarineduo.entity.prefab";
+        private const string PREFAB_SUBMARINE_SOLO = "assets/content/vehicles/submarine/submarinesolo.entity.prefab";
 
-        private static readonly string PREFAB_CHASSIS_SMALL = "assets/content/vehicles/modularcar/car_chassis_2module.entity.prefab";
-        private static readonly string PREFAB_CHASSIS_MEDIUM = "assets/content/vehicles/modularcar/car_chassis_3module.entity.prefab";
-        private static readonly string PREFAB_CHASSIS_LARGE = "assets/content/vehicles/modularcar/car_chassis_4module.entity.prefab";
+        private const string PREFAB_CHASSIS_SMALL = "assets/content/vehicles/modularcar/car_chassis_2module.entity.prefab";
+        private const string PREFAB_CHASSIS_MEDIUM = "assets/content/vehicles/modularcar/car_chassis_3module.entity.prefab";
+        private const string PREFAB_CHASSIS_LARGE = "assets/content/vehicles/modularcar/car_chassis_4module.entity.prefab";
 
-        private static readonly string PREFAB_SNOWMOBILE = "assets/content/vehicles/snowmobiles/snowmobile.prefab";
-        private static readonly string PREFAB_SNOWMOBILE_TOMAHA = "assets/content/vehicles/snowmobiles/tomahasnowmobile.prefab";
+        private const string PREFAB_SNOWMOBILE = "assets/content/vehicles/snowmobiles/snowmobile.prefab";
+        private const string PREFAB_SNOWMOBILE_TOMAHA = "assets/content/vehicles/snowmobiles/tomahasnowmobile.prefab";
 
         // Train Engine
-        private static readonly string PREFAB_TRAINENGINE = "assets/content/vehicles/trains/workcart/workcart_aboveground.entity.prefab";
-        private static readonly string PREFAB_TRAINENGINE_COVERED = "assets/content/vehicles/trains/workcart/workcart_aboveground2.entity.prefab";
-        private static readonly string PREFAB_TRAINENGINE_LOCOMOTIVE = "assets/content/vehicles/trains/locomotive/locomotive.entity.prefab";
+        private const string PREFAB_TRAINENGINE = "assets/content/vehicles/trains/workcart/workcart_aboveground.entity.prefab";
+        private const string PREFAB_TRAINENGINE_COVERED = "assets/content/vehicles/trains/workcart/workcart_aboveground2.entity.prefab";
+        private const string PREFAB_TRAINENGINE_LOCOMOTIVE = "assets/content/vehicles/trains/locomotive/locomotive.entity.prefab";
 
         // Train Car
-        private static readonly string PREFAB_TRAINWAGON_A = "assets/content/vehicles/trains/wagons/trainwagona.entity.prefab";
-        private static readonly string PREFAB_TRAINWAGON_B = "assets/content/vehicles/trains/wagons/trainwagonb.entity.prefab";
-        private static readonly string PREFAB_TRAINWAGON_C = "assets/content/vehicles/trains/wagons/trainwagonc.entity.prefab";
-        private static readonly string PREFAB_TRAINWAGON_UNLOADABLE = "assets/content/vehicles/trains/wagons/trainwagonunloadable.entity.prefab";
-        private static readonly string PREFAB_TRAINWAGON_UNLOADABLE_FUEL = "assets/content/vehicles/trains/wagons/trainwagonunloadablefuel.entity.prefab";
-        private static readonly string PREFAB_TRAINWAGON_UNLOADABLE_LOOT = "assets/content/vehicles/trains/wagons/trainwagonunloadableloot.entity.prefab";
-        private static readonly string PREFAB_CABOOSE = "assets/content/vehicles/trains/caboose/traincaboose.entity.prefab";
+        private const string PREFAB_TRAINWAGON_A = "assets/content/vehicles/trains/wagons/trainwagona.entity.prefab";
+        private const string PREFAB_TRAINWAGON_B = "assets/content/vehicles/trains/wagons/trainwagonb.entity.prefab";
+        private const string PREFAB_TRAINWAGON_C = "assets/content/vehicles/trains/wagons/trainwagonc.entity.prefab";
+        private const string PREFAB_TRAINWAGON_UNLOADABLE = "assets/content/vehicles/trains/wagons/trainwagonunloadable.entity.prefab";
+        private const string PREFAB_TRAINWAGON_UNLOADABLE_FUEL = "assets/content/vehicles/trains/wagons/trainwagonunloadablefuel.entity.prefab";
+        private const string PREFAB_TRAINWAGON_UNLOADABLE_LOOT = "assets/content/vehicles/trains/wagons/trainwagonunloadableloot.entity.prefab";
+        private const string PREFAB_CABOOSE = "assets/content/vehicles/trains/caboose/traincaboose.entity.prefab";
         
         // Defaults for Vehicle Modifications
-        private static readonly float TUGBOAT_ENGINETHRUST = 200000f;
-        private static readonly float HELICOPTER_LIFT = 0.25f;
-        private static readonly Vector3 SCRAP_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 4000.0f);
-        private static readonly Vector3 MINICOPTER_TORQUE = new Vector3(400.0f, 400.0f, 200.0f);
-        private static readonly Vector3 ATTACK_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 5200.0f);
+        private readonly float TUGBOAT_ENGINETHRUST = 200000f;
+        private readonly float HELICOPTER_LIFT = 0.25f;
+        private readonly Vector3 SCRAP_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 4000.0f);
+        private readonly Vector3 MINICOPTER_TORQUE = new Vector3(400.0f, 400.0f, 200.0f);
+        private readonly Vector3 ATTACK_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 5200.0f);
 
-        private static readonly int LAYER_GROUND = Layers.Solid | Layers.Mask.Water;
+        private const int LAYER_GROUND = Layers.Solid | Layers.Mask.Water;
 
-        private static readonly object _false = false;
+        private readonly object _false = false;
         private bool finishedLoading = false;
 
         public static VehicleLicence Instance { get; private set; }
@@ -3815,7 +3817,7 @@ namespace Oxide.Plugins
                 if (entity is HotAirBalloon && vehicle.VehicleType.Equals(NormalVehicleType.ArmoredHotAirBalloon.ToString()))
                 {
                     HotAirBalloon HAB = entity as HotAirBalloon;
-                    Item armor = ItemManager.CreateByItemID(ITEMID_HOTAIRBALLOON_ARMOR);
+                    Item armor = ItemManager.CreateByItemID(ITEMID_HOTAIRBALLOON_ARMOR); // Using int instead of string prefab.
                     if (armor == null)
                     {
                         Debug.Log("[VehicleLicence] Please report this to the developer/maintainer. PREFAB_HOTAIRBALLOON_ARMOR's item is NULL");
@@ -4678,7 +4680,7 @@ namespace Oxide.Plugins
             
             protected override IEnumerable<ItemContainer> GetInventories(BaseEntity entity)
             {
-                yield return (entity as RidableHorse)?.inventory;
+                yield return (entity as RidableHorse)?.storageInventory;
             }
 
             public override void PostRecallVehicle(BasePlayer player, Vehicle vehicle, Vector3 position, Quaternion rotation)
