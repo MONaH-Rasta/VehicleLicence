@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.4.8")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.4.9")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -134,27 +134,9 @@ namespace Oxide.Plugins
                 hitInfo.damageTypes.Scale(Rust.DamageType.Decay, 0);
         }
 
-        private void OnEntityDeath(BaseCombatEntity entity, HitInfo info) => OnEntityKill(entity);
+        private void OnEntityDeath(BaseCombatEntity entity, HitInfo info) => CheckEntity(entity, true);
 
-        private void OnEntityKill(BaseEntity entity)
-        {
-            if (entity == null) return;
-            Vehicle vehicle;
-            if (!vehiclesCache.TryGetValue(entity, out vehicle)) return;
-            vehiclesCache.Remove(entity);
-            if (!configData.settings.notRefundFuelOnCrash)
-                RefundFuel(entity, vehicle);
-            if (storedData.playerData.ContainsKey(vehicle.playerID) && storedData.playerData[vehicle.playerID].ContainsKey(vehicle.vehicleType))
-            {
-                if (configData.settings.removeVehicleOnCrash)
-                {
-                    storedData.playerData[vehicle.playerID].Remove(vehicle.vehicleType);
-                    return;
-                }
-                storedData.playerData[vehicle.playerID][vehicle.vehicleType].entityID = 0;
-                storedData.playerData[vehicle.playerID][vehicle.vehicleType].lastDeath = CurrentTime;
-            }
-        }
+        private void OnEntityKill(BaseEntity entity) => CheckEntity(entity);
 
         private void OnUserPermissionGranted(string playerID, string permName)
         {
@@ -173,19 +155,6 @@ namespace Oxide.Plugins
         {
             if (!permission.GroupHasPermission(groupName, PERMISSION_BYPASS_COST)) return;
             UserPermissionChanged(playerID);
-        }
-
-        private void UserPermissionChanged(string playerIDString)
-        {
-            var playerID = ulong.Parse(playerIDString);
-            if (!storedData.playerData.ContainsKey(playerID)) storedData.playerData.Add(playerID, new Dictionary<VehicleType, Vehicle>());
-            foreach (int value in Enum.GetValues(typeof(VehicleType)))
-            {
-                var vehicleType = (VehicleType)value;
-                if (!storedData.playerData[playerID].ContainsKey(vehicleType))
-                    storedData.playerData[playerID].Add(vehicleType, new Vehicle());
-            }
-            SaveData();
         }
 
         #endregion Oxide Hooks
@@ -244,6 +213,39 @@ namespace Oxide.Plugins
         #endregion Update Old Data
 
         #region Helpers
+
+        private void CheckEntity(BaseEntity entity, bool isDeath = false)
+        {
+            if (entity == null) return;
+            Vehicle vehicle;
+            if (!vehiclesCache.TryGetValue(entity, out vehicle)) return;
+            vehiclesCache.Remove(entity);
+            if (!configData.settings.notRefundFuelOnCrash)
+                RefundFuel(entity, vehicle);
+            if (storedData.playerData.ContainsKey(vehicle.playerID) && storedData.playerData[vehicle.playerID].ContainsKey(vehicle.vehicleType))
+            {
+                if (isDeath && configData.settings.removeVehicleOnCrash)
+                {
+                    storedData.playerData[vehicle.playerID].Remove(vehicle.vehicleType);
+                    return;
+                }
+                storedData.playerData[vehicle.playerID][vehicle.vehicleType].entityID = 0;
+                storedData.playerData[vehicle.playerID][vehicle.vehicleType].lastDeath = CurrentTime;
+            }
+        }
+
+        private void UserPermissionChanged(string playerIDString)
+        {
+            var playerID = ulong.Parse(playerIDString);
+            if (!storedData.playerData.ContainsKey(playerID)) storedData.playerData.Add(playerID, new Dictionary<VehicleType, Vehicle>());
+            foreach (int value in Enum.GetValues(typeof(VehicleType)))
+            {
+                var vehicleType = (VehicleType)value;
+                if (!storedData.playerData[playerID].ContainsKey(vehicleType))
+                    storedData.playerData[playerID].Add(vehicleType, new Vehicle());
+            }
+            SaveData();
+        }
 
         private void CheckVehicles()
         {
@@ -1049,8 +1051,9 @@ namespace Oxide.Plugins
 
         private void Print(ConsoleSystem.Arg arg, string message)
         {
-            if (arg?.Player() == null) Puts(message);
-            else PrintToConsole(arg.Player(), message);
+            var player = arg.Player();
+            if (player == null) Puts(message);
+            else PrintToConsole(player, message);
         }
 
         private string Lang(string key, string id = null, params object[] args) => string.Format(lang.GetMessage(key, this, id), args);
