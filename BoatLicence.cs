@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Boat Licence", "Sorrow", "0.6.1")]
+    [Info("Boat Licence", "Sorrow", "0.6.2")]
     [Description("Allows players to buy a boat and then spawn or store it")]
 
     class BoatLicence : RustPlugin
@@ -263,14 +263,14 @@ namespace Oxide.Plugins
                                 SendReply(player, Msg("alreadyRowBoatOut", player.UserIDString));
                                 return;
                             }
-                            else if (_cooldownToUseSpawnCmd > 0 && lisencedPlayer.boatSpawned > DateTime.Now.Subtract(TimeSpan.FromSeconds(_cooldownToUseSpawnCmd)).TimeOfDay)
+                            else if (_cooldownToUseSpawnCmd > 0 && lisencedPlayer.boatSpawned > (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0)).Subtract(TimeSpan.FromSeconds(_cooldownToUseSpawnCmd)))
                             {
-                                SendReply(player, string.Format(Msg("boatOnCooldown", player.UserIDString), Convert.ToInt32((lisencedPlayer.boatSpawned - DateTime.Now.Subtract(TimeSpan.FromSeconds(_cooldownToUseSpawnCmd)).TimeOfDay).TotalSeconds)));
+                                SendReply(player, string.Format(Msg("boatOnCooldown", player.UserIDString), Convert.ToInt32((lisencedPlayer.boatSpawned - (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0)).Subtract(TimeSpan.FromSeconds(_cooldownToUseSpawnCmd))).TotalSeconds)));
                                 return;
                             }
                             var entity = SpawnBoat(rowBoatPrefab, position, player.transform.rotation);
                             if (entity == null) return;
-                            lisencedPlayer.boatSpawned = DateTime.Now.TimeOfDay;
+                            lisencedPlayer.boatSpawned = (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0));
                             lisencedPlayer.rowBoat.Id = entity.net.ID;
                             lisencedPlayer.UpdateBoatLastDismount(entity.net.ID);
                             _boatsCache.Add(lisencedPlayer.rowBoat.Id, lisencedPlayer);
@@ -358,6 +358,12 @@ namespace Oxide.Plugins
         #endregion
 
         #region Functions
+        /// <summary>
+        /// Withdraws the specified player.
+        /// </summary>
+        /// <param name="player">The player.</param>
+        /// <param name="price">The price.</param>
+        /// <returns></returns>
         private bool Withdraw(BasePlayer player, double price)
         {
             var item = ItemManager.FindItemDefinition(_itemsNeededToBuyBoat);
@@ -457,6 +463,13 @@ namespace Oxide.Plugins
             return lastDismount.Ticks >= DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(_timeBeforeBoatWipe)).Ticks;
         }
 
+        /// <summary>
+        /// Determines whether [is in water] [the specified player].
+        /// </summary>
+        /// <param name="player">The player.</param>
+        /// <returns>
+        ///   <c>true</c> if [is in water] [the specified player]; otherwise, <c>false</c>.
+        /// </returns>
         private bool IsInWater(BasePlayer player)
         {
             var modelState = player.modelState;
