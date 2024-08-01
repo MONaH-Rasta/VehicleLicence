@@ -1,15 +1,15 @@
-﻿using Newtonsoft.Json;
-using Oxide.Core;
-using Oxide.Core.Plugins;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
+using Oxide.Core;
+using Oxide.Core.Plugins;
 using UnityEngine;
-
+using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow", "1.2.0")]
+    [Info("Vehicle Licence", "Sorrow", "1.2.1")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
     class VehicleLicence : RustPlugin
@@ -31,13 +31,13 @@ namespace Oxide.Plugins
         private bool _usePermissions;
         private string _itemsNeededToBuyVehicles;
 
-        const string prefix = "<color='orange'>[Licence]</color> ";
-        const string rowBoatPrefab = "assets/content/vehicles/boats/rowboat/rowboat.prefab";
-        const string rhibPrefab = "assets/content/vehicles/boats/rhib/rhib.prefab";
-        const string sedanPrefab = "assets/content/vehicles/sedan_a/sedantest.entity.prefab";
-        const string hotAirBalloonPrefab = "assets/prefabs/deployable/hot air balloon/hotairballoon.prefab";
-        const string miniCopterPrefab = "assets/content/vehicles/minicopter/minicopter.entity.prefab";
-        const string chinookPrefab = "assets/prefabs/npc/ch47/ch47.entity.prefab";
+        private const string Prefix = "<color='orange'>[Licence]</color> ";
+        private const string RowBoatPrefab = "assets/content/vehicles/boats/rowboat/rowboat.prefab";
+        private const string RhibPrefab = "assets/content/vehicles/boats/rhib/rhib.prefab";
+        private const string SedanPrefab = "assets/content/vehicles/sedan_a/sedantest.entity.prefab";
+        private const string HotAirBalloonPrefab = "assets/prefabs/deployable/hot air balloon/hotairballoon.prefab";
+        private const string MiniCopterPrefab = "assets/content/vehicles/minicopter/minicopter.entity.prefab";
+        private const string ChinookPrefab = "assets/prefabs/npc/ch47/ch47.entity.prefab";
         #endregion
 
         #region uMod Hooks
@@ -62,7 +62,7 @@ namespace Oxide.Plugins
             {
                 PrintWarning("ServerRewards is not loaded, get it at https://umod.org");
             }
-            else if (Economics != null && _useEconomics)
+            else if (ServerRewards != null && _useServerRewards)
             {
                 _itemsNeededToBuyVehicles = "RP";
             }
@@ -134,11 +134,9 @@ namespace Oxide.Plugins
         {
             Msg("helpLicence", player);
             LicencedPlayer licencedPlayer;
-            if (!_licencedPlayer.TryGetValue(player.userID, out licencedPlayer))
-            {
-                licencedPlayer = new LicencedPlayer(player.userID);
-                _licencedPlayer.Add(player.userID, licencedPlayer);
-            }
+            if (_licencedPlayer.TryGetValue(player.userID, out licencedPlayer)) return;
+            licencedPlayer = new LicencedPlayer(player.userID);
+            _licencedPlayer.Add(player.userID, licencedPlayer);
         }
 
         /// <summary>
@@ -148,14 +146,14 @@ namespace Oxide.Plugins
         /// <param name="command">The command.</param>
         /// <param name="args">The arguments.</param>
         [ChatCommand("buy")]
-        void CmdBuyVehicle(BasePlayer player, string command, string[] args)
+        void CmdBuyVehicle(BasePlayer player, string command, IReadOnlyList<string> args)
         {
-            if (args.Length == 0) Msg("helpBuy", player, new string[] {
-                _itemsNeededToBuyVehicles, GetVehicleSettings(rowBoatPrefab).price.ToString(), GetVehicleSettings(rhibPrefab).price.ToString(),
-                GetVehicleSettings(sedanPrefab).price.ToString(), GetVehicleSettings(hotAirBalloonPrefab).price.ToString(), GetVehicleSettings(miniCopterPrefab).price.ToString(),
-                GetVehicleSettings(chinookPrefab).price.ToString()
+            if (args.Count < 1) Msg("helpBuy", player, new object[] {
+                _itemsNeededToBuyVehicles, GetVehicleSettings(RowBoatPrefab).price.ToString(), GetVehicleSettings(RhibPrefab).price.ToString(),
+                GetVehicleSettings(SedanPrefab).price.ToString(), GetVehicleSettings(HotAirBalloonPrefab).price.ToString(), GetVehicleSettings(MiniCopterPrefab).price.ToString(),
+                GetVehicleSettings(ChinookPrefab).price.ToString()
             });
-            if (args.Length >= 1)
+            else
             {
                 LicencedPlayer licencedPlayer;
                 if (!_licencedPlayer.TryGetValue(player.userID, out licencedPlayer))
@@ -170,29 +168,29 @@ namespace Oxide.Plugins
                     Msg("noPermission", player);
                     return;
                 }
-                if (IsCase(arg, rowBoatPrefab))
+                if (IsCase(arg, RowBoatPrefab))
                 {
-                    BuyVehicle(player, licencedPlayer, rowBoatPrefab);
+                    BuyVehicle(player, licencedPlayer, RowBoatPrefab);
                 }
-                else if (IsCase(arg, rhibPrefab))
+                else if (IsCase(arg, RhibPrefab))
                 {
-                    BuyVehicle(player, licencedPlayer, rhibPrefab);
+                    BuyVehicle(player, licencedPlayer, RhibPrefab);
                 }
-                else if (IsCase(arg, sedanPrefab))
+                else if (IsCase(arg, SedanPrefab))
                 {
-                    BuyVehicle(player, licencedPlayer, sedanPrefab);
+                    BuyVehicle(player, licencedPlayer, SedanPrefab);
                 }
-                else if (IsCase(arg, hotAirBalloonPrefab))
+                else if (IsCase(arg, HotAirBalloonPrefab))
                 {
-                    BuyVehicle(player, licencedPlayer, hotAirBalloonPrefab);
+                    BuyVehicle(player, licencedPlayer, HotAirBalloonPrefab);
                 }
-                else if (IsCase(arg, miniCopterPrefab))
+                else if (IsCase(arg, MiniCopterPrefab))
                 {
-                    BuyVehicle(player, licencedPlayer, miniCopterPrefab);
+                    BuyVehicle(player, licencedPlayer, MiniCopterPrefab);
                 }
-                else if (IsCase(arg, chinookPrefab))
+                else if (IsCase(arg, ChinookPrefab))
                 {
-                    BuyVehicle(player, licencedPlayer, chinookPrefab);
+                    BuyVehicle(player, licencedPlayer, ChinookPrefab);
                 }
                 else
                 {
@@ -219,9 +217,7 @@ namespace Oxide.Plugins
                     return;
                 }
 
-                Vector3 position = player.transform.position + (player.transform.forward * 3);
                 LicencedPlayer licencedPlayer;
-                string prefab;
                 if (_licencedPlayer.TryGetValue(player.userID, out licencedPlayer))
                 {
                     var arg = args[0].ToLower();
@@ -230,34 +226,36 @@ namespace Oxide.Plugins
                         Msg("noPermission", player);
                         return;
                     }
-                    if (IsCase(arg, rowBoatPrefab))
+
+                    string prefab;
+                    if (IsCase(arg, RowBoatPrefab))
                     {
-                        prefab = rowBoatPrefab;
+                        prefab = RowBoatPrefab;
                         if (IsSpawning(licencedPlayer, prefab, true)) SpawnVehicle(licencedPlayer, prefab);
                     }
-                    else if (IsCase(arg, rhibPrefab))
+                    else if (IsCase(arg, RhibPrefab))
                     {
-                        prefab = rhibPrefab;
+                        prefab = RhibPrefab;
                         if (IsSpawning(licencedPlayer, prefab, true)) SpawnVehicle(licencedPlayer, prefab);
                     }
-                    else if (IsCase(arg, sedanPrefab))
+                    else if (IsCase(arg, SedanPrefab))
                     {
-                        prefab = sedanPrefab;
+                        prefab = SedanPrefab;
                         if (IsSpawning(licencedPlayer, prefab)) SpawnVehicle(licencedPlayer, prefab);
                     }
-                    else if (IsCase(arg, hotAirBalloonPrefab))
+                    else if (IsCase(arg, HotAirBalloonPrefab))
                     {
-                        prefab = hotAirBalloonPrefab;
+                        prefab = HotAirBalloonPrefab;
                         if (IsSpawning(licencedPlayer, prefab)) SpawnVehicle(licencedPlayer, prefab);
                     }
-                    else if (IsCase(arg, miniCopterPrefab))
+                    else if (IsCase(arg, MiniCopterPrefab))
                     {
-                        prefab = miniCopterPrefab;
+                        prefab = MiniCopterPrefab;
                         if (IsSpawning(licencedPlayer, prefab)) SpawnVehicle(licencedPlayer, prefab);
                     }
-                    else if (IsCase(arg, chinookPrefab))
+                    else if (IsCase(arg, ChinookPrefab))
                     {
-                        prefab = chinookPrefab;
+                        prefab = ChinookPrefab;
                         if (IsSpawning(licencedPlayer, prefab)) SpawnVehicle(licencedPlayer, prefab);
                     }
                     else
@@ -283,45 +281,46 @@ namespace Oxide.Plugins
         {
             LicencedPlayer licencedPlayer;
 
-            if (args.Length == 0) Msg("helpRecall", player);
-            if (args.Length >= 1)
+            if (args.Length < 1)
             {
-                if (_licencedPlayer.TryGetValue(player.userID, out licencedPlayer))
+                Msg("helpRecall", player);
+            }
+            else
+            {
+                if (!_licencedPlayer.TryGetValue(player.userID, out licencedPlayer)) return;
+                var arg = args[0].ToLower();
+                if (!PlayerHasPermission(player, arg))
                 {
-                    var arg = args[0].ToLower();
-                    if (!PlayerHasPermission(player, arg))
-                    {
-                        Msg("noPermission", player);
-                        return;
-                    }
-                    if (IsCase(arg, rowBoatPrefab))
-                    {
-                        RemoveVehicle(licencedPlayer, GetVehicleSettings(rowBoatPrefab));
-                    }
-                    else if (IsCase(arg, rhibPrefab))
-                    {
-                        RemoveVehicle(licencedPlayer, GetVehicleSettings(rhibPrefab));
-                    }
-                    else if (IsCase(arg, sedanPrefab))
-                    {
-                        RemoveVehicle(licencedPlayer, GetVehicleSettings(sedanPrefab));
-                    }
-                    else if (IsCase(arg, hotAirBalloonPrefab))
-                    {
-                        RemoveVehicle(licencedPlayer, GetVehicleSettings(hotAirBalloonPrefab));
-                    }
-                    else if (IsCase(arg, miniCopterPrefab))
-                    {
-                        RemoveVehicle(licencedPlayer, GetVehicleSettings(miniCopterPrefab));
-                    }
-                    else if (IsCase(arg, chinookPrefab))
-                    {
-                        RemoveVehicle(licencedPlayer, GetVehicleSettings(chinookPrefab));
-                    }
-                    else
-                    {
-                        Msg("helpOptionNotFound", player);
-                    }
+                    Msg("noPermission", player);
+                    return;
+                }
+                if (IsCase(arg, RowBoatPrefab))
+                {
+                    RemoveVehicle(licencedPlayer, GetVehicleSettings(RowBoatPrefab));
+                }
+                else if (IsCase(arg, RhibPrefab))
+                {
+                    RemoveVehicle(licencedPlayer, GetVehicleSettings(RhibPrefab));
+                }
+                else if (IsCase(arg, SedanPrefab))
+                {
+                    RemoveVehicle(licencedPlayer, GetVehicleSettings(SedanPrefab));
+                }
+                else if (IsCase(arg, HotAirBalloonPrefab))
+                {
+                    RemoveVehicle(licencedPlayer, GetVehicleSettings(HotAirBalloonPrefab));
+                }
+                else if (IsCase(arg, MiniCopterPrefab))
+                {
+                    RemoveVehicle(licencedPlayer, GetVehicleSettings(MiniCopterPrefab));
+                }
+                else if (IsCase(arg, ChinookPrefab))
+                {
+                    RemoveVehicle(licencedPlayer, GetVehicleSettings(ChinookPrefab));
+                }
+                else
+                {
+                    Msg("helpOptionNotFound", player);
                 }
             }
         }
@@ -343,19 +342,17 @@ namespace Oxide.Plugins
 
             if (licencedPlayer.Vehicles.TryGetValue(prefab, out vehicle))
             {
-                Msg("vehicleAlreadyPurchased", player, new string[] { vehicleSettings.name });
+                Msg("vehicleAlreadyPurchased", player, new[] { vehicleSettings.name });
             }
             else if (vehicleSettings.name != "null" && vehicleSettings.purchasable)
             {
-                if (Withdraw(player, vehicleSettings))
-                {
-                    vehicle = new Vehicle(prefab, player.userID);
-                    licencedPlayer.SetVehicle(vehicle);
-                }
+                if (!Withdraw(player, vehicleSettings)) return;
+                vehicle = new Vehicle(prefab, player.userID);
+                licencedPlayer.SetVehicle(vehicle);
             }
             else
             {
-                Msg("vehicleCannotBeBuyed", player, new string[] { vehicleSettings.name });
+                Msg("vehicleCannotBeBuyed", player, new[] { vehicleSettings.name });
             }
         }
 
@@ -374,7 +371,7 @@ namespace Oxide.Plugins
             if (vehicle == null) return null;
             var position = player.transform.position + new Vector3(0f, 1.6f, 0f);
             var rotation = player.transform.rotation;
-            BaseEntity entity = GameManager.server.CreateEntity(vehicle.Prefab, position + (Vector3.forward * vehicleSettings.distanceToSpawn), rotation);
+            var entity = GameManager.server.CreateEntity(vehicle.Prefab, position + (Vector3.forward * vehicleSettings.distanceToSpawn), rotation);
             if (entity == null) return null;
             entity.enableSaving = true;
             entity.Spawn();
@@ -384,7 +381,7 @@ namespace Oxide.Plugins
             vehicle.LastDismount = DateTime.UtcNow;
             _vehiclesCache.Add(vehicle.Id, vehicle);
             licencedPlayer.SetVehicle(vehicle);
-            Msg("vehicleSpawned", player, new string[] { vehicleSettings.name });
+            Msg("vehicleSpawned", player, new[] { vehicleSettings.name });
 
             return entity;
         }
@@ -400,7 +397,7 @@ namespace Oxide.Plugins
             var vehicle = licencedPlayer.GetVehicle(vehicleSettings.prefab);
             if (player != null && vehicle == null)
             {
-                Msg("vehicleNotYetPurchased", player, new string[] { vehicleSettings.name });
+                Msg("vehicleNotYetPurchased", player, new[] { vehicleSettings.name });
             }
             else
             {
@@ -411,11 +408,11 @@ namespace Oxide.Plugins
                 licencedPlayer.SetVehicle(vehicle);
                 if (player != null && vehicleId != 0)
                 {
-                    Msg("vehicleRecalled", player, new string[] { vehicleSettings.name });
+                    Msg("vehicleRecalled", player, new[] { vehicleSettings.name });
                 }
                 else if (player != null && vehicleId == 0)
                 {
-                    Msg("vehicleNotOut", player, new string[] { vehicleSettings.name });
+                    Msg("vehicleNotOut", player, new[] { vehicleSettings.name });
                 }
             }
         }
@@ -428,7 +425,6 @@ namespace Oxide.Plugins
             foreach (var v in _vehiclesCache.ToList())
             {
                 var vehicle = v.Value;
-                var vehicleSettings = GetVehicleSettings(vehicle.Prefab);
                 var vehicleNetworkable = BaseNetworkable.serverEntities.Find(vehicle.Id);
                 if (vehicleNetworkable == null) continue;
                 var vehicleEntity = vehicleNetworkable.GetComponent<BaseVehicle>();
@@ -438,7 +434,7 @@ namespace Oxide.Plugins
                 RemoveVehicle(GetLicencedPlayer(vehicle), GetVehicleSettings(vehicle.Prefab));
             }
 
-            timer.Once(_intervalToCheckVehicle * 60f, () => CheckVehicles());
+            timer.Once(_intervalToCheckVehicle * 60f, CheckVehicles);
         }
 
         /// <summary>
@@ -451,7 +447,7 @@ namespace Oxide.Plugins
                 Msg("announcement", player);
             }
 
-            timer.Once(60 * UnityEngine.Random.Range(15, 45), () => CheckVehicles());
+            timer.Once(60 * Random.Range(15, 45), CheckVehicles);
         }
         #endregion
 
@@ -477,7 +473,7 @@ namespace Oxide.Plugins
         /// <returns></returns>
         private bool Withdraw(BasePlayer player, VehicleSettings vehicleSettings)
         {
-            bool result = false;
+            var result = false;
             var item = ItemManager.FindItemDefinition(_itemsNeededToBuyVehicles);
 
             if (Economics != null && _useEconomics)
@@ -496,14 +492,12 @@ namespace Oxide.Plugins
 
             if (result)
             {
-                Msg("vehiclePurchased", player, new string[] { vehicleSettings.name });
+                Msg("vehiclePurchased", player, new[] { vehicleSettings.name });
                 return true;
             }
-            else
-            {
-                Msg("noMoney", player);
-                return false;
-            }
+
+            Msg("noMoney", player);
+            return false;
         }
 
         /// <summary>
@@ -523,28 +517,29 @@ namespace Oxide.Plugins
             var vehicle = licencedPlayer.GetVehicle(prefab);
             if (vehicle == null)
             {
-                Msg("vehicleNotYetPurchased", player, new string[] { vehicleSettings.name });
+                Msg("vehicleNotYetPurchased", player, new[] { vehicleSettings.name });
                 return false;
             }
-            else if (vehicle.Id != 0)
+
+            if (vehicle.Id != 0)
             {
-                Msg("alreadyVehicleOut", player, new string[] { vehicleSettings.name });
+                Msg("alreadyVehicleOut", player, new[] { vehicleSettings.name });
                 return false;
             }
-            else if (water && !IsInWater(player))
+
+            if (water && !IsInWater(player))
             {
                 Msg("notInWater", player);
                 return false;
             }
-            else if (vehicleSettings.cooldownToSpawn > 0 && vehicle.Spawned > (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0)).Subtract(TimeSpan.FromSeconds(vehicleSettings.cooldownToSpawn)))
+
+            if (vehicleSettings.cooldownToSpawn > 0 && vehicle.Spawned > (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0)).Subtract(TimeSpan.FromSeconds(vehicleSettings.cooldownToSpawn)))
             {
-                Msg("vehicleOnCooldown", player, new string[] { Convert.ToInt32((vehicle.Spawned - (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0)).Subtract(TimeSpan.FromSeconds(vehicleSettings.cooldownToSpawn))).TotalSeconds).ToString(), vehicleSettings.name });
+                Msg("vehicleOnCooldown", player, new[] { Convert.ToInt32((vehicle.Spawned - (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0)).Subtract(TimeSpan.FromSeconds(vehicleSettings.cooldownToSpawn))).TotalSeconds).ToString(), vehicleSettings.name });
                 return false;
             }
-            else
-            {
-                return true;
-            }
+
+            return true;
         }
 
         /// <summary>
@@ -570,27 +565,32 @@ namespace Oxide.Plugins
         {
             if (!_usePermissions) return true;
             if (permission.UserHasPermission(player.UserIDString, "vehiclelicence.use")) return true;
-            if (IsCase(arg, rowBoatPrefab))
+            if (IsCase(arg, RowBoatPrefab))
             {
                 return permission.UserHasPermission(player.UserIDString, "vehiclelicence.rowboat");
             }
-            else if (IsCase(arg, rhibPrefab))
+
+            if (IsCase(arg, RhibPrefab))
             {
                 return permission.UserHasPermission(player.UserIDString, "vehiclelicence.rhib");
             }
-            else if (IsCase(arg, sedanPrefab))
+
+            if (IsCase(arg, SedanPrefab))
             {
                 return permission.UserHasPermission(player.UserIDString, "vehiclelicence.sedan");
             }
-            else if (IsCase(arg, hotAirBalloonPrefab))
+
+            if (IsCase(arg, HotAirBalloonPrefab))
             {
                 return permission.UserHasPermission(player.UserIDString, "vehiclelicence.hotairballoon");
             }
-            else if (IsCase(arg, miniCopterPrefab))
+
+            if (IsCase(arg, MiniCopterPrefab))
             {
                 return permission.UserHasPermission(player.UserIDString, "vehiclelicence.minicopter");
             }
-            else if (IsCase(arg, chinookPrefab))
+
+            if (IsCase(arg, ChinookPrefab))
             {
                 return permission.UserHasPermission(player.UserIDString, "vehiclelicence.chinook");
             }
@@ -606,17 +606,17 @@ namespace Oxide.Plugins
         {
             switch (prefab)
             {
-                case rowBoatPrefab:
+                case RowBoatPrefab:
                     return _configData.Vehicles.RowBoat;
-                case rhibPrefab:
+                case RhibPrefab:
                     return _configData.Vehicles.RHIB;
-                case sedanPrefab:
+                case SedanPrefab:
                     return _configData.Vehicles.Sedan;
-                case hotAirBalloonPrefab:
+                case HotAirBalloonPrefab:
                     return _configData.Vehicles.HotAirBalloon;
-                case miniCopterPrefab:
+                case MiniCopterPrefab:
                     return _configData.Vehicles.MiniCopter;
-                case chinookPrefab:
+                case ChinookPrefab:
                     return _configData.Vehicles.Chinook;
                 default:
                     return new VehicleSettings("null", "null", false, 999999, -1, 0, new List<string>());
@@ -653,14 +653,14 @@ namespace Oxide.Plugins
         /// <param name="key">The key.</param>
         /// <param name="player">The player.</param>
         /// <param name="args">The arguments.</param>
-        private void Msg(string key, BasePlayer player, string[] args = null)
+        private void Msg(string key, BasePlayer player, object[] args = null)
         {
             var message = lang.GetMessage(key, this, player.UserIDString);
             if (args != null)
             {
                 message = string.Format(message, args);
             }
-            Player.Message(player, message, prefix, 76561198924840872);
+            Player.Message(player, message, Prefix, 76561198924840872);
         }
 
         /// <summary>
@@ -711,7 +711,7 @@ namespace Oxide.Plugins
                 ["vehicleOnCooldown"] = "You must wait {0} seconds before you can spawn your {1}.",
                 ["notInWater"] = "You must be in the water to use this command.",
                 ["buildindBlocked"] = " You can't spawn a boat appear if you don't have the building privileges.",
-                ["noPermission"] = "You do not have permission to do this.",
+                ["noPermission"] = "You do not have permission to do this."
             }, this);
 
             lang.RegisterMessages(new Dictionary<string, string>
@@ -757,7 +757,7 @@ namespace Oxide.Plugins
                 ["vehicleOnCooldown"] = "Vous devez attendre {0} secondes avant de pouvoir faire apparaître votre {1}.",
                 ["notInWater"] = "Vous devez être dans l'eau pour utiliser cette commande.",
                 ["buildindBlocked"] = "Vous ne pouvez pas faire apparaître un {0} si vous n'avez pas les privilèges de construction.",
-                ["noPermission"] = "Vous n'avez pas la permission de faire ceci.",
+                ["noPermission"] = "Vous n'avez pas la permission de faire ceci."
             }, this, "fr");
         }
         #endregion
@@ -814,17 +814,17 @@ namespace Oxide.Plugins
                     UseEconomics = false,
                     UseServerRewards = false,
                     ItemsNeededToBuyVehicles = "scrap",
-                    UsePermissions = false,
+                    UsePermissions = false
                 },
 
                 Vehicles = new ConfigData.VehiclesOption
                 {
-                    RowBoat = new VehicleSettings("Row Boat", rowBoatPrefab, true, 500, 180, 3, new List<string>() { "row", "rowboat" }),
-                    RHIB = new VehicleSettings("RHIB", rhibPrefab, true, 1000, 300, 10, new List<string>() { "rhib" }),
-                    Sedan = new VehicleSettings("Sedan", sedanPrefab, true, 300, 180, 5, new List<string>() { "sedan", "car" }),
-                    HotAirBalloon = new VehicleSettings("Hot Air Balloon", hotAirBalloonPrefab, true, 5000, 900, 20, new List<string>() { "hotairballoon", "hab" }),
-                    MiniCopter = new VehicleSettings("MiniCopter", miniCopterPrefab, true, 10000, 1800, 8, new List<string>() { "minicopter", "copter" }),
-                    Chinook = new VehicleSettings("Chinook", chinookPrefab, true, 30000, 3000, 25, new List<string>() { "chinook", "ch47" }),
+                    RowBoat = new VehicleSettings("Row Boat", RowBoatPrefab, true, 500, 180, 3, new List<string> { "row", "rowboat" }),
+                    RHIB = new VehicleSettings("RHIB", RhibPrefab, true, 1000, 300, 10, new List<string> { "rhib" }),
+                    Sedan = new VehicleSettings("Sedan", SedanPrefab, true, 300, 180, 5, new List<string> { "sedan", "car" }),
+                    HotAirBalloon = new VehicleSettings("Hot Air Balloon", HotAirBalloonPrefab, true, 5000, 900, 20, new List<string> { "hotairballoon", "hab" }),
+                    MiniCopter = new VehicleSettings("MiniCopter", MiniCopterPrefab, true, 10000, 1800, 8, new List<string> { "minicopter", "copter" }),
+                    Chinook = new VehicleSettings("Chinook", ChinookPrefab, true, 30000, 3000, 25, new List<string> { "chinook", "ch47" })
                 }
             };
         }
