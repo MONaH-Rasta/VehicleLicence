@@ -9,7 +9,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow", "1.2.1")]
+    [Info("Vehicle Licence", "Sorrow|TheDoc", "1.2.2")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
     class VehicleLicence : RustPlugin
@@ -31,7 +31,7 @@ namespace Oxide.Plugins
         private bool _usePermissions;
         private string _itemsNeededToBuyVehicles;
 
-        private const string Prefix = "<color='orange'>[Licence]</color> ";
+        private const string Prefix = "<color=#B366FF>[Vehicle Licence]</color> ";
         private const string RowBoatPrefab = "assets/content/vehicles/boats/rowboat/rowboat.prefab";
         private const string RhibPrefab = "assets/content/vehicles/boats/rhib/rhib.prefab";
         private const string SedanPrefab = "assets/content/vehicles/sedan_a/sedantest.entity.prefab";
@@ -670,41 +670,41 @@ namespace Oxide.Plugins
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                ["announcement"] = "Type <color='green'>/licence</color> to get help.",
+                ["announcement"] = "Type <color=#4DFF4D>/licence</color> to get help.",
                 ["helpLicence"] = "These are the available commands: \n" +
-                    "<color='green'>/buy</color> -- To buy a vehicle \n" +
-                    "<color='green'>/spawn</color> -- To spawn a vehicle \n" +
-                    "<color='green'>/recall</color> -- To recall a vehicle",
+                    "<color=#4DFF4D>/buy</color> -- To buy a vehicle \n" +
+                    "<color=#4DFF4D>/spawn</color> -- To spawn a vehicle \n" +
+                    "<color=#4DFF4D>/recall</color> -- To recall a vehicle",
                 ["helpBuy"] = "These are the available commands: \n" +
-                    "Item needed: <color='red'>{0}</color> \n" +
-                    "<color='green'>/buy row</color> -- <color='red'>{1}</color> to buy a rowing boat \n" +
-                    "<color='green'>/buy rhib</color> -- <color='red'>{2}</color> to buy a RHIB \n" +
-                    "<color='green'>/buy sedan</color> -- <color='red'>{3}</color> to buy a sedan \n" +
-                    "<color='green'>/buy hab</color> -- <color='red'>{4}</color> to buy an hot air balloon \n" +
-                    "<color='green'>/buy copter</color> -- <color='red'>{5}</color> to buy a mini copter \n" +
-                    "<color='green'>/buy ch47</color> -- <color='red'>{6}</color> to buy a chinook \n",
+                    "Item needed: <color=#FF1919>{0}</color> \n" +
+                    "<color=#4DFF4D>/buy row</color> -- <color=#FF1919>{1}</color> to buy a rowing boat \n" +
+                    "<color=#4DFF4D>/buy rhib</color> -- <color=#FF1919>{2}</color> to buy a RHIB \n" +
+                    "<color=#4DFF4D>/buy sedan</color> -- <color=#FF1919>{3}</color> to buy a sedan \n" +
+                    "<color=#4DFF4D>/buy hab</color> -- <color=#FF1919>{4}</color> to buy an hot air balloon \n" +
+                    "<color=#4DFF4D>/buy copter</color> -- <color=#FF1919>{5}</color> to buy a mini copter \n" +
+                    "<color=#4DFF4D>/buy ch47</color> -- <color=#FF1919>{6}</color> to buy a chinook \n",
                 ["helpSpawn"] = "These are the available commands: \n" +
-                    "<color='green'>/spawn row</color> -- To spawn a rowing boat \n" +
-                    "<color='green'>/spawn rhib</color> -- To spawn a RHIB \n" +
-                    "<color='green'>/spawn sedan</color> -- To spawn a sedan \n" +
-                    "<color='green'>/spawn hab</color> -- To spawn an hot air balloon \n" +
-                    "<color='green'>/spawn copter</color> -- To spawn a mini copter \n" +
-                    "<color='green'>/spawn ch47</color> -- To spawn a chinook \n",
+                    "<color=#4DFF4D>/spawn row</color> -- To spawn a rowing boat \n" +
+                    "<color=#4DFF4D>/spawn rhib</color> -- To spawn a RHIB \n" +
+                    "<color=#4DFF4D>/spawn sedan</color> -- To spawn a sedan \n" +
+                    "<color=#4DFF4D>/spawn hab</color> -- To spawn an hot air balloon \n" +
+                    "<color=#4DFF4D>/spawn copter</color> -- To spawn a mini copter \n" +
+                    "<color=#4DFF4D>/spawn ch47</color> -- To spawn a chinook \n",
                 ["helpRecall"] = "These are the available commands: \n" +
-                    "<color='green'>/recall row</color> -- To recall a rowing boat \n" +
-                    "<color='green'>/recall rhib</color> -- To recall a RHIB \n" +
-                    "<color='green'>/recall sedan</color> -- To recall a sedan \n" +
-                    "<color='green'>/recall hab</color> -- To recall an hot air balloon \n" +
-                    "<color='green'>/recall copter</color> -- To recall a mini copter \n" +
-                    "<color='green'>/recall ch47</color> -- To recall a Chinook \n",
+                    "<color=#4DFF4D>/recall row</color> -- To recall a rowing boat \n" +
+                    "<color=#4DFF4D>/recall rhib</color> -- To recall a RHIB \n" +
+                    "<color=#4DFF4D>/recall sedan</color> -- To recall a sedan \n" +
+                    "<color=#4DFF4D>/recall hab</color> -- To recall an hot air balloon \n" +
+                    "<color=#4DFF4D>/recall copter</color> -- To recall a mini copter \n" +
+                    "<color=#4DFF4D>/recall ch47</color> -- To recall a Chinook \n",
                 ["helpOptionNotFound"] = "This option doesn't exist.",
-                ["vehiclePurchased"] = "You have purchased a {0}, type <color='green'>/spawn</color> for more information.",
+                ["vehiclePurchased"] = "You have purchased a {0}, type <color=#4DFF4D>/spawn</color> for more information.",
                 ["vehicleAlreadyPurchased"] = "You have already purchased {0}.",
                 ["vehicleCannotBeBuyed"] = "You can't buy a {0}.",
                 ["vehicleNotOut"] = "{0} is not out.",
                 ["noMoney"] = "You don't have enough money.",
                 ["didntBuyVehicle"] = "You didn't purchase a vehicle.",
-                ["alreadyVehicleOut"] = "You already have a {0} outside, type <color='green'>/spawn</color> for more information.",
+                ["alreadyVehicleOut"] = "You already have a {0} outside, type <color=#4DFF4D>/spawn</color> for more information.",
                 ["vehicleNotYetPurchased"] = "You have not yet purchased a {0}.",
                 ["vehicleSpawned"] = "You spawned your {0}.",
                 ["vehicleRecalled"] = "You recalled your {0}.",
@@ -716,41 +716,41 @@ namespace Oxide.Plugins
 
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                ["announcement"] = "Tapez <color='green'>/licence</color> pour obtenir de l'aide.",
+                ["announcement"] = "Tapez <color=#4DFF4D>/licence</color> pour obtenir de l'aide.",
                 ["helpLicence"] = "Voici les commandes disponibles : \n" +
-                    "<color='green'>/buy</color> -- Pour acheter un véhicule \n" +
-                    "<color='green'>/spawn</color> -- Pour faire apparaître un véhicule \n" +
-                    "<color='green'>/recall</color> -- Pour ranger un véhicule",
+                    "<color=#4DFF4D>/buy</color> -- Pour acheter un véhicule \n" +
+                    "<color=#4DFF4D>/spawn</color> -- Pour faire apparaître un véhicule \n" +
+                    "<color=#4DFF4D>/recall</color> -- Pour ranger un véhicule",
                 ["helpBuy"] = "Voici les commandes disponibles : \n" +
-                    "Objet requis : <color='red'>{0}</color> \n" +
-                    "<color='green'>/buy row</color> -- <color='red'>{1}</color> pour acheter un bateau à rames \n" +
-                    "<color='green'>/buy rhib</color> -- <color='red'>{2}</color> pour acheter un RHIB \n" +
-                    "<color='green'>/buy sedan</color> -- <color='red'>{3}</color> pour acheter une voiture \n" +
-                    "<color='green'>/buy hab</color> -- <color='red'>{4}</color> pour acheter une montgolfière \n" +
-                    "<color='green'>/buy copter</color> -- <color='red'>{5}</color> pour acheter un mini hélicoptère \n" +
-                    "<color='green'>/buy ch47</color> -- <color='red'>{6}</color> pour acheter un Chinook \n",
+                    "Objet requis : <color=#FF1919>{0}</color> \n" +
+                    "<color=#4DFF4D>/buy row</color> -- <color=#FF1919>{1}</color> pour acheter un bateau à rames \n" +
+                    "<color=#4DFF4D>/buy rhib</color> -- <color=#FF1919>{2}</color> pour acheter un RHIB \n" +
+                    "<color=#4DFF4D>/buy sedan</color> -- <color=#FF1919>{3}</color> pour acheter une voiture \n" +
+                    "<color=#4DFF4D>/buy hab</color> -- <color=#FF1919>{4}</color> pour acheter une montgolfière \n" +
+                    "<color=#4DFF4D>/buy copter</color> -- <color=#FF1919>{5}</color> pour acheter un mini hélicoptère \n" +
+                    "<color=#4DFF4D>/buy ch47</color> -- <color=#FF1919>{6}</color> pour acheter un Chinook \n",
                 ["helpSpawn"] = "Voici les commandes disponibles : \n" +
-                    "<color='green'>/spawn row</color> -- Pour faire apparaître un bateau à rames \n" +
-                    "<color='green'>/spawn rhib</color> -- Pour faire apparaître un RHIB \n" +
-                    "<color='green'>/spawn sedan</color> -- Pour faire apparaître une voiture \n" +
-                    "<color='green'>/spawn hab</color> -- Pour faire apparaître une montgolfière \n" +
-                    "<color='green'>/spawn copter</color> -- Pour faire apparaître un mini hélicoptère \n" +
-                    "<color='green'>/spawn ch47</color> -- Pour faire apparaître un Chinook \n",
+                    "<color=#4DFF4D>/spawn row</color> -- Pour faire apparaître un bateau à rames \n" +
+                    "<color=#4DFF4D>/spawn rhib</color> -- Pour faire apparaître un RHIB \n" +
+                    "<color=#4DFF4D>/spawn sedan</color> -- Pour faire apparaître une voiture \n" +
+                    "<color=#4DFF4D>/spawn hab</color> -- Pour faire apparaître une montgolfière \n" +
+                    "<color=#4DFF4D>/spawn copter</color> -- Pour faire apparaître un mini hélicoptère \n" +
+                    "<color=#4DFF4D>/spawn ch47</color> -- Pour faire apparaître un Chinook \n",
                 ["helpRecall"] = "Voici les commandes disponibles : \n" +
-                    "<color='green'>/recall row</color> -- Pour ranger un bateau à rames \n" +
-                    "<color='green'>/recall rhib</color> -- Pour ranger un RHIB \n" +
-                    "<color='green'>/recall sedan</color> -- Pour ranger une voiture \n" +
-                    "<color='green'>/recall hab</color> -- Pour ranger une montgolfière \n" +
-                    "<color='green'>/recall copter</color> -- Pour ranger un mini hélicoptère \n" +
-                    "<color='green'>/recall ch47</color> -- Pour ranger un Chinook \n",
+                    "<color=#4DFF4D>/recall row</color> -- Pour ranger un bateau à rames \n" +
+                    "<color=#4DFF4D>/recall rhib</color> -- Pour ranger un RHIB \n" +
+                    "<color=#4DFF4D>/recall sedan</color> -- Pour ranger une voiture \n" +
+                    "<color=#4DFF4D>/recall hab</color> -- Pour ranger une montgolfière \n" +
+                    "<color=#4DFF4D>/recall copter</color> -- Pour ranger un mini hélicoptère \n" +
+                    "<color=#4DFF4D>/recall ch47</color> -- Pour ranger un Chinook \n",
                 ["helpOptionNotFound"] = "Cette option n'existe pas.",
-                ["vehiclePurchased"] = "Vous avez acheté un {0}, tapez <color='green'>/spawn</color> pour plus d'informations.",
+                ["vehiclePurchased"] = "Vous avez acheté un {0}, tapez <color=#4DFF4D>/spawn</color> pour plus d'informations.",
                 ["vehicleAlreadyPurchased"] = "Vous avez déjà acheté ce {0}.",
                 ["vehicleCannotBeBuyed"] = "Vous ne pouvez pas acheter un {0}.",
                 ["vehicleNotOut"] = "{0} n'est pas dehors.",
                 ["noMoney"] = "Vous n'avez pas assez d'argent.",
                 ["didntBuyVehicle"] = "Vous n'avez pas acheté de vehicule.",
-                ["alreadyVehicleOut"] = "Vous avez déjà un {0} à l'extérieur, tapez <color='green'>/recall</color> pour plus d'informations.",
+                ["alreadyVehicleOut"] = "Vous avez déjà un {0} à l'extérieur, tapez <color=#4DFF4D>/recall</color> pour plus d'informations.",
                 ["vehicleNotYetPurchased"] = "Vous n'avez pas encore acheté de {0}.",
                 ["vehicleSpawned"] = "Vous avez fait apparaître votre {0}.",
                 ["vehicleRecalled"] = "Vous avez rangé votre {0}.",
