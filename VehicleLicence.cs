@@ -1,4 +1,4 @@
-// #define DEBUG
+﻿// #define DEBUG
 
 using System;
 using System.Collections.Generic;
@@ -19,7 +19,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.40")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.41")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -1116,6 +1116,10 @@ namespace Oxide.Plugins
                 if (baseVehicle.ValidDismountPosition(player, transform.position))
                 {
                     list.Add(transform.position);
+                    if (baseVehicle.dismountStyle == BaseVehicle.DismountStyle.Ordered)
+                    {
+                        break;
+                    }
                 }
             }
             if (list.Count == 0)
@@ -3283,7 +3287,7 @@ namespace Oxide.Plugins
                 {
                     if (inventory != null)
                     {
-                        return inventory.Drop(PREFAB_ITEM_DROP, vehicle.Entity.GetDropPosition(), vehicle.Entity.transform.rotation);
+                        return inventory.Drop(PREFAB_ITEM_DROP, vehicle.Entity.GetDropPosition(), vehicle.Entity.transform.rotation, 0);
                     }
                 }
                 return null;
@@ -4182,7 +4186,7 @@ namespace Oxide.Plugins
                         var moduleStorage = moduleEntity as VehicleModuleStorage;
                         if (moduleStorage != null)
                         {
-                            return moduleStorage.GetContainer()?.inventory?.Drop(PREFAB_ITEM_DROP, vehicle.Entity.GetDropPosition(), vehicle.Entity.transform.rotation);
+                            return moduleStorage.GetContainer()?.inventory?.Drop(PREFAB_ITEM_DROP, vehicle.Entity.GetDropPosition(), vehicle.Entity.transform.rotation, 0);
                         }
                     }
                 }
