@@ -1,10 +1,5 @@
-//#define DEBUG
+﻿#define DEBUG
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
 using Facepunch;
 using Network;
 using Newtonsoft.Json;
@@ -13,11 +8,16 @@ using Oxide.Core;
 using Oxide.Core.Plugins;
 using Oxide.Game.Rust;
 using Rust.Modular;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.22")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.23")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -149,6 +149,7 @@ namespace Oxide.Plugins
             cmd.AddChatCommand(configData.chatS.spawnCommand, this, nameof(CmdSpawnVehicle));
             cmd.AddChatCommand(configData.chatS.recallCommand, this, nameof(CmdRecallVehicle));
             cmd.AddChatCommand(configData.chatS.killCommand, this, nameof(CmdKillVehicle));
+            Unsubscribe(nameof(CanMountEntity));
             Unsubscribe(nameof(OnEntityTakeDamage));
             Unsubscribe(nameof(OnEntityDismounted));
             Unsubscribe(nameof(OnEntityEnter));
@@ -184,9 +185,9 @@ namespace Oxide.Plugins
                     }
                 }
             }
-            if (!configData.globalS.preventMounting)
+            if (configData.globalS.preventMounting)
             {
-                Unsubscribe(nameof(CanMountEntity));
+                Subscribe(nameof(CanMountEntity));
             }
             if (configData.globalS.noDecay)
             {
@@ -256,17 +257,27 @@ namespace Oxide.Plugins
 
         #region Mount
 
-        private object CanMountEntity(BasePlayer friend, BaseVehicleMountPoint entity)
+        private object CanMountEntity(BasePlayer friend, BaseMountable entity)
         {
             if (friend == null || entity == null) return null;
-            var vehicleParent = entity.GetParentEntity() as ModularCar;
-            if (vehicleParent == null || vehicleParent.IsDestroyed || vehicleParent.OwnerID == 0 || friend.OwnerID == vehicleParent.OwnerID) return null;
+            var vehicleParent = entity.VehicleParent();
+            if (vehicleParent == null || vehicleParent.IsDestroyed) return null;
             Vehicle vehicle;
             if (!vehiclesCache.TryGetValue(vehicleParent, out vehicle)) return null;
             if (AreFriends(vehicle.playerID, friend.userID)) return null;
-            if (configData.globalS.preventDriverSeat && vehicleParent.HasMountPoints() && entity != vehicleParent.mountPoints[0]?.mountable)
+            if (configData.globalS.preventDriverSeat && vehicleParent.HasMountPoints())
             {
-                return null;
+                foreach (var allMountPoint in vehicleParent.allMountPoints)
+                {
+                    if (allMountPoint != null && allMountPoint.mountable == entity)
+                    {
+                        if (!allMountPoint.isDriver)
+                        {
+                            return null;
+                        }
+                        break;
+                    }
+                }
             }
             SendCantUseMessage(friend, vehicle);
             return False;
@@ -431,6 +442,7 @@ namespace Oxide.Plugins
         #endregion Message
 
         #region CheckEntity
+
         private void CheckEntity(BaseCombatEntity entity, bool isCrash = false)
         {
             if (entity == null) return;
@@ -817,7 +829,7 @@ namespace Oxide.Plugins
                             }
                             if (!moved)
                             {
-                                //PrintError($"Engine item '{engineItem.info.shortname}' in '{vehicleType}' cannot be move to the vehicle engine inventory");
+                                PrintError($"Engine item '{engineItem.info.shortname}' in '{vehicleType}' cannot be move to the vehicle engine inventory");
                                 engineItem.Remove();
                                 engineItem.DoRemove();
                             }
@@ -1282,14 +1294,14 @@ namespace Oxide.Plugins
             if (baseVehicle != null)
             {
                 //(vehicle as BaseVehicle).DismountAllPlayers();
-                foreach (var mountPointInfo in baseVehicle.mountPoints)
+                foreach (var allMountPoint in baseVehicle.allMountPoints)
                 {
-                    if (mountPointInfo.mountable != null)
+                    if (allMountPoint != null && allMountPoint.mountable != null)
                     {
-                        var mounted = mountPointInfo.mountable.GetMounted();
+                        var mounted = allMountPoint.mountable.GetMounted();
                         if (mounted != null)
                         {
-                            mountPointInfo.mountable.DismountPlayer(mounted);
+                            allMountPoint.mountable.DismountPlayer(mounted);
                         }
                     }
                 }
