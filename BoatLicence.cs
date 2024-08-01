@@ -9,10 +9,10 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Boat Licence", "Sorrow", "0.2.3")]
+    [Info("Boat Licence", "Sorrow", "0.3.0")]
     [Description("Allows players to buy a boat and then spawn or store it")]
 
-    class BoatLicence: RustPlugin
+    class BoatLicence : RustPlugin
     {
         #region Fields
         [PluginReference]
@@ -91,7 +91,7 @@ namespace Oxide.Plugins
             _boatsCache.Remove(entity.net.ID);
         }
         #endregion
-        
+
         #region Commands
         /// <summary>
         /// Commands the boat licence.
@@ -135,7 +135,8 @@ namespace Oxide.Plugins
                             {
                                 lisencedPlayer.rowBoat.Buyed = true;
                                 SendReply(player, Msg("boatPurchased", player.UserIDString));
-                            } else
+                            }
+                            else
                             {
                                 SendReply(player, Msg("noMoney", player.UserIDString));
                             }
@@ -146,7 +147,8 @@ namespace Oxide.Plugins
                             {
                                 lisencedPlayer.rowBoat.Buyed = true;
                                 SendReply(player, Msg("boatPurchased", player.UserIDString));
-                            } else
+                            }
+                            else
                             {
                                 SendReply(player, Msg("noMoney", player.UserIDString));
                             }
@@ -162,34 +164,36 @@ namespace Oxide.Plugins
                             SendReply(player, Msg("rhibCannotBeBuyed", player.UserIDString));
                             break;
                         }
-                            if (!_lisencedPlayer.TryGetValue(player.userID, out lisencedPlayer))
+                        if (!_lisencedPlayer.TryGetValue(player.userID, out lisencedPlayer))
+                        {
+                            lisencedPlayer = new LisencedPlayer(player.userID);
+                            _lisencedPlayer.Add(player.userID, lisencedPlayer);
+                            if (Economics.Call<bool>("Withdraw", player.userID, _rhibBoatCost))
                             {
-                                lisencedPlayer = new LisencedPlayer(player.userID);
-                                _lisencedPlayer.Add(player.userID, lisencedPlayer);
-                                if (Economics.Call<bool>("Withdraw", player.userID, _rhibBoatCost))
-                                {
-                                    lisencedPlayer.rhibBoat.Buyed = true;
-                                    SendReply(player, Msg("boatPurchased", player.UserIDString));
-                                }else
-                            {
-                                SendReply(player, Msg("noMoney", player.UserIDString));
-                            }
-                            }
-                            else if (!lisencedPlayer.rhibBoat.Buyed)
-                            {
-                                if (Economics.Call<bool>("Withdraw", player.userID, _rhibBoatCost))
-                                {
-                                    lisencedPlayer.rhibBoat.Buyed = true;
-                                    SendReply(player, Msg("boatPurchased", player.UserIDString));
-                                }else
-                            {
-                                SendReply(player, Msg("noMoney", player.UserIDString));
-                            }
+                                lisencedPlayer.rhibBoat.Buyed = true;
+                                SendReply(player, Msg("boatPurchased", player.UserIDString));
                             }
                             else
                             {
-                                SendReply(player, Msg("boatAlreadyPurchased", player.UserIDString));
+                                SendReply(player, Msg("noMoney", player.UserIDString));
                             }
+                        }
+                        else if (!lisencedPlayer.rhibBoat.Buyed)
+                        {
+                            if (Economics.Call<bool>("Withdraw", player.userID, _rhibBoatCost))
+                            {
+                                lisencedPlayer.rhibBoat.Buyed = true;
+                                SendReply(player, Msg("boatPurchased", player.UserIDString));
+                            }
+                            else
+                            {
+                                SendReply(player, Msg("noMoney", player.UserIDString));
+                            }
+                        }
+                        else
+                        {
+                            SendReply(player, Msg("boatAlreadyPurchased", player.UserIDString));
+                        }
                         break;
                     default:
                         SendReply(player, Msg("helpOptionNotFound", player.UserIDString));
@@ -292,14 +296,14 @@ namespace Oxide.Plugins
                         if (_lisencedPlayer.TryGetValue(player.userID, out lisencedPlayer))
                         {
                             RemoveBoat(lisencedPlayer.rowBoat.Id, lisencedPlayer);
-							SendReply(player, Msg("boatRecalled", player.UserIDString));
+                            SendReply(player, Msg("boatRecalled", player.UserIDString));
                         }
                         break;
                     case "rhib":
                         if (_lisencedPlayer.TryGetValue(player.userID, out lisencedPlayer))
                         {
                             RemoveBoat(lisencedPlayer.rhibBoat.Id, lisencedPlayer);
-							SendReply(player, Msg("boatRecalled", player.UserIDString));
+                            SendReply(player, Msg("boatRecalled", player.UserIDString));
                         }
                         break;
                     default:
@@ -369,7 +373,7 @@ namespace Oxide.Plugins
                     if (BoatIsActive(lisencedPlayer.rowBoat.LastDismount)) continue;
                     RemoveBoat(boat.Key, lisencedPlayer);
                     var player = BasePlayer.FindByID(lisencedPlayer.Userid);
-                    if (player == null) return;
+                    if (player == null) continue;
                     SendReply(player, Msg("boatRecalled", player.UserIDString));
                 }
                 else if (lisencedPlayer.rhibBoat.Id == boat.Key)
@@ -377,7 +381,7 @@ namespace Oxide.Plugins
                     if (BoatIsActive(lisencedPlayer.rhibBoat.LastDismount)) continue;
                     RemoveBoat(boat.Key, lisencedPlayer);
                     var player = BasePlayer.FindByID(lisencedPlayer.Userid);
-                    if (player == null) return;
+                    if (player == null) continue;
                     SendReply(player, Msg("boatRecalled", player.UserIDString));
                 }
             }
@@ -395,7 +399,6 @@ namespace Oxide.Plugins
             return lastDismount.Ticks >= DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(_timeBeforeBoatWipe)).Ticks;
         }
         #endregion
-
 
         #region Localization
         /// <summary>
@@ -449,7 +452,7 @@ namespace Oxide.Plugins
                 ["alreadyRowBoatOut"] = "Vous avez déjà un bateau à rames à l'extérieur, tapez <color='green'>/recallboat</color> pour plus d'informations.",
                 ["alreadyRhibOut"] = "Vous avez déjà un RHIB à l'extérieur, tapez <color='green'>/recallboat</color> pour plus d'informations.",
                 ["boatNotYetPurchased"] = "Vous n'avez pas encore acheté de bateau.",
-                ["boatSpawned"] = "Vous avez fait appraître votre bateau.",
+                ["boatSpawned"] = "Vous avez fait apparaître votre bateau.",
                 ["boatRecalled"] = "Vous avez rangé votre bateau.",
             }, this, "fr");
         }
@@ -502,7 +505,6 @@ namespace Oxide.Plugins
                 rhibBoat = new RhibBoat();
             }
 
-            [JsonIgnore]
             public ulong Userid
             {
                 get
