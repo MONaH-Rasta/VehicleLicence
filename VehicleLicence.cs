@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.19")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.20")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -51,9 +51,11 @@ namespace Oxide.Plugins
 
         private const int LAYER_GROUND = Rust.Layers.Solid | Rust.Layers.Mask.Water;
 
-        private Timer checkVehiclesTimer;
         private static object False;
+        private Timer _checkVehiclesTimer;
+
         public static VehicleLicence Instance { get; private set; }
+
         public readonly Dictionary<BaseEntity, Vehicle> vehiclesCache = new Dictionary<BaseEntity, Vehicle>();
         public readonly Dictionary<string, BaseVehicleS> allBaseVehicleSettings = new Dictionary<string, BaseVehicleS>();
         public readonly Dictionary<string, string> commandToVehicleType = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -207,13 +209,13 @@ namespace Oxide.Plugins
             if (configData.globalS.checkVehiclesInterval > 0 && allBaseVehicleSettings.Any(x => x.Value.wipeTime > 0))
             {
                 Subscribe(nameof(OnEntityDismounted));
-                checkVehiclesTimer = timer.Every(configData.globalS.checkVehiclesInterval, CheckVehicles);
+                _checkVehiclesTimer = timer.Every(configData.globalS.checkVehiclesInterval, CheckVehicles);
             }
         }
 
         private void Unload()
         {
-            checkVehiclesTimer?.Destroy();
+            _checkVehiclesTimer?.Destroy();
             if (!configData.globalS.storeVehicle)
             {
                 foreach (var entry in vehiclesCache.ToArray())
@@ -428,25 +430,6 @@ namespace Oxide.Plugins
         }
 
         #endregion Message
-
-        #region RustTranslationAPI
-
-        private string GetItemTranslationByShortName(string language, string itemShortName) => (string)RustTranslationAPI.Call("GetItemTranslationByShortName", language, itemShortName);
-
-        private string GetItemDisplayName(string language, string itemShortName, string displayName)
-        {
-            if (RustTranslationAPI != null)
-            {
-                var displayName1 = GetItemTranslationByShortName(language, itemShortName);
-                if (!string.IsNullOrEmpty(displayName1))
-                {
-                    return displayName1;
-                }
-            }
-            return displayName;
-        }
-
-        #endregion RustTranslationAPI
 
         #region CheckEntity
 
@@ -663,7 +646,7 @@ namespace Oxide.Plugins
                     if (refundInventory)
                     {
                         var moduleStorage = moduleEntity as VehicleModuleStorage;
-                        if (moduleStorage != null)
+                        if (moduleStorage != null && !(moduleEntity is VehicleModuleEngine))
                         {
                             var storageContainer = moduleStorage.GetContainer()?.inventory;
                             if (storageContainer != null) collect.AddRange(storageContainer.itemList);
@@ -847,7 +830,7 @@ namespace Oxide.Plugins
 
         #endregion VehicleModules
 
-        #region Drop
+        #region DropInventory
 
         private static bool CanDropInventory(BaseVehicleS baseVehicleS)
         {
@@ -924,7 +907,7 @@ namespace Oxide.Plugins
             }
         }
 
-        #endregion Drop
+        #endregion DropInventory
 
         #region TryPay
 
@@ -1079,7 +1062,7 @@ namespace Oxide.Plugins
 
         #endregion AreFriends
 
-        #region PlayerIsBlocked
+        #region IsPlayerBlocked
 
         private bool IsPlayerBlocked(BasePlayer player)
         {
@@ -1101,7 +1084,7 @@ namespace Oxide.Plugins
 
         private bool IsCombatBlocked(string playerID) => (bool)NoEscape.Call("IsCombatBlocked", playerID);
 
-        #endregion PlayerIsBlocked
+        #endregion IsPlayerBlocked
 
         #region GetBaseVehicleS
 
@@ -2518,6 +2501,25 @@ namespace Oxide.Plugins
 
         #endregion Commands
 
+        #region RustTranslationAPI
+
+        private string GetItemTranslationByShortName(string language, string itemShortName) => (string)RustTranslationAPI.Call("GetItemTranslationByShortName", language, itemShortName);
+
+        private string GetItemDisplayName(string language, string itemShortName, string displayName)
+        {
+            if (RustTranslationAPI != null)
+            {
+                var displayName1 = GetItemTranslationByShortName(language, itemShortName);
+                if (!string.IsNullOrEmpty(displayName1))
+                {
+                    return displayName1;
+                }
+            }
+            return displayName;
+        }
+
+        #endregion RustTranslationAPI
+
         #region ConfigurationFile
 
         public ConfigData configData { get; private set; }
@@ -3843,7 +3845,7 @@ namespace Oxide.Plugins
             }
             catch (Exception)
             {
-                PrintError($"Error in the language formatting of '{key}'. (userid: {id}. args: {string.Join(" ,", args)})");
+                PrintError($"Error in the language formatting of '{key}'. (userid: {id}. lang: {lang.GetLanguage(id)}. args: {string.Join(" ,", args)})");
                 throw;
             }
         }
