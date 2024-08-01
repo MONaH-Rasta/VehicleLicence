@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using Network;
 using Newtonsoft.Json;
@@ -11,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.5.4")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.5.5")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -204,7 +205,7 @@ namespace Oxide.Plugins
             if (vehicleS.wipeTime <= 0) return true;
             return TimeEx.currentTimestamp - vehicle.lastDismount < vehicleS.wipeTime;
         }
-
+        private readonly FieldInfo HABFuelSystem = typeof(HotAirBalloon).GetField("fuelSystem", (BindingFlags.Instance | BindingFlags.NonPublic));
         private void RefundFuel(BaseEntity entity, Vehicle vehicle)
         {
             ItemContainer itemContainer = null;
@@ -216,16 +217,18 @@ namespace Oxide.Plugins
 
                 case VehicleType.MiniCopter:
                 case VehicleType.TransportHelicopter:
-                    itemContainer = (entity as MiniCopter)?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory ?? null;
+                    itemContainer = (entity as MiniCopter)?.GetFuelSystem()?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory ?? null;
                     break;
 
                 case VehicleType.HotAirBalloon:
-                    itemContainer = (entity as HotAirBalloon)?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory ?? null;
+                    var hotAirBalloon =entity as HotAirBalloon;
+                    var fuelSystem = HABFuelSystem?.GetValue(hotAirBalloon) as EntityFuelSystem;
+                    itemContainer = fuelSystem?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory ?? null;
                     break;
 
                 case VehicleType.RHIB:
                 case VehicleType.Rowboat:
-                    itemContainer = (entity as MotorRowboat)?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory ?? null;
+                    itemContainer = (entity as MotorRowboat)?.GetFuelSystem()?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory ?? null;
                     break;
 
                 case VehicleType.RidableHorse:
@@ -804,7 +807,7 @@ namespace Oxide.Plugins
             if (string.IsNullOrEmpty(prefab)) return;
             var vehicleS = configData.vehicleS[vehicleType];
             Vector3 position; Quaternion rotation;
-            GetVehicleSpawnPos(player, vehicleS.distance, checkWater, out position, out rotation);
+            GetVehicleSpawnPos(player, vehicleS.distance, checkWater, vehicleType, out position, out rotation);
             var entity = GameManager.server.CreateEntity(prefab, position, rotation) as BaseCombatEntity;
             if (entity == null) return;
             entity.enableSaving = false;
@@ -812,8 +815,8 @@ namespace Oxide.Plugins
             entity.Spawn();
             if (vehicleS.maxHealth > 0 && Math.Abs(vehicleS.maxHealth - entity.MaxHealth()) > 0f)
                 entity.InitializeHealth(vehicleS.maxHealth, vehicleS.maxHealth);
-            if (configData.globalS.noServerGibs && entity is BaseVehicle)
-                (entity as BaseVehicle).serverGibs.guid = string.Empty;
+            if (configData.globalS.noServerGibs && entity is BaseHelicopterVehicle)
+                (entity as BaseHelicopterVehicle).serverGibs.guid = string.Empty;
             if (configData.globalS.noFireBall && entity is BaseHelicopterVehicle)
                 (entity as BaseHelicopterVehicle).fireBall.guid = string.Empty;
             if (configData.globalS.noMapMarker && entity is CH47Helicopter)
@@ -952,13 +955,10 @@ namespace Oxide.Plugins
                     var array = (vehicle as BaseVehicle).mountPoints;
                     foreach (var mountPointInfo in array)
                     {
-                        if (mountPointInfo.mountable != null)
+                        var mounted = mountPointInfo.mountable?._mounted;
+                        if (mounted != null)
                         {
-                            var mounted = mountPointInfo.mountable._mounted;
-                            if (mounted != null)
-                            {
-                                mountPointInfo.mountable.DismountPlayer(mounted);
-                            }
+                            mountPointInfo.mountable.DismountPlayer(mounted);
                         }
                     }
                 }
@@ -968,7 +968,7 @@ namespace Oxide.Plugins
 
             var vehicleS = configData.vehicleS[vehicleType];
             Vector3 position; Quaternion rotation;
-            GetVehicleSpawnPos(player, vehicleS.distance, checkWater, out position, out rotation);
+            GetVehicleSpawnPos(player, vehicleS.distance, checkWater, vehicleType, out position, out rotation);
             vehicle.transform.position = position;
             vehicle.transform.rotation = rotation;
             vehicle.transform.hasChanged = true;
@@ -1058,7 +1058,7 @@ namespace Oxide.Plugins
 
         #endregion Kill Command
 
-        private void GetVehicleSpawnPos(BasePlayer player, float distance, bool checkWater, out Vector3 spawnPos, out Quaternion spawnRot)
+        private void GetVehicleSpawnPos(BasePlayer player, float distance, bool checkWater, VehicleType vehicleType, out Vector3 spawnPos, out Quaternion spawnRot)
         {
             if (configData.globalS.spawnLookingAt) spawnPos = GetLookingAtGroundPos(player, distance);
             else
@@ -1084,7 +1084,7 @@ namespace Oxide.Plugins
             var normalized = (spawnPos - player.transform.position).normalized;
             var angle = normalized != Vector3.zero ? Quaternion.LookRotation(normalized).eulerAngles.y : UnityEngine.Random.Range(0f, 360f);
             spawnRot = Quaternion.Euler(new Vector3(0f, angle + 90f, 0f));
-            spawnPos += Vector3.up * 1.5f;
+            if (vehicleType != VehicleType.RidableHorse) spawnPos += Vector3.up * 1.5f;
         }
 
         #endregion Commands
