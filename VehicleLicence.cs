@@ -1,4 +1,4 @@
-﻿// #define DEBUG
+// #define DEBUG
 
 using System;
 using System.Collections.Generic;
@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.25")]
+    [Info("Vehicle Licence", "Arainrr", "1.7.26")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -615,7 +615,7 @@ namespace Oxide.Plugins
                         {
                             if (CanRefundFuel(baseVehicleS, isCrash, isUnload))
                             {
-                                fuelSystem = (entity as BaseCrane)?.GetFuelSystem();
+                                fuelSystem = (entity as MagnetCrane)?.GetFuelSystem();
                             }
                         }
                         break;
@@ -794,7 +794,7 @@ namespace Oxide.Plugins
                         break;
 
                     case NormalVehicleType.MagnetCrane:
-                        fuelSystem = (entity as BaseCrane)?.GetFuelSystem();
+                        fuelSystem = (entity as MagnetCrane)?.GetFuelSystem();
                         break;
 
                     case NormalVehicleType.SubmarineSolo:
