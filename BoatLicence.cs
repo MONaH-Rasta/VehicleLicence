@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Boat Licence", "Sorrow", "0.6.2")]
+    [Info("Boat Licence", "Sorrow", "0.6.3")]
     [Description("Allows players to buy a boat and then spawn or store it")]
 
     class BoatLicence : RustPlugin
@@ -239,6 +239,11 @@ namespace Oxide.Plugins
             if (!IsInWater(player))
             {
                 SendReply(player, Msg("notInWater", player.UserIDString));
+                return;
+            }
+            if (player.IsBuildingBlocked())
+            {
+                SendReply(player, Msg("buildindBlocked", player.UserIDString));
                 return;
             }
 
@@ -512,6 +517,7 @@ namespace Oxide.Plugins
                 ["boatRecalled"] = "You recalled your boat.",
                 ["boatOnCooldown"] = "You must wait {0} seconds before you can spawn your boat.",
                 ["notInWater"] = "You must be in the water to use this command.",
+                ["buildindBlocked"] = "You can't spawn a boat appear if you don't have the building privileges.",
             }, this);
 
             lang.RegisterMessages(new Dictionary<string, string>
@@ -535,6 +541,7 @@ namespace Oxide.Plugins
                 ["boatRecalled"] = "Vous avez rangé votre bateau.",
                 ["boatOnCooldown"] = "Vous devez attendre {0} secondes avant de pouvoir faire apparaître votre bateau.",
                 ["notInWater"] = "Vous devez être dans l'eau pour utiliser cette commande.",
+                ["buildindBlocked"] = "Vous ne pouvez pas faire apparaître un bateau si vous n'avez pas les privilèges de construction.",
             }, this, "fr");
         }
         #endregion
