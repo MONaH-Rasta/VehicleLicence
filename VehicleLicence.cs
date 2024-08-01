@@ -9,7 +9,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle License", "Sorrow|TheDoc", "1.3.0")]
+    [Info("Vehicle License", "Sorrow|TheDoc", "1.3.1")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
     class VehicleLicence : RustPlugin
@@ -864,8 +864,8 @@ namespace Oxide.Plugins
                     "<color=#4DFF4D>/buy sedan</color> -- <color=#FF1919>{3}</color> pour acheter une voiture \n" +
                     "<color=#4DFF4D>/buy hab</color> -- <color=#FF1919>{4}</color> pour acheter une montgolfière \n" +
                     "<color=#4DFF4D>/buy copter</color> -- <color=#FF1919>{5}</color> pour acheter un mini hélicoptère \n" +
-					"<color=#4DFF4D>/buy transport</color> -- <color=#FF1919>{5}</color> pour acheter un hélicoptère de transport \n" +
-                    "<color=#4DFF4D>/buy ch47</color> -- <color=#FF1919>{6}</color> pour acheter un Chinook \n",
+					"<color=#4DFF4D>/buy transport</color> -- <color=#FF1919>{6}</color> pour acheter un hélicoptère de transport \n" +
+                    "<color=#4DFF4D>/buy ch47</color> -- <color=#FF1919>{7}</color> pour acheter un Chinook \n",
                 ["helpSpawn"] = "Voici les commandes disponibles : \n" +
                     "<color=#4DFF4D>/spawn row</color> -- Pour faire apparaître un bateau à rames \n" +
                     "<color=#4DFF4D>/spawn rhib</color> -- Pour faire apparaître un RHIB \n" +
@@ -915,8 +915,8 @@ namespace Oxide.Plugins
                     "<color=#4DFF4D>/buy sedan</color> -- <color=#FF1919>{3}</color> Auto kaufen \n" +
                     "<color=#4DFF4D>/buy hab</color> -- <color=#FF1919>{4}</color> Heißluftballon kaufen \n" +
                     "<color=#4DFF4D>/buy copter</color> -- <color=#FF1919>{5}</color> Helikopter kaufen \n" +
-					"<color=#4DFF4D>/buy transport</color> -- <color=#FF1919>{5}</color> Transporthelikopter kaufen \n" +
-                    "<color=#4DFF4D>/buy ch47</color> -- <color=#FF1919>{6}</color> Tandemhubschrauber kaufen \n",
+					"<color=#4DFF4D>/buy transport</color> -- <color=#FF1919>{6}</color> Transporthelikopter kaufen \n" +
+                    "<color=#4DFF4D>/buy ch47</color> -- <color=#FF1919>{7}</color> Tandemhubschrauber kaufen \n",
                 ["helpSpawn"] = "Verfügbare Kommandos: \n" +
                     "<color=#4DFF4D>/spawn row</color> -- Boot ausparken \n" +
                     "<color=#4DFF4D>/spawn rhib</color> -- Motorboot ausparken \n" +
