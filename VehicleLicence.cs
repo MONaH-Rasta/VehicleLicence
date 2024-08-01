@@ -19,7 +19,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.43")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.44")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -444,7 +444,7 @@ namespace Oxide.Plugins
             TryClaimVehicle(motorRowboat);
         }
 
-        private void OnEntitySpawned(MiniCopter miniCopter)
+        private void OnEntitySpawned(Minicopter miniCopter)
         {
             TryClaimVehicle(miniCopter);
         }
@@ -1081,7 +1081,7 @@ namespace Oxide.Plugins
             {
                 return NormalVehicleType.TransportHelicopter;
             }
-            if (baseVehicle is MiniCopter)
+            if (baseVehicle is Minicopter)
             {
                 return NormalVehicleType.MiniCopter;
             }
@@ -3202,7 +3202,7 @@ namespace Oxide.Plugins
                 {
                     (entity as BaseCombatEntity)?.InitializeHealth(MaxHealth, MaxHealth);
                 }
-                var helicopterVehicle = entity as BaseHelicopterVehicle;
+                var helicopterVehicle = entity as BaseHelicopter;
                 if (helicopterVehicle != null)
                 {
                     if (configData.global.noServerGibs)
@@ -3845,7 +3845,7 @@ namespace Oxide.Plugins
 
             protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
             {
-                return (entity as MiniCopter)?.GetFuelSystem();
+                return (entity as Minicopter)?.GetFuelSystem();
             }
         }
 
