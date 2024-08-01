@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.13")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.14")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -937,9 +937,9 @@ namespace Oxide.Plugins
         private static bool SameTeam(ulong playerID, ulong friendID)
         {
             if (!RelationshipManager.TeamsEnabled()) return false;
-            var playerTeam = RelationshipManager.Instance.FindPlayersTeam(playerID);
+            var playerTeam = RelationshipManager.ServerInstance.FindPlayersTeam(playerID);
             if (playerTeam == null) return false;
-            var friendTeam = RelationshipManager.Instance.FindPlayersTeam(friendID);
+            var friendTeam = RelationshipManager.ServerInstance.FindPlayersTeam(friendID);
             if (friendTeam == null) return false;
             return playerTeam == friendTeam;
         }
@@ -1934,7 +1934,7 @@ namespace Oxide.Plugins
                     trainEngine.FrontTrackSection = splineResult;
                     //trainEngine.FrontWheelSplineDist = distResult;
                     frontWheelSplineDistSetMethod?.Invoke(trainEngine, new object[] { distResult });
-                    trainEngine.SetTheRestFromFrontWheelData(trainEngine.FrontTrackSection, trainEngine.FrontTrackSection.GetPosition(trainEngine.FrontWheelSplineDist));
+                    trainEngine.SetTheRestFromFrontWheelData(ref splineResult, trainEngine.FrontTrackSection.GetPosition(trainEngine.FrontWheelSplineDist));
                     trainEngine.Invoke(() =>
                     {
                         trainEngine.FixedUpdateMoveTrain(Time.fixedDeltaTime);
