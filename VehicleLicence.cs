@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow", "1.1.1")]
+    [Info("Vehicle Licence", "Sorrow", "1.2.0")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
     class VehicleLicence : RustPlugin
@@ -54,9 +54,17 @@ namespace Oxide.Plugins
             {
                 PrintWarning("Economics is not loaded, get it at https://umod.org");
             }
+            else if (Economics != null && _useEconomics)
+            {
+                _itemsNeededToBuyVehicles = "Money";
+            }
             if (ServerRewards == null && _useServerRewards)
             {
                 PrintWarning("ServerRewards is not loaded, get it at https://umod.org");
+            }
+            else if (Economics != null && _useEconomics)
+            {
+                _itemsNeededToBuyVehicles = "RP";
             }
 
             LoadData();
@@ -124,7 +132,7 @@ namespace Oxide.Plugins
         [ChatCommand("licence")]
         void CmdLicenceHelp(BasePlayer player, string command, string[] args)
         {
-            SendReply(player, Msg("helpLicence", player.UserIDString));
+            Msg("helpLicence", player);
             LicencedPlayer licencedPlayer;
             if (!_licencedPlayer.TryGetValue(player.userID, out licencedPlayer))
             {
@@ -142,9 +150,11 @@ namespace Oxide.Plugins
         [ChatCommand("buy")]
         void CmdBuyVehicle(BasePlayer player, string command, string[] args)
         {
-            if (args.Length == 0) SendReply(player, string.Format(Msg("helpBuy", player.UserIDString), _itemsNeededToBuyVehicles,
-                GetVehicleSettings(rowBoatPrefab).price, GetVehicleSettings(rhibPrefab).price, GetVehicleSettings(sedanPrefab).price,
-                GetVehicleSettings(hotAirBalloonPrefab).price, GetVehicleSettings(miniCopterPrefab).price, GetVehicleSettings(chinookPrefab).price));
+            if (args.Length == 0) Msg("helpBuy", player, new string[] {
+                _itemsNeededToBuyVehicles, GetVehicleSettings(rowBoatPrefab).price.ToString(), GetVehicleSettings(rhibPrefab).price.ToString(),
+                GetVehicleSettings(sedanPrefab).price.ToString(), GetVehicleSettings(hotAirBalloonPrefab).price.ToString(), GetVehicleSettings(miniCopterPrefab).price.ToString(),
+                GetVehicleSettings(chinookPrefab).price.ToString()
+            });
             if (args.Length >= 1)
             {
                 LicencedPlayer licencedPlayer;
@@ -157,7 +167,7 @@ namespace Oxide.Plugins
                 var arg = args[0].ToLower();
                 if (!PlayerHasPermission(player, arg))
                 {
-                    SendReply(player, Msg("noPermission", player.UserIDString));
+                    Msg("noPermission", player);
                     return;
                 }
                 if (IsCase(arg, rowBoatPrefab))
@@ -186,7 +196,7 @@ namespace Oxide.Plugins
                 }
                 else
                 {
-                    SendReply(player, Msg("helpOptionNotFound", player.UserIDString));
+                    Msg("helpOptionNotFound", player);
                 }
             }
         }
@@ -200,12 +210,12 @@ namespace Oxide.Plugins
         [ChatCommand("spawn")]
         void CmdSpawnVehicle(BasePlayer player, string command, string[] args)
         {
-            if (args.Length == 0) SendReply(player, Msg("helpSpawn", player.UserIDString));
+            if (args.Length == 0) Msg("helpSpawn", player);
             if (args.Length >= 1)
             {
                 if (player.IsBuildingBlocked())
                 {
-                    SendReply(player, Msg("buildindBlocked", player.UserIDString));
+                    Msg("buildindBlocked", player);
                     return;
                 }
 
@@ -217,7 +227,7 @@ namespace Oxide.Plugins
                     var arg = args[0].ToLower();
                     if (!PlayerHasPermission(player, arg))
                     {
-                        SendReply(player, Msg("noPermission", player.UserIDString));
+                        Msg("noPermission", player);
                         return;
                     }
                     if (IsCase(arg, rowBoatPrefab))
@@ -252,12 +262,12 @@ namespace Oxide.Plugins
                     }
                     else
                     {
-                        SendReply(player, Msg("helpOptionNotFound", player.UserIDString));
+                        Msg("helpOptionNotFound", player);
                     }
                 }
                 else
                 {
-                    SendReply(player, Msg("didntBuyVehicle", player.UserIDString));
+                    Msg("didntBuyVehicle", player);
                 }
             }
         }
@@ -273,7 +283,7 @@ namespace Oxide.Plugins
         {
             LicencedPlayer licencedPlayer;
 
-            if (args.Length == 0) SendReply(player, Msg("helpRecall", player.UserIDString));
+            if (args.Length == 0) Msg("helpRecall", player);
             if (args.Length >= 1)
             {
                 if (_licencedPlayer.TryGetValue(player.userID, out licencedPlayer))
@@ -281,7 +291,7 @@ namespace Oxide.Plugins
                     var arg = args[0].ToLower();
                     if (!PlayerHasPermission(player, arg))
                     {
-                        SendReply(player, Msg("noPermission", player.UserIDString));
+                        Msg("noPermission", player);
                         return;
                     }
                     if (IsCase(arg, rowBoatPrefab))
@@ -310,7 +320,7 @@ namespace Oxide.Plugins
                     }
                     else
                     {
-                        SendReply(player, Msg("helpOptionNotFound", player.UserIDString));
+                        Msg("helpOptionNotFound", player);
                     }
                 }
             }
@@ -333,7 +343,7 @@ namespace Oxide.Plugins
 
             if (licencedPlayer.Vehicles.TryGetValue(prefab, out vehicle))
             {
-                SendReply(player, string.Format(Msg("vehicleAlreadyPurchased", player.UserIDString), vehicleSettings.name));
+                Msg("vehicleAlreadyPurchased", player, new string[] { vehicleSettings.name });
             }
             else if (vehicleSettings.name != "null" && vehicleSettings.purchasable)
             {
@@ -345,7 +355,7 @@ namespace Oxide.Plugins
             }
             else
             {
-                SendReply(player, string.Format(Msg("vehicleCannotBeBuyed", player.UserIDString), vehicleSettings.name));
+                Msg("vehicleCannotBeBuyed", player, new string[] { vehicleSettings.name });
             }
         }
 
@@ -374,7 +384,7 @@ namespace Oxide.Plugins
             vehicle.LastDismount = DateTime.UtcNow;
             _vehiclesCache.Add(vehicle.Id, vehicle);
             licencedPlayer.SetVehicle(vehicle);
-            SendReply(player, string.Format(Msg("vehicleSpawned", player.UserIDString), vehicleSettings.name));
+            Msg("vehicleSpawned", player, new string[] { vehicleSettings.name });
 
             return entity;
         }
@@ -390,7 +400,7 @@ namespace Oxide.Plugins
             var vehicle = licencedPlayer.GetVehicle(vehicleSettings.prefab);
             if (player != null && vehicle == null)
             {
-                SendReply(player, string.Format(Msg("vehicleNotYetPurchased", player.UserIDString), vehicleSettings.name));
+                Msg("vehicleNotYetPurchased", player, new string[] { vehicleSettings.name });
             }
             else
             {
@@ -401,11 +411,11 @@ namespace Oxide.Plugins
                 licencedPlayer.SetVehicle(vehicle);
                 if (player != null && vehicleId != 0)
                 {
-                    SendReply(player, string.Format(Msg("vehicleRecalled", player.UserIDString), vehicleSettings.name));
+                    Msg("vehicleRecalled", player, new string[] { vehicleSettings.name });
                 }
                 else if (player != null && vehicleId == 0)
                 {
-                    SendReply(player, string.Format(Msg("vehicleNotOut", player.UserIDString), vehicleSettings.name));
+                    Msg("vehicleNotOut", player, new string[] { vehicleSettings.name });
                 }
             }
         }
@@ -438,7 +448,7 @@ namespace Oxide.Plugins
         {
             foreach (var player in BasePlayer.activePlayerList)
             {
-                SendReply(player, Msg("announcement", player.UserIDString));
+                Msg("announcement", player);
             }
 
             timer.Once(60 * UnityEngine.Random.Range(15, 45), () => CheckVehicles());
@@ -486,12 +496,12 @@ namespace Oxide.Plugins
 
             if (result)
             {
-                SendReply(player, string.Format(Msg("vehiclePurchased", player.UserIDString), vehicleSettings.name));
+                Msg("vehiclePurchased", player, new string[] { vehicleSettings.name });
                 return true;
             }
             else
             {
-                SendReply(player, Msg("noMoney", player.UserIDString));
+                Msg("noMoney", player);
                 return false;
             }
         }
@@ -513,24 +523,22 @@ namespace Oxide.Plugins
             var vehicle = licencedPlayer.GetVehicle(prefab);
             if (vehicle == null)
             {
-                SendReply(player, string.Format(Msg("vehicleNotYetPurchased", player.UserIDString), vehicleSettings.name));
+                Msg("vehicleNotYetPurchased", player, new string[] { vehicleSettings.name });
                 return false;
             }
             else if (vehicle.Id != 0)
             {
-                SendReply(player, string.Format(Msg("alreadyVehicleOut", player.UserIDString), vehicleSettings.name));
+                Msg("alreadyVehicleOut", player, new string[] { vehicleSettings.name });
                 return false;
             }
             else if (water && !IsInWater(player))
             {
-                SendReply(player, Msg("notInWater", player.UserIDString));
+                Msg("notInWater", player);
                 return false;
             }
             else if (vehicleSettings.cooldownToSpawn > 0 && vehicle.Spawned > (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0)).Subtract(TimeSpan.FromSeconds(vehicleSettings.cooldownToSpawn)))
             {
-                SendReply(player, string.Format(Msg("vehicleOnCooldown", player.UserIDString),
-                    Convert.ToInt32((vehicle.Spawned - (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0)).Subtract(TimeSpan.FromSeconds(vehicleSettings.cooldownToSpawn))).TotalSeconds),
-                    vehicleSettings.name));
+                Msg("vehicleOnCooldown", player, new string[] { Convert.ToInt32((vehicle.Spawned - (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0)).Subtract(TimeSpan.FromSeconds(vehicleSettings.cooldownToSpawn))).TotalSeconds).ToString(), vehicleSettings.name });
                 return false;
             }
             else
@@ -549,7 +557,7 @@ namespace Oxide.Plugins
         private bool IsInWater(BasePlayer player)
         {
             var modelState = player.modelState;
-            return modelState != null && modelState.waterLevel > 0f && player.metabolism.wetness.value > 0f;
+            return modelState != null && modelState.waterLevel > 0f;
         }
 
         /// <summary>
@@ -564,27 +572,27 @@ namespace Oxide.Plugins
             if (permission.UserHasPermission(player.UserIDString, "vehiclelicence.use")) return true;
             if (IsCase(arg, rowBoatPrefab))
             {
-                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.rowboat") ? true : false;
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.rowboat");
             }
             else if (IsCase(arg, rhibPrefab))
             {
-                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.rhib") ? true : false;
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.rhib");
             }
             else if (IsCase(arg, sedanPrefab))
             {
-                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.sedan") ? true : false;
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.sedan");
             }
             else if (IsCase(arg, hotAirBalloonPrefab))
             {
-                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.hotairballoon") ? true : false;
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.hotairballoon");
             }
             else if (IsCase(arg, miniCopterPrefab))
             {
-                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.minicopter") ? true : false;
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.minicopter");
             }
             else if (IsCase(arg, chinookPrefab))
             {
-                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.chinook") ? true : false;
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.chinook");
             }
             return false;
         }
@@ -643,9 +651,17 @@ namespace Oxide.Plugins
         /// MSGs the specified key.
         /// </summary>
         /// <param name="key">The key.</param>
-        /// <param name="playerId">The player identifier.</param>
-        /// <returns></returns>
-        private string Msg(string key, string playerId = null) => prefix + lang.GetMessage(key, this, playerId);
+        /// <param name="player">The player.</param>
+        /// <param name="args">The arguments.</param>
+        private void Msg(string key, BasePlayer player, string[] args = null)
+        {
+            var message = lang.GetMessage(key, this, player.UserIDString);
+            if (args != null)
+            {
+                message = string.Format(message, args);
+            }
+            Player.Message(player, message, prefix, 76561198924840872);
+        }
 
         /// <summary>
         /// Loads the default messages.
@@ -660,7 +676,7 @@ namespace Oxide.Plugins
                     "<color='green'>/spawn</color> -- To spawn a vehicle \n" +
                     "<color='green'>/recall</color> -- To recall a vehicle",
                 ["helpBuy"] = "These are the available commands: \n" +
-                    "Money: <color='red'>{0}</color> \n" +
+                    "Item needed: <color='red'>{0}</color> \n" +
                     "<color='green'>/buy row</color> -- <color='red'>{1}</color> to buy a rowing boat \n" +
                     "<color='green'>/buy rhib</color> -- <color='red'>{2}</color> to buy a RHIB \n" +
                     "<color='green'>/buy sedan</color> -- <color='red'>{3}</color> to buy a sedan \n" +
@@ -706,7 +722,7 @@ namespace Oxide.Plugins
                     "<color='green'>/spawn</color> -- Pour faire apparaître un véhicule \n" +
                     "<color='green'>/recall</color> -- Pour ranger un véhicule",
                 ["helpBuy"] = "Voici les commandes disponibles : \n" +
-                    "Argent : <color='red'>{0}</color> \n" +
+                    "Objet requis : <color='red'>{0}</color> \n" +
                     "<color='green'>/buy row</color> -- <color='red'>{1}</color> pour acheter un bateau à rames \n" +
                     "<color='green'>/buy rhib</color> -- <color='red'>{2}</color> pour acheter un RHIB \n" +
                     "<color='green'>/buy sedan</color> -- <color='red'>{3}</color> pour acheter une voiture \n" +
@@ -733,7 +749,7 @@ namespace Oxide.Plugins
                 ["vehicleCannotBeBuyed"] = "Vous ne pouvez pas acheter un {0}.",
                 ["vehicleNotOut"] = "{0} n'est pas dehors.",
                 ["noMoney"] = "Vous n'avez pas assez d'argent.",
-                ["didntBuyVehicle"] = "Vous n'avez pas acheté de {0}.",
+                ["didntBuyVehicle"] = "Vous n'avez pas acheté de vehicule.",
                 ["alreadyVehicleOut"] = "Vous avez déjà un {0} à l'extérieur, tapez <color='green'>/recall</color> pour plus d'informations.",
                 ["vehicleNotYetPurchased"] = "Vous n'avez pas encore acheté de {0}.",
                 ["vehicleSpawned"] = "Vous avez fait apparaître votre {0}.",
