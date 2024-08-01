@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Boat Licence", "Sorrow", "0.2.1")]
+    [Info("Boat Licence", "Sorrow", "0.2.2")]
     [Description("Allows players to buy a boat and then spawn or store it")]
 
     class BoatLicence: RustPlugin
@@ -55,7 +55,7 @@ namespace Oxide.Plugins
         {
             foreach (var boat in _boatsCache.ToList())
             {
-                RemoveBoat(boat.Key, boat.Value);
+                BaseNetworkable.serverEntities.Find(boat.Key)?.Kill();
             }
 
             SaveData();
@@ -73,9 +73,9 @@ namespace Oxide.Plugins
 
         private void OnEntityDismounted(BaseMountable entity, BasePlayer player)
         {
-            var vehicleParent = entity.VehicleParent();
+            var vehicleParent = entity?.VehicleParent();
             LisencedPlayer lisencedPlayer;
-            if (!_boatsCache.TryGetValue(vehicleParent.net.ID, out lisencedPlayer)) return;
+            if (entity == null || !_boatsCache.TryGetValue(vehicleParent.net.ID, out lisencedPlayer)) return;
             lisencedPlayer.UpdateBoatLastDismount(vehicleParent.net.ID);
         }
 
@@ -225,9 +225,11 @@ namespace Oxide.Plugins
                                 return;
                             }
                             var entity = SpawnBoat(rowBoatPrefab, position, player.transform.rotation);
+                            if (entity == null) return;
                             lisencedPlayer.rowBoat.Id = entity.net.ID;
                             lisencedPlayer.UpdateBoatLastDismount(entity.net.ID);
                             _boatsCache.Add(lisencedPlayer.rowBoat.Id, lisencedPlayer);
+                            SendReply(player, Msg("boatSpawned", player.UserIDString));
                         }
                         else
                         {
@@ -248,9 +250,11 @@ namespace Oxide.Plugins
                                 return;
                             }
                             var entity = SpawnBoat(rhibBoatPrefab, position, player.transform.rotation);
+                            if (entity == null) return;
                             lisencedPlayer.rhibBoat.Id = entity.net.ID;
                             lisencedPlayer.UpdateBoatLastDismount(entity.net.ID);
                             _boatsCache.Add(lisencedPlayer.rhibBoat.Id, lisencedPlayer);
+                            SendReply(player, Msg("boatSpawned", player.UserIDString));
                         }
                         else
                         {
@@ -283,13 +287,15 @@ namespace Oxide.Plugins
                     case "row":
                         if (_lisencedPlayer.TryGetValue(player.userID, out lisencedPlayer))
                         {
-                            RemoveBoat(lisencedPlayer.rowBoat.Id, lisencedPlayer);
+                            BaseNetworkable.serverEntities.Find(lisencedPlayer.rowBoat.Id)?.Kill();
+                            SendReply(player, Msg("boatRecalled", player.UserIDString));
                         }
                         break;
                     case "rhib":
                         if (_lisencedPlayer.TryGetValue(player.userID, out lisencedPlayer))
                         {
-                            RemoveBoat(lisencedPlayer.rhibBoat.Id, lisencedPlayer);
+                            BaseNetworkable.serverEntities.Find(lisencedPlayer.rhibBoat.Id)?.Kill();
+                            SendReply(player, Msg("boatRecalled", player.UserIDString));
                         }
                         break;
                     default:
@@ -311,22 +317,11 @@ namespace Oxide.Plugins
         private BaseEntity SpawnBoat(string prefab, Vector3 position, Quaternion rotation = default(Quaternion))
         {
             BaseEntity entity = GameManager.server.CreateEntity(prefab, position + Vector3.up, rotation);
+            if (entity == null) return null;
             entity.enableSaving = true;
             entity.Spawn();
 
             return entity;
-        }
-
-        /// <summary>
-        /// Removes the boat.
-        /// </summary>
-        /// <param name="boatID">The boat identifier.</param>
-        /// <param name="lisencedPlayer">The lisenced player.</param>
-        private void RemoveBoat(uint boatID, LisencedPlayer lisencedPlayer)
-        {
-            BaseNetworkable.serverEntities.Find(boatID)?.Kill();
-            lisencedPlayer.ResetBoat(boatID);
-            _boatsCache?.Remove(boatID);
         }
 
         /// <summary>
@@ -355,12 +350,18 @@ namespace Oxide.Plugins
                 if (lisencedPlayer.rowBoat.Id == boat.Key)
                 {
                     if (BoatIsActive(lisencedPlayer.rowBoat.LastDismount)) continue;
-                    RemoveBoat(boat.Key, lisencedPlayer);
+                    BaseNetworkable.serverEntities.Find(boat.Key)?.Kill();
+                    var player = BasePlayer.FindByID(lisencedPlayer.Userid);
+                    if (player == null) return;
+                    SendReply(player, Msg("boatRecalled", player.UserIDString));
                 }
                 else if (lisencedPlayer.rhibBoat.Id == boat.Key)
                 {
                     if (BoatIsActive(lisencedPlayer.rhibBoat.LastDismount)) continue;
-                    RemoveBoat(boat.Key, lisencedPlayer);
+                    BaseNetworkable.serverEntities.Find(boat.Key)?.Kill();
+                    var player = BasePlayer.FindByID(lisencedPlayer.Userid);
+                    if (player == null) return;
+                    SendReply(player, Msg("boatRecalled", player.UserIDString));
                 }
             }
 
@@ -410,6 +411,8 @@ namespace Oxide.Plugins
                 ["alreadyRowBoatOut"] = "You already have a rowing boat outside, type <color='green'>/spawnboat</color> for more information.",
                 ["alreadyRhibOut"] = "You already have a RHIB outside, type <color='green'>/spawnboat</color> for more information.",
                 ["boatNotYetPurchased"] = "You have not yet purchased a boat.",
+                ["boatSpawned"] = "You spawned your boat.",
+                ["boatRecalled"] = "You recalled your boat.",
             }, this);
 
             lang.RegisterMessages(new Dictionary<string, string>
@@ -429,6 +432,8 @@ namespace Oxide.Plugins
                 ["alreadyRowBoatOut"] = "Vous avez déjà un bateau à rames à l'extérieur, tapez <color='green'>/recallboat</color> pour plus d'informations.",
                 ["alreadyRhibOut"] = "Vous avez déjà un RHIB à l'extérieur, tapez <color='green'>/recallboat</color> pour plus d'informations.",
                 ["boatNotYetPurchased"] = "Vous n'avez pas encore acheté de bateau.",
+                ["boatSpawned"] = "Vous avez fait appraître votre bateau.",
+                ["boatRecalled"] = "Vous avez rangé votre bateau.",
             }, this, "fr");
         }
         #endregion
