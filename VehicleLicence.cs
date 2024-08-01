@@ -1,4 +1,4 @@
-﻿// #define DEBUG
+// #define DEBUG
 
 using System;
 using System.Collections.Generic;
@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.27")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.28")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -2083,7 +2083,7 @@ namespace Oxide.Plugins
             return true;
         }
 
-        private MethodInfo frontWheelSplineDistSetMethod = typeof(BaseTrain).GetMethod("set_FrontWheelSplineDist", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+        private MethodInfo frontWheelSplineDistSetMethod = typeof(TrainCar).GetMethod("set_FrontWheelSplineDist", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
 
         private void RecallVehicle(BasePlayer player, Vehicle vehicle, string vehicleType, Vector3 position, Quaternion rotation, BaseVehicleS baseVehicleS = null)
         {
@@ -2134,7 +2134,9 @@ namespace Oxide.Plugins
                 {
                     //trainEngine.FrontWheelSplineDist = distResult;
                     frontWheelSplineDistSetMethod?.Invoke(trainEngine, new object[] { distResult });
-                    trainEngine.SetTheRestFromFrontWheelData(ref splineResult, trainEngine.FrontTrackSection.GetPosition(trainEngine.FrontWheelSplineDist));
+                    Vector3 vector3;
+                    var positionAndTangent = splineResult.GetPositionAndTangent(trainEngine.FrontWheelSplineDist, trainEngine.transform.forward, out vector3);
+                    trainEngine.SetTheRestFromFrontWheelData(ref splineResult, trainEngine.FrontTrackSection.GetPosition(trainEngine.FrontWheelSplineDist), vector3);
                     trainEngine.FrontTrackSection = splineResult;
                     trainEngine.Invoke(() =>
                     {
