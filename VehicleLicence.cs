@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.5.5")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.5.6")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -205,7 +205,9 @@ namespace Oxide.Plugins
             if (vehicleS.wipeTime <= 0) return true;
             return TimeEx.currentTimestamp - vehicle.lastDismount < vehicleS.wipeTime;
         }
-        private readonly FieldInfo HABFuelSystem = typeof(HotAirBalloon).GetField("fuelSystem", (BindingFlags.Instance | BindingFlags.NonPublic));
+
+        private readonly FieldInfo habFuelSystem = typeof(HotAirBalloon).GetField("fuelSystem", (BindingFlags.Instance | BindingFlags.NonPublic));
+
         private void RefundFuel(BaseEntity entity, Vehicle vehicle)
         {
             ItemContainer itemContainer = null;
@@ -217,22 +219,22 @@ namespace Oxide.Plugins
 
                 case VehicleType.MiniCopter:
                 case VehicleType.TransportHelicopter:
-                    itemContainer = (entity as MiniCopter)?.GetFuelSystem()?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory ?? null;
+                    itemContainer = (entity as MiniCopter)?.GetFuelSystem()?.GetFuelContainer()?.inventory;
                     break;
 
                 case VehicleType.HotAirBalloon:
-                    var hotAirBalloon =entity as HotAirBalloon;
-                    var fuelSystem = HABFuelSystem?.GetValue(hotAirBalloon) as EntityFuelSystem;
-                    itemContainer = fuelSystem?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory ?? null;
+                    var hotAirBalloon = entity as HotAirBalloon;
+                    var fuelSystem = habFuelSystem?.GetValue(hotAirBalloon) as EntityFuelSystem;
+                    itemContainer = fuelSystem?.GetFuelContainer()?.inventory;
                     break;
 
                 case VehicleType.RHIB:
                 case VehicleType.Rowboat:
-                    itemContainer = (entity as MotorRowboat)?.GetFuelSystem()?.fuelStorageInstance.Get(true)?.GetComponent<StorageContainer>()?.inventory ?? null;
+                    itemContainer = (entity as MotorRowboat)?.fuelSystem?.GetFuelContainer()?.inventory;
                     break;
 
                 case VehicleType.RidableHorse:
-                    itemContainer = (entity as RidableHorse)?.inventory ?? null;
+                    itemContainer = (entity as RidableHorse)?.inventory;
                     break;
             }
             if (itemContainer == null) return;
