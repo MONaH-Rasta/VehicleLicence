@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.4.5")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.4.6")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -150,6 +150,7 @@ namespace Oxide.Plugins
                     storedData.playerData[vehicle.playerID].Remove(vehicle.vehicleType);
                     return;
                 }
+                storedData.playerData[vehicle.playerID][vehicle.vehicleType].entityID = 0;
                 storedData.playerData[vehicle.playerID][vehicle.vehicleType].lastDeath = CurrentTime;
             }
         }
