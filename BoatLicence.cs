@@ -1,6 +1,4 @@
-﻿// Requires: Economics
-using Newtonsoft.Json;
-using Oxide.Core;
+﻿using Oxide.Core;
 using Oxide.Core.Plugins;
 using System;
 using System.Collections.Generic;
@@ -9,7 +7,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Boat Licence", "Sorrow", "0.3.0")]
+    [Info("Boat Licence", "Sorrow", "0.4.0")]
     [Description("Allows players to buy a boat and then spawn or store it")]
 
     class BoatLicence : RustPlugin
@@ -30,9 +28,13 @@ namespace Oxide.Plugins
         private int _intervalToCheckBoat;
         private int _timeBeforeBoatWipe;
 
+        private bool _useEconomics;
+        private string _itemsNeededToBuyBoat;
+
         const string prefix = "<color='orange'>[Boat Licence]</color> ";
         const string rowBoatPrefab = "assets/content/vehicles/boats/rowboat/rowboat.prefab";
         const string rhibBoatPrefab = "assets/content/vehicles/boats/rhib/rhib.prefab";
+        const string scrap = "scrap";
         #endregion
 
         #region uMod Hooks
@@ -46,6 +48,14 @@ namespace Oxide.Plugins
 
             _intervalToCheckBoat = Convert.ToInt32(Config["Interval in minutes to check boat for wipe"]);
             _timeBeforeBoatWipe = Convert.ToInt32(Config["Time before boat wipe in minutes"]);
+
+            _useEconomics = Convert.ToBoolean(Config["Use Economics to buy boat"]);
+            _itemsNeededToBuyBoat = Convert.ToString(Config["Shortname of item needed to buy boat"]);
+
+            if (Economics == null && _useEconomics)
+            {
+                PrintWarning("Economics is not loaded, get it at https://umod.org");
+            }
 
             LoadData();
             CheckBoats();
@@ -84,7 +94,6 @@ namespace Oxide.Plugins
         private void OnEntityKill(BaseNetworkable entity)
         {
             if (entity == null) return;
-
             LisencedPlayer lisencedPlayer;
             if (!_boatsCache.TryGetValue(entity.net.ID, out lisencedPlayer)) return;
             lisencedPlayer.ResetBoat(entity.net.ID);
@@ -131,7 +140,8 @@ namespace Oxide.Plugins
                         {
                             lisencedPlayer = new LisencedPlayer(player.userID);
                             _lisencedPlayer.Add(player.userID, lisencedPlayer);
-                            if (Economics.Call<bool>("Withdraw", player.userID, _rowBoatCost))
+                            if (Economics != null && _useEconomics && Economics.Call<bool>("Withdraw", player.userID, _rowBoatCost)
+                                || Withdraw(player, _rowBoatCost))
                             {
                                 lisencedPlayer.rowBoat.Buyed = true;
                                 SendReply(player, Msg("boatPurchased", player.UserIDString));
@@ -143,7 +153,8 @@ namespace Oxide.Plugins
                         }
                         else if (!lisencedPlayer.rowBoat.Buyed)
                         {
-                            if (Economics.Call<bool>("Withdraw", player.userID, _rowBoatCost))
+                            if (Economics != null && _useEconomics && Economics.Call<bool>("Withdraw", player.userID, _rowBoatCost)
+                                || Withdraw(player, _rowBoatCost))
                             {
                                 lisencedPlayer.rowBoat.Buyed = true;
                                 SendReply(player, Msg("boatPurchased", player.UserIDString));
@@ -168,7 +179,8 @@ namespace Oxide.Plugins
                         {
                             lisencedPlayer = new LisencedPlayer(player.userID);
                             _lisencedPlayer.Add(player.userID, lisencedPlayer);
-                            if (Economics.Call<bool>("Withdraw", player.userID, _rhibBoatCost))
+                            if (Economics != null && _useEconomics && Economics.Call<bool>("Withdraw", player.userID, _rhibBoatCost)
+                                || Withdraw(player, _rhibBoatCost))
                             {
                                 lisencedPlayer.rhibBoat.Buyed = true;
                                 SendReply(player, Msg("boatPurchased", player.UserIDString));
@@ -180,7 +192,8 @@ namespace Oxide.Plugins
                         }
                         else if (!lisencedPlayer.rhibBoat.Buyed)
                         {
-                            if (Economics.Call<bool>("Withdraw", player.userID, _rhibBoatCost))
+                            if (Economics != null && _useEconomics && Economics.Call<bool>("Withdraw", player.userID, _rhibBoatCost)
+                                || Withdraw(player, _rhibBoatCost))
                             {
                                 lisencedPlayer.rhibBoat.Buyed = true;
                                 SendReply(player, Msg("boatPurchased", player.UserIDString));
@@ -315,6 +328,21 @@ namespace Oxide.Plugins
         #endregion
 
         #region Functions
+        private bool Withdraw(BasePlayer player, double price)
+        {
+            var item = ItemManager.FindItemDefinition(_itemsNeededToBuyBoat);
+            if (item == null) return false;
+            if (player.inventory.GetAmount(item.itemid) >= price)
+            {
+                player.inventory.Take(null, item.itemid, (int)price);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
         /// <summary>
         /// Spawns the boat.
         /// </summary>
@@ -473,6 +501,8 @@ namespace Oxide.Plugins
             Config["Cost of RHIB"] = 5000;
             Config["Interval in minutes to check boat for wipe"] = 5;
             Config["Time before boat wipe in minutes"] = 15;
+            Config["Use Economics to buy boat"] = false;
+            Config["Shortname of item needed to buy boat"] = scrap;
 
             SaveConfig();
         }
