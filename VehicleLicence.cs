@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.15")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.16")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -245,6 +245,8 @@ namespace Oxide.Plugins
             vehicle.OnDismount();
         }
 
+        #region Mount
+
         private object CanMountEntity(BasePlayer friend, BaseMountable entity)
         {
             var vehicleParent = entity?.VehicleParent();
@@ -254,8 +256,42 @@ namespace Oxide.Plugins
             if (AreFriends(vehicle.playerID, friend.userID)) return null;
             if (configData.globalS.preventDriverSeat && vehicleParent.HasMountPoints() &&
                 entity != vehicleParent.mountPoints[0].mountable) return null;
+
+            SendCantUseMessage(friend, vehicle);
             return False;
         }
+
+        #endregion Mount
+
+        #region Loot
+
+        private object CanLootEntity(BasePlayer friend, StorageContainer container)
+        {
+            if (friend == null || container == null) return null;
+            var parentEntity = container.GetParentEntity();
+            if (parentEntity == null) return null;
+            Vehicle vehicle;
+            if (!vehiclesCache.TryGetValue(parentEntity, out vehicle))
+            {
+                var vehicleParent = (parentEntity as BaseVehicleModule)?.Vehicle;
+                if (vehicleParent == null || !vehiclesCache.TryGetValue(vehicleParent, out vehicle))
+                {
+                    return null;
+                }
+            }
+
+            if (AreFriends(vehicle.playerID, friend.userID))
+            {
+                return null;
+            }
+
+            SendCantUseMessage(friend, vehicle);
+            return False;
+        }
+
+        #endregion Loot
+
+        #region Claime
 
         private void OnEntitySpawned(MotorRowboat motorRowboat)
         {
@@ -283,6 +319,10 @@ namespace Oxide.Plugins
             TryClaimVehicle(player, baseRidableAnimal, NormalVehicleType.RidableHorse);
         }
 
+        #endregion Claime
+
+        #region Decay
+
         private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo)
         {
             if (entity == null | hitInfo?.damageTypes == null) return;
@@ -300,11 +340,11 @@ namespace Oxide.Plugins
             }
         }
 
-        private void OnEntityDeath(BaseCombatEntity entity, HitInfo info) => CheckEntity(entity, true);
+        #endregion Decay
 
-        private void OnEntityKill(BaseCombatEntity entity) => CheckEntity(entity);
+        #region Damage
 
-        //ScrapTransportHelicopter / ModularCar / TrainEngine / MagnetCrane
+        // ScrapTransportHelicopter / ModularCar / TrainEngine / MagnetCrane
         private object OnEntityEnter(TriggerHurtNotChild triggerHurtNotChild, BasePlayer player)
         {
             if (triggerHurtNotChild == null || triggerHurtNotChild.SourceEntity == null || player == null) return null;
@@ -332,7 +372,7 @@ namespace Oxide.Plugins
             return null;
         }
 
-        //HotAirBalloon
+        // HotAirBalloon
         private object OnEntityEnter(TriggerHurt triggerHurt, BasePlayer player)
         {
             if (triggerHurt == null || player == null) return null;
@@ -350,26 +390,34 @@ namespace Oxide.Plugins
             return null;
         }
 
-        private object CanLootEntity(BasePlayer player, StorageContainer container)
-        {
-            if (player == null || container == null) return null;
-            var parentEntity = container.GetParentEntity();
-            if (parentEntity == null) return null;
-            Vehicle vehicle;
-            if (!vehiclesCache.TryGetValue(parentEntity, out vehicle))
-            {
-                var vehicleParent = (parentEntity as BaseVehicleModule)?.Vehicle;
-                if (vehicleParent == null || !vehiclesCache.TryGetValue(vehicleParent, out vehicle))
-                {
-                    return null;
-                }
-            }
-            return AreFriends(vehicle.playerID, player.userID) ? null : False;
-        }
+        #endregion Damage
+
+        #region Destroy
+
+        private void OnEntityDeath(BaseCombatEntity entity, HitInfo info) => CheckEntity(entity, true);
+
+        private void OnEntityKill(BaseCombatEntity entity) => CheckEntity(entity);
+
+        #endregion Destroy
 
         #endregion Oxide Hooks
 
         #region Methods
+
+        #region Message
+
+        private void SendCantUseMessage(BasePlayer friend, Vehicle vehicle)
+        {
+            var baseVehicleS = GetBaseVehicleS(vehicle.vehicleType);
+            if (baseVehicleS != null)
+            {
+                var player = RustCore.FindPlayerById(vehicle.playerID);
+                var playerName = player?.displayName ?? ServerMgr.Instance.persistance.GetPlayerName(vehicle.playerID) ?? "Unknown";
+                Print(friend, Lang("CantUse", friend.UserIDString, baseVehicleS.displayName, $"<color=#{(player != null && player.IsConnected ? "69D214" : "FF6347")}>{playerName}</color>"));
+            }
+        }
+
+        #endregion Message
 
         #region RustTranslationAPI
 
@@ -1661,13 +1709,22 @@ namespace Oxide.Plugins
         private bool CanSpawn(BasePlayer player, Vehicle vehicle, string vehicleType, bool bypassCooldown, out string reason, ref Vector3 position, ref Quaternion rotation, BaseVehicleS baseVehicleS = null, string command = "")
         {
             if (baseVehicleS == null) baseVehicleS = GetBaseVehicleS(vehicleType);
+            BaseEntity randomVehicle = null;
             if (configData.globalS.limitVehicles > 0)
             {
-                var activeVehicles = storedData.ActiveVehiclesCount(player.userID);
-                if (activeVehicles >= configData.globalS.limitVehicles)
+                var activeVehicles = storedData.ActiveVehicles(player.userID);
+                int count = activeVehicles.Count();
+                if (count >= configData.globalS.limitVehicles)
                 {
-                    reason = Lang("VehiclesLimit", player.UserIDString, configData.globalS.limitVehicles);
-                    return false;
+                    if (configData.globalS.killVehicleLimited)
+                    {
+                        randomVehicle = activeVehicles.ElementAt(UnityEngine.Random.Range(0, count));
+                    }
+                    else
+                    {
+                        reason = Lang("VehiclesLimit", player.UserIDString, configData.globalS.limitVehicles);
+                        return false;
+                    }
                 }
             }
             if (!CanPlayerAction(player, vehicleType, baseVehicleS, out reason, ref position, ref rotation))
@@ -1699,6 +1756,11 @@ namespace Oxide.Plugins
             {
                 reason = Lang("NoResourcesToSpawnVehicle", player.UserIDString, baseVehicleS.displayName, missingResources);
                 return false;
+            }
+
+            if (randomVehicle != null)
+            {
+                randomVehicle.Kill(BaseNetworkable.DestroyMode.Gib);
             }
             reason = null;
             return true;
@@ -2703,6 +2765,9 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Limit the number of vehicles at a time")]
             public int limitVehicles;
 
+            [JsonProperty(PropertyName = "Kill a random vehicle when the number of vehicles is limited")]
+            public bool killVehicleLimited;
+
             [JsonProperty(PropertyName = "Prevent vehicles from damaging players")]
             public bool preventDamagePlayer = true;
 
@@ -3389,23 +3454,21 @@ namespace Oxide.Plugins
         {
             public readonly Dictionary<ulong, Dictionary<string, Vehicle>> playerData = new Dictionary<ulong, Dictionary<string, Vehicle>>();
 
-            public int ActiveVehiclesCount(ulong playerID)
+            public IEnumerable<BaseEntity> ActiveVehicles(ulong playerID)
             {
                 Dictionary<string, Vehicle> vehicles;
                 if (!playerData.TryGetValue(playerID, out vehicles))
                 {
-                    return 0;
+                    yield break;
                 }
 
-                int count = 0;
                 foreach (var vehicle in vehicles.Values)
                 {
                     if (vehicle.entity != null && !vehicle.entity.IsDestroyed)
                     {
-                        count++;
+                        yield return vehicle.entity;
                     }
                 }
-                return count;
             }
 
             public Dictionary<string, Vehicle> GetPlayerVehicles(ulong playerID, bool readOnly = true)
@@ -3698,7 +3761,9 @@ namespace Oxide.Plugins
                 ["VehiclesLimit"] = "You can have up to <color=#009EFF>{0}</color> vehicles at a time.",
                 ["TooFarTrainTrack"] = "You are too far from the train track.",
                 ["TooCloseTrainBarricadeOrWorkCart"] = "You are too close to the train barricade or work cart.",
-                ["NotSpawnedOrRecalled"] = "For some reason, your <color=#009EFF>{0}</color> vehicle was not spawned/recalled"
+                ["NotSpawnedOrRecalled"] = "For some reason, your <color=#009EFF>{0}</color> vehicle was not spawned/recalled",
+
+                ["CantUse"] = "Sorry! This {0} belongs to {1}.You cannot use it."
             }, this);
             lang.RegisterMessages(new Dictionary<string, string>
             {
@@ -3757,7 +3822,9 @@ namespace Oxide.Plugins
                 ["VehiclesLimit"] = "您在同一时间内最多可以拥有 <color=#009EFF>{0}</color> 辆载具",
                 ["TooFarTrainTrack"] = "您距离地铁轨道太远了",
                 ["TooCloseTrainBarricadeOrWorkCart"] = "您距离地轨障碍物或其它地铁太近了",
-                ["NotSpawnedOrRecalled"] = "由于某些原因，您的 <color=#009EFF>{0}</color> 载具无法生成或召回"
+                ["NotSpawnedOrRecalled"] = "由于某些原因，您的 <color=#009EFF>{0}</color> 载具无法生成或召回",
+
+                ["CantUse"] = "您不能使用它，这个 {0} 属于 {1}"
             }, this, "zh-CN");
             lang.RegisterMessages(new Dictionary<string, string>
             {
@@ -3816,7 +3883,9 @@ namespace Oxide.Plugins
                 ["VehiclesLimit"] = "У вас может быть до <color=#009EFF>{0}</color> автомобилей одновременно",
                 ["TooFarTrainTrack"] = "Вы слишком далеко от железнодорожных путей",
                 ["TooCloseTrainBarricadeOrWorkCart"] = "Вы слишком близко к железнодорожной баррикаде или рабочей тележке",
-                ["NotSpawnedOrRecalled"] = "По какой-то причине ваш <color=#009EFF>{0}</color>  автомобилей не был вызван / отозван",//
+                ["NotSpawnedOrRecalled"] = "По какой-то причине ваш <color=#009EFF>{0}</color>  автомобилей не был вызван / отозван",
+
+                ["CantUse"] = "Простите! Этот {0} принадлежит {1}. Вы не можете его использовать."
             }, this, "ru");
         }
 
