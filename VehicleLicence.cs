@@ -24,7 +24,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.3")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.4")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -3693,7 +3693,7 @@ namespace Oxide.Plugins
             public virtual bool IsModularVehicle => false;
             public virtual bool IsConnectableVehicle => false;
 
-            protected virtual EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected virtual IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return null;
             }
@@ -4059,9 +4059,9 @@ namespace Oxide.Plugins
                 if (CanRefundFuel(isCrash, isUnload))
                 {
                     var fuelSystem = GetFuelSystem(vehicle.Entity);
-                    if (fuelSystem != null)
+                    if (fuelSystem is EntityFuelSystem entityFuelSystem)
                     {
-                        var fuelContainer = fuelSystem.GetFuelContainer();
+                        var fuelContainer = entityFuelSystem.GetFuelContainer();
                         if (fuelContainer != null && fuelContainer.inventory != null)
                         {
                             items.AddRange(fuelContainer.inventory.itemList);
@@ -4119,9 +4119,9 @@ namespace Oxide.Plugins
                     return;
                 }
                 var fuelSystem = GetFuelSystem(entity);
-                if (fuelSystem != null)
+                if (fuelSystem is EntityFuelSystem entityFuelSystem)
                 {
-                    var fuelContainer = fuelSystem.GetFuelContainer();
+                    var fuelContainer = entityFuelSystem.GetFuelContainer();
                     if (fuelContainer != null && fuelContainer.inventory != null)
                     {
                         var fuelItem = ItemManager.CreateByItemID(ITEMID_FUEL, iFuelVehicle.SpawnFuelAmount);
@@ -4534,7 +4534,7 @@ namespace Oxide.Plugins
         {
             public override bool IsWaterVehicle => true;
 
-            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as MotorRowboat)?.GetFuelSystem();
             }
@@ -4559,7 +4559,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Auto Auth Teammates on spawn/recall")]
             public bool autoAuth { get; set; } = true;
             
-            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as MotorRowboat)?.GetFuelSystem();
             }
@@ -4573,7 +4573,7 @@ namespace Oxide.Plugins
                 return 180f;
             }
             
-            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as HotAirBalloon)?.fuelSystem;
             }
@@ -4604,7 +4604,7 @@ namespace Oxide.Plugins
             [JsonProperty("Instant Engine Start-up (instant take-off)")]
             public bool instantTakeoff;
 
-            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as Minicopter)?.GetFuelSystem();
             }
@@ -4639,7 +4639,7 @@ namespace Oxide.Plugins
             [JsonProperty("Instant Engine Start-up (instant take-off)")]
             public bool instantTakeoff;
 
-            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as AttackHelicopter)?.GetFuelSystem();
             }
@@ -4703,7 +4703,7 @@ namespace Oxide.Plugins
             [JsonProperty("Seconds to pause flyhack when dismount from Transport Scrap Helicopter.")]
             public int flyHackPause;
             
-            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as ScrapTransportHelicopter)?.GetFuelSystem();
             }
@@ -4757,7 +4757,7 @@ namespace Oxide.Plugins
                 return trainEngine.frontCoupling != null && trainEngine.rearCoupling != null;
             }
 
-            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as TrainEngine)?.GetFuelSystem();
             }
@@ -4781,7 +4781,7 @@ namespace Oxide.Plugins
 
         public class MagnetCraneSettings : FuelVehicleSettings
         {
-            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as MagnetCrane)?.GetFuelSystem();
             }
@@ -4794,7 +4794,7 @@ namespace Oxide.Plugins
             public int SpawnAmmoAmount { get; set; }
             public override bool IsWaterVehicle => true;
 
-            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as BaseSubmarine)?.GetFuelSystem();
             }
@@ -4838,7 +4838,7 @@ namespace Oxide.Plugins
 
         public class SnowmobileSettings : InvFuelVehicleSettings
         {
-            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as Snowmobile)?.GetFuelSystem();
             }
@@ -4964,7 +4964,7 @@ namespace Oxide.Plugins
             public override bool IsNormalVehicle => false;
             public override bool IsModularVehicle => true;
 
-            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as ModularCar)?.GetFuelSystem();
             }
@@ -5114,9 +5114,9 @@ namespace Oxide.Plugins
                     if (refundFuel)
                     {
                         var fuelSystem = GetFuelSystem(modularCar);
-                        if (fuelSystem != null)
+                        if (fuelSystem is EntityFuelSystem entityFuelSystem)
                         {
-                            var fuelContainer = fuelSystem.GetFuelContainer()?.inventory;
+                            var fuelContainer = entityFuelSystem.GetFuelContainer()?.inventory;
                             if (fuelContainer != null)
                             {
                                 items.AddRange(fuelContainer.itemList);
@@ -5208,7 +5208,7 @@ namespace Oxide.Plugins
             public override bool IsTrainVehicle => true;
             public override bool IsConnectableVehicle => true;
 
-            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as TrainCar)?.GetFuelSystem();
             }
@@ -5357,14 +5357,15 @@ namespace Oxide.Plugins
 
                 if (trainCar == null) return;
                 var fuelSystem = GetFuelSystem(trainCar);
-                
-                if (fuelSystem == null) return;
-                
-                var fuelContainer = fuelSystem.GetFuelContainer()?.inventory;
-                
-                if (fuelContainer != null)
+
+                if( fuelSystem is EntityFuelSystem entityFuelSystem )
                 {
-                    items.AddRange(fuelContainer.itemList);
+                    var fuelContainer = entityFuelSystem.GetFuelContainer()?.inventory;
+                    
+                    if (fuelContainer != null)
+                    {
+                        items.AddRange(fuelContainer.itemList);
+                    }
                 }
             }
 
