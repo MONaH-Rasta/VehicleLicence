@@ -22,7 +22,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.48")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.0")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -31,63 +31,65 @@ namespace Oxide.Plugins
         [PluginReference]
         private readonly Plugin Economics, ServerRewards, Friends, Clans, NoEscape, LandOnCargoShip, RustTranslationAPI, ZoneManager;
 
-        private const string PERMISSION_USE = "vehiclelicence.use";
-        private const string PERMISSION_ALL = "vehiclelicence.all";
-        private const string PERMISSION_ADMIN = "vehiclelicence.admin";
+        private static readonly string PERMISSION_USE = "vehiclelicence.use";
+        private static readonly string PERMISSION_ALL = "vehiclelicence.all";
+        private static readonly string PERMISSION_ADMIN = "vehiclelicence.admin";
 
-        private const string PERMISSION_BYPASS_COST = "vehiclelicence.bypasscost";
+        private static readonly string PERMISSION_BYPASS_COST = "vehiclelicence.bypasscost";
+        private static readonly string PERMISSION_NO_DAMAGE = "vehiclelicence.nodamage";
+        private static readonly string PERMISSION_NO_COLLISION_DAMAGE = "vehiclelicence.nocollisiondamage";
 
-        private const int ITEMID_FUEL = -946369541;
-        private const int ITEMID_HOTAIRBALLOON_ARMOR = -1989600732;
-        private const string PREFAB_ITEM_DROP = "assets/prefabs/misc/item drop/item_drop.prefab";
+        private static readonly int ITEMID_FUEL = -946369541;
+        private static readonly int ITEMID_HOTAIRBALLOON_ARMOR = -1989600732;
+        private static readonly string PREFAB_ITEM_DROP = "assets/prefabs/misc/item drop/item_drop.prefab";
 
-        private const string PREFAB_TUGBOAT = "assets/content/vehicles/boats/tugboat/tugboat.prefab";
-        private const string PREFAB_ROWBOAT = "assets/content/vehicles/boats/rowboat/rowboat.prefab";
-        private const string PREFAB_RHIB = "assets/content/vehicles/boats/rhib/rhib.prefab";
-        private const string PREFAB_SEDAN = "assets/content/vehicles/sedan_a/sedantest.entity.prefab";
-        private const string PREFAB_HOTAIRBALLOON = "assets/prefabs/deployable/hot air balloon/hotairballoon.prefab";
-        private const string PREFAB_MINICOPTER = "assets/content/vehicles/minicopter/minicopter.entity.prefab";
-        private const string PREFAB_ATTACKHELICOPTER = "assets/content/vehicles/attackhelicopter/attackhelicopter.entity.prefab";
-        private const string PREFAB_TRANSPORTCOPTER = "assets/content/vehicles/scrap heli carrier/scraptransporthelicopter.prefab";
-        private const string PREFAB_CHINOOK = "assets/prefabs/npc/ch47/ch47.entity.prefab";
-        private const string PREFAB_RIDABLEHORSE = "assets/rust.ai/nextai/testridablehorse.prefab";
-        private const string PREFAB_WORKCART = "assets/content/vehicles/trains/workcart/workcart.entity.prefab";
-        private const string PREFAB_SEDANRAIL = "assets/content/vehicles/sedan_a/sedanrail.entity.prefab";
-        private const string PREFAB_MAGNET_CRANE = "assets/content/vehicles/crane_magnet/magnetcrane.entity.prefab";
-        private const string PREFAB_SUBMARINE_DUO = "assets/content/vehicles/submarine/submarineduo.entity.prefab";
-        private const string PREFAB_SUBMARINE_SOLO = "assets/content/vehicles/submarine/submarinesolo.entity.prefab";
+        private static readonly string PREFAB_TUGBOAT = "assets/content/vehicles/boats/tugboat/tugboat.prefab";
+        private static readonly string PREFAB_ROWBOAT = "assets/content/vehicles/boats/rowboat/rowboat.prefab";
+        private static readonly string PREFAB_RHIB = "assets/content/vehicles/boats/rhib/rhib.prefab";
+        private static readonly string PREFAB_SEDAN = "assets/content/vehicles/sedan_a/sedantest.entity.prefab";
+        private static readonly string PREFAB_HOTAIRBALLOON = "assets/prefabs/deployable/hot air balloon/hotairballoon.prefab";
+        private static readonly string PREFAB_MINICOPTER = "assets/content/vehicles/minicopter/minicopter.entity.prefab";
+        private static readonly string PREFAB_ATTACKHELICOPTER = "assets/content/vehicles/attackhelicopter/attackhelicopter.entity.prefab";
+        private static readonly string PREFAB_TRANSPORTCOPTER = "assets/content/vehicles/scrap heli carrier/scraptransporthelicopter.prefab";
+        private static readonly string PREFAB_CHINOOK = "assets/prefabs/npc/ch47/ch47.entity.prefab";
+        private static readonly string PREFAB_RIDABLEHORSE = "assets/rust.ai/nextai/testridablehorse.prefab";
+        private static readonly string PREFAB_WORKCART = "assets/content/vehicles/trains/workcart/workcart.entity.prefab";
+        private static readonly string PREFAB_SEDANRAIL = "assets/content/vehicles/sedan_a/sedanrail.entity.prefab";
+        private static readonly string PREFAB_MAGNET_CRANE = "assets/content/vehicles/crane_magnet/magnetcrane.entity.prefab";
+        private static readonly string PREFAB_SUBMARINE_DUO = "assets/content/vehicles/submarine/submarineduo.entity.prefab";
+        private static readonly string PREFAB_SUBMARINE_SOLO = "assets/content/vehicles/submarine/submarinesolo.entity.prefab";
 
-        private const string PREFAB_CHASSIS_SMALL = "assets/content/vehicles/modularcar/car_chassis_2module.entity.prefab";
-        private const string PREFAB_CHASSIS_MEDIUM = "assets/content/vehicles/modularcar/car_chassis_3module.entity.prefab";
-        private const string PREFAB_CHASSIS_LARGE = "assets/content/vehicles/modularcar/car_chassis_4module.entity.prefab";
+        private static readonly string PREFAB_CHASSIS_SMALL = "assets/content/vehicles/modularcar/car_chassis_2module.entity.prefab";
+        private static readonly string PREFAB_CHASSIS_MEDIUM = "assets/content/vehicles/modularcar/car_chassis_3module.entity.prefab";
+        private static readonly string PREFAB_CHASSIS_LARGE = "assets/content/vehicles/modularcar/car_chassis_4module.entity.prefab";
 
-        private const string PREFAB_SNOWMOBILE = "assets/content/vehicles/snowmobiles/snowmobile.prefab";
-        private const string PREFAB_SNOWMOBILE_TOMAHA = "assets/content/vehicles/snowmobiles/tomahasnowmobile.prefab";
+        private static readonly string PREFAB_SNOWMOBILE = "assets/content/vehicles/snowmobiles/snowmobile.prefab";
+        private static readonly string PREFAB_SNOWMOBILE_TOMAHA = "assets/content/vehicles/snowmobiles/tomahasnowmobile.prefab";
 
         // Train Engine
-        private const string PREFAB_TRAINENGINE = "assets/content/vehicles/trains/workcart/workcart_aboveground.entity.prefab";
-        private const string PREFAB_TRAINENGINE_COVERED = "assets/content/vehicles/trains/workcart/workcart_aboveground2.entity.prefab";
-        private const string PREFAB_TRAINENGINE_LOCOMOTIVE = "assets/content/vehicles/trains/locomotive/locomotive.entity.prefab";
+        private static readonly string PREFAB_TRAINENGINE = "assets/content/vehicles/trains/workcart/workcart_aboveground.entity.prefab";
+        private static readonly string PREFAB_TRAINENGINE_COVERED = "assets/content/vehicles/trains/workcart/workcart_aboveground2.entity.prefab";
+        private static readonly string PREFAB_TRAINENGINE_LOCOMOTIVE = "assets/content/vehicles/trains/locomotive/locomotive.entity.prefab";
 
         // Train Car
-        private const string PREFAB_TRAINWAGON_A = "assets/content/vehicles/trains/wagons/trainwagona.entity.prefab";
-        private const string PREFAB_TRAINWAGON_B = "assets/content/vehicles/trains/wagons/trainwagonb.entity.prefab";
-        private const string PREFAB_TRAINWAGON_C = "assets/content/vehicles/trains/wagons/trainwagonc.entity.prefab";
-        private const string PREFAB_TRAINWAGON_UNLOADABLE = "assets/content/vehicles/trains/wagons/trainwagonunloadable.entity.prefab";
-        private const string PREFAB_TRAINWAGON_UNLOADABLE_FUEL = "assets/content/vehicles/trains/wagons/trainwagonunloadablefuel.entity.prefab";
-        private const string PREFAB_TRAINWAGON_UNLOADABLE_LOOT = "assets/content/vehicles/trains/wagons/trainwagonunloadableloot.entity.prefab";
-        private const string PREFAB_CABOOSE = "assets/content/vehicles/trains/caboose/traincaboose.entity.prefab";
+        private static readonly string PREFAB_TRAINWAGON_A = "assets/content/vehicles/trains/wagons/trainwagona.entity.prefab";
+        private static readonly string PREFAB_TRAINWAGON_B = "assets/content/vehicles/trains/wagons/trainwagonb.entity.prefab";
+        private static readonly string PREFAB_TRAINWAGON_C = "assets/content/vehicles/trains/wagons/trainwagonc.entity.prefab";
+        private static readonly string PREFAB_TRAINWAGON_UNLOADABLE = "assets/content/vehicles/trains/wagons/trainwagonunloadable.entity.prefab";
+        private static readonly string PREFAB_TRAINWAGON_UNLOADABLE_FUEL = "assets/content/vehicles/trains/wagons/trainwagonunloadablefuel.entity.prefab";
+        private static readonly string PREFAB_TRAINWAGON_UNLOADABLE_LOOT = "assets/content/vehicles/trains/wagons/trainwagonunloadableloot.entity.prefab";
+        private static readonly string PREFAB_CABOOSE = "assets/content/vehicles/trains/caboose/traincaboose.entity.prefab";
         
         // Defaults for Vehicle Modifications
-        private readonly float TUGBOAT_ENGINETHRUST = 200000f;
-        private readonly float HELICOPTER_LIFT = 0.25f;
-        private readonly Vector3 SCRAP_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 4000.0f);
-        private readonly Vector3 MINICOPTER_TORQUE = new Vector3(400.0f, 400.0f, 200.0f);
-        private readonly Vector3 ATTACK_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 5200.0f);
+        private static readonly float TUGBOAT_ENGINETHRUST = 200000f;
+        private static readonly float HELICOPTER_LIFT = 0.25f;
+        private static readonly Vector3 SCRAP_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 4000.0f);
+        private static readonly Vector3 MINICOPTER_TORQUE = new Vector3(400.0f, 400.0f, 200.0f);
+        private static readonly Vector3 ATTACK_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 5200.0f);
 
-        private const int LAYER_GROUND = Layers.Solid | Layers.Mask.Water;
+        private static readonly int LAYER_GROUND = Layers.Solid | Layers.Mask.Water;
 
-        private readonly object _false = false;
+        private static readonly object _false = false;
         private bool finishedLoading = false;
 
         public static VehicleLicence Instance { get; private set; }
@@ -153,6 +155,8 @@ namespace Oxide.Plugins
             permission.RegisterPermission(PERMISSION_ALL, this);
             permission.RegisterPermission(PERMISSION_ADMIN, this);
             permission.RegisterPermission(PERMISSION_BYPASS_COST, this);
+            permission.RegisterPermission(PERMISSION_NO_DAMAGE, this);
+            permission.RegisterPermission(PERMISSION_NO_COLLISION_DAMAGE, this);
 
             foreach (NormalVehicleType value in Enum.GetValues(typeof(NormalVehicleType)))
             {
@@ -237,7 +241,7 @@ namespace Oxide.Plugins
             {
                 Subscribe(nameof(OnEntityTakeDamage));
             }
-            if (configData.global.preventDamagePlayer || configData.global.safeTrainDismount)
+            if (configData.global.preventDamagePlayer || configData.global.safeTrainDismount || configData.global.preventDamageNPCs)
             {
                 Subscribe(nameof(OnEntityEnter));
             }
@@ -294,17 +298,21 @@ namespace Oxide.Plugins
             {
                 return;
             }
-            if (player != null && configData.normalVehicles.miniCopter.flyHackPause > 0 && entity.GetParentEntity() is Minicopter)
+            if(player != null)
             {
-                player.PauseFlyHackDetection(configData.normalVehicles.miniCopter.flyHackPause);
-            }
-            else if (player != null && configData.normalVehicles.transportHelicopter.flyHackPause > 0 && entity.GetParentEntity() is ScrapTransportHelicopter)
-            {
-                player.PauseFlyHackDetection(configData.normalVehicles.transportHelicopter.flyHackPause);
-            }
-            else if (player != null && configData.normalVehicles.attackHelicopter.flyHackPause > 0 && entity.GetParentEntity() is AttackHelicopter)
-            {
-                player.PauseFlyHackDetection(configData.normalVehicles.attackHelicopter.flyHackPause);
+                BaseEntity vehicleEntity = entity.GetParentEntity();
+                if (configData.normalVehicles.miniCopter.flyHackPause > 0 && vehicleEntity is Minicopter)
+                {
+                    player.PauseFlyHackDetection(configData.normalVehicles.miniCopter.flyHackPause);
+                }
+                else if (configData.normalVehicles.transportHelicopter.flyHackPause > 0 && vehicleEntity is ScrapTransportHelicopter)
+                {
+                    player.PauseFlyHackDetection(configData.normalVehicles.transportHelicopter.flyHackPause);
+                }
+                else if (configData.normalVehicles.attackHelicopter.flyHackPause > 0 && vehicleEntity is AttackHelicopter)
+                {
+                    player.PauseFlyHackDetection(configData.normalVehicles.attackHelicopter.flyHackPause);
+                }
             }
             var vehicleParent = entity.VehicleParent();
             if (vehicleParent == null || vehicleParent.IsDestroyed)
@@ -395,15 +403,12 @@ namespace Oxide.Plugins
 
         private object CanLootEntity(BasePlayer friend, StorageContainer container)
         {
-            if (friend == null || container == null)
-            {
-                return null;
-            }
+            if (friend == null || container == null) return null; 
+            
             var parentEntity = container.GetParentEntity();
-            if (parentEntity == null)
-            {
-                return null;
-            }
+
+            if (parentEntity == null) return null; 
+            
             return CanLootEntityInternal(friend, parentEntity);
         }
 
@@ -414,14 +419,11 @@ namespace Oxide.Plugins
             {
                 return null;
             }
-            if (AreFriends(vehicle.PlayerId, friend.userID))
-            {
-                return null;
-            }
-            if (HasAdminPermission(friend))
-            {
-                return null;
-            }
+            
+            if (AreFriends(vehicle.PlayerId, friend.userID)) return null;
+            
+            if (HasAdminPermission(friend)) return null;
+            
             SendCantUseMessage(friend, vehicle);
             return _false;
         }
@@ -436,12 +438,22 @@ namespace Oxide.Plugins
             {
                 return;
             }
-            if (!hitInfo.damageTypes.Has(DamageType.Decay)) return;
             Vehicle vehicle;
             if (!TryGetVehicle(entity, out vehicle))
             {
                 return;
             }
+            if (permission.UserHasPermission(vehicle.PlayerId.ToString(), PERMISSION_NO_DAMAGE) && GetBaseVehicleDamage(vehicle.VehicleType))
+            {
+                hitInfo.damageTypes.ScaleAll(0);
+                return;
+            }
+            if (hitInfo.damageTypes.Has(DamageType.Collision) && permission.UserHasPermission(vehicle.PlayerId.ToString(), PERMISSION_NO_COLLISION_DAMAGE) && GetBaseVehicleCollisionDamage(vehicle.VehicleType))
+            {
+                hitInfo.damageTypes.Scale(DamageType.Collision, 0);
+                return;
+            }
+            if (!hitInfo.damageTypes.Has(DamageType.Decay)) return;
             hitInfo.damageTypes.Scale(DamageType.Decay, 0);
         }
 
@@ -496,12 +508,13 @@ namespace Oxide.Plugins
             
             var baseVehicle = sourceEntity as BaseVehicle;
             
-            if ((baseVehicle == null || !player.userID.IsSteamId()) && configData.global.preventDamagePlayer) return _false;
+            if ((baseVehicle == null || player.userID.IsSteamId()) && configData.global.preventDamagePlayer) return _false;
             
+            if(configData.global.preventDamageNPCs && !player.userID.IsSteamId()) return _false;
             
             if (baseVehicle is TrainEngine)
             {
-                if (!configData.global.safeTrainDismount && configData.global.preventDamagePlayer) return _false;
+                if (!configData.global.safeTrainDismount && configData.global.preventDamagePlayer && player.userID.IsSteamId()) return _false;
                 
                 if (!configData.global.safeTrainDismount) return null;
                 
@@ -510,6 +523,9 @@ namespace Oxide.Plugins
                 
                 return configData.global.preventDamagePlayer ? _false : null;
             }
+
+            if (!configData.global.preventDamagePlayer) return null;
+            
             Vector3 pos;
             if (GetDismountPosition(baseVehicle, player, out pos))
             {
@@ -527,16 +543,12 @@ namespace Oxide.Plugins
                 return null;
             }
             var sourceEntity = triggerHurt.gameObject.ToBaseEntity();
-            if (sourceEntity == null)
+            if (sourceEntity == null || !vehiclesCache.ContainsKey(sourceEntity)) return null;
+            
+            if (configData.global.preventDamagePlayer && player.userID.IsSteamId() 
+                || (configData.global.preventDamageNPCs && !player.userID.IsSteamId()))
             {
-                return null;
-            }
-            if (vehiclesCache.ContainsKey(sourceEntity))
-            {
-                if (player.userID.IsSteamId())
-                {
-                    MoveToPosition(player, sourceEntity.CenterPoint() + Vector3.down);
-                }
+                MoveToPosition(player, sourceEntity.CenterPoint() + Vector3.down);
                 //triggerHurt.enabled = false;
                 return _false;
             }
@@ -995,6 +1007,114 @@ namespace Oxide.Plugins
                     return configData.normalVehicles.tomahaSnowmobile;
                 default:
                     return null;
+            }
+        }
+        
+        private bool GetBaseVehicleCollisionDamage(string vehicleType)
+        {
+            BaseVehicleSettings settings;
+            return allVehicleSettings.TryGetValue(vehicleType, out settings) && settings.NoCollisionDamage;
+        }
+        
+        // private bool GetBaseVehicleCollisionDamage(string vehicleType)
+        // {
+        //     BaseVehicleSettings settings;
+        //     return allVehicleSettings.TryGetValue(vehicleType, out settings) && settings.NoCollisionDamage;
+        // }
+
+        private bool GetBaseVehicleCollisionDamage(NormalVehicleType normalVehicleType)
+        {
+            switch (normalVehicleType)
+            {
+                case NormalVehicleType.Tugboat:
+                    return configData.normalVehicles.tugboat.NoCollisionDamage;
+                case NormalVehicleType.Rowboat:
+                    return configData.normalVehicles.rowboat.NoCollisionDamage;
+                case NormalVehicleType.RHIB:
+                    return configData.normalVehicles.rhib.NoCollisionDamage;
+                case NormalVehicleType.Sedan:
+                    return configData.normalVehicles.sedan.NoCollisionDamage;
+                case NormalVehicleType.HotAirBalloon:
+                    return configData.normalVehicles.hotAirBalloon.NoCollisionDamage;
+                case NormalVehicleType.ArmoredHotAirBalloon:
+                    return configData.normalVehicles.armoredHotAirBalloon.NoCollisionDamage;
+                case NormalVehicleType.MiniCopter:
+                    return configData.normalVehicles.miniCopter.NoCollisionDamage;
+                case NormalVehicleType.AttackHelicopter:
+                    return configData.normalVehicles.attackHelicopter.NoCollisionDamage;
+                case NormalVehicleType.TransportHelicopter:
+                    return configData.normalVehicles.transportHelicopter.NoCollisionDamage;
+                case NormalVehicleType.Chinook:
+                    return configData.normalVehicles.chinook.NoCollisionDamage;
+                case NormalVehicleType.RidableHorse:
+                    return configData.normalVehicles.ridableHorse.NoCollisionDamage;
+                case NormalVehicleType.WorkCart:
+                    return configData.normalVehicles.workCart.NoCollisionDamage;
+                case NormalVehicleType.SedanRail:
+                    return configData.normalVehicles.sedanRail.NoCollisionDamage;
+                case NormalVehicleType.MagnetCrane:
+                    return configData.normalVehicles.magnetCrane.NoCollisionDamage;
+                case NormalVehicleType.SubmarineSolo:
+                    return configData.normalVehicles.submarineSolo.NoCollisionDamage;
+                case NormalVehicleType.SubmarineDuo:
+                    return configData.normalVehicles.submarineDuo.NoCollisionDamage;
+                case NormalVehicleType.Snowmobile:
+                    return configData.normalVehicles.snowmobile.NoCollisionDamage;
+                case NormalVehicleType.TomahaSnowmobile:
+                    return configData.normalVehicles.tomahaSnowmobile.NoCollisionDamage;
+                default:
+                    return false;
+            }
+        }
+
+        private bool GetBaseVehicleDamage(string vehicleType)
+        {
+            BaseVehicleSettings settings;
+            return allVehicleSettings.TryGetValue(vehicleType, out settings) && settings.NoDamage;
+        }
+        
+        private bool GetBaseVehicleDamage(NormalVehicleType normalVehicleType)
+        {
+            switch (normalVehicleType)
+            {
+                case NormalVehicleType.Tugboat:
+                    return configData.normalVehicles.tugboat.NoDamage;            
+                case NormalVehicleType.Rowboat:
+                    return configData.normalVehicles.rowboat.NoDamage;
+                case NormalVehicleType.RHIB:
+                    return configData.normalVehicles.rhib.NoDamage;
+                case NormalVehicleType.Sedan:
+                    return configData.normalVehicles.sedan.NoDamage;
+                case NormalVehicleType.HotAirBalloon:
+                    return configData.normalVehicles.hotAirBalloon.NoDamage;
+                case NormalVehicleType.ArmoredHotAirBalloon:
+                    return configData.normalVehicles.armoredHotAirBalloon.NoDamage;
+                case NormalVehicleType.MiniCopter:
+                    return configData.normalVehicles.miniCopter.NoDamage;
+                case NormalVehicleType.AttackHelicopter:
+                    return configData.normalVehicles.attackHelicopter.NoDamage;
+                case NormalVehicleType.TransportHelicopter:
+                    return configData.normalVehicles.transportHelicopter.NoDamage;
+                case NormalVehicleType.Chinook:
+                    return configData.normalVehicles.chinook.NoDamage;
+                case NormalVehicleType.RidableHorse:
+                    return configData.normalVehicles.ridableHorse.NoDamage;
+                case NormalVehicleType.WorkCart:
+                    return configData.normalVehicles.workCart.NoDamage;
+                case NormalVehicleType.SedanRail:
+                    return configData.normalVehicles.sedanRail.NoDamage;
+                case NormalVehicleType.MagnetCrane:
+                    return configData.normalVehicles.magnetCrane.NoDamage;
+                case NormalVehicleType.SubmarineSolo:
+                    return configData.normalVehicles.submarineSolo.NoDamage;
+                case NormalVehicleType.SubmarineDuo:
+                    return configData.normalVehicles.submarineDuo.NoDamage;
+                case NormalVehicleType.Snowmobile:
+                    return configData.normalVehicles.snowmobile.NoDamage;
+                case NormalVehicleType.TomahaSnowmobile:
+                    return configData.normalVehicles.tomahaSnowmobile.NoDamage;
+                default:
+                    return false;
             }
         }
 
@@ -1697,7 +1817,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private bool BuyVehicle(BasePlayer player, string vehicleType)
+        private bool BuyVehicle(BasePlayer player, string vehicleType, bool response = true)
         {
             var settings = GetBaseVehicleSettings(vehicleType);
             if (!settings.Purchasable)
@@ -1719,7 +1839,7 @@ namespace Oxide.Plugins
             }
             vehicles.Add(vehicleType, Vehicle.Create(player.userID, vehicleType));
             SaveData();
-            Print(player, Lang("VehiclePurchased", player.UserIDString, settings.DisplayName, configData.chat.spawnCommand));
+            if(response) Print(player, Lang("VehiclePurchased", player.UserIDString, settings.DisplayName, configData.chat.spawnCommand));
             return true;
         }
 
@@ -1783,15 +1903,13 @@ namespace Oxide.Plugins
         {
             var settings = GetBaseVehicleSettings(vehicleType);
             Vehicle vehicle;
-            if (!storedData.IsVehiclePurchased(player.userID, vehicleType, out vehicle)
-                && !permission.UserHasPermission(player.UserIDString, PERMISSION_BYPASS_COST))
+            if (!storedData.IsVehiclePurchased(player.userID, vehicleType, out vehicle))
             {
-                Print(player, Lang("VehicleNotYetPurchased", player.UserIDString, settings.DisplayName, configData.chat.buyCommand));
-                return false;
-            }
-            if (!storedData.IsVehiclePurchased(player.userID, vehicleType, out vehicle)
-                     && permission.UserHasPermission(player.UserIDString, PERMISSION_BYPASS_COST))
-            {
+                if(!permission.UserHasPermission(player.UserIDString, PERMISSION_BYPASS_COST))
+                {
+                    Print(player, Lang("VehicleNotYetPurchased", player.UserIDString, settings.DisplayName, configData.chat.buyCommand));
+                    return false;
+                }
                 BuyVehicle(player, vehicleType);
                 vehicle = storedData.GetVehicleLicense(player.userID, vehicleType);
             }
@@ -2384,6 +2502,8 @@ namespace Oxide.Plugins
                 ["SmallCar"] = new ModularVehicleSettings
                 {
                     Purchasable = true,
+                    NoDamage = false,
+                    NoCollisionDamage = false,
                     DisplayName = "Small Modular Car",
                     Distance = 5,
                     MinDistanceForPlayers = 3,
@@ -2451,6 +2571,8 @@ namespace Oxide.Plugins
                 ["MediumCar"] = new ModularVehicleSettings
                 {
                     Purchasable = true,
+                    NoDamage = false,
+                    NoCollisionDamage = false,
                     DisplayName = "Medium Modular Car",
                     Distance = 5,
                     MinDistanceForPlayers = 3,
@@ -2522,6 +2644,8 @@ namespace Oxide.Plugins
                 ["LargeCar"] = new ModularVehicleSettings
                 {
                     Purchasable = true,
+                    NoDamage = false,
+                    NoCollisionDamage = false,
                     DisplayName = "Large Modular Car",
                     Distance = 6,
                     MinDistanceForPlayers = 3,
@@ -2614,6 +2738,8 @@ namespace Oxide.Plugins
                 ["WorkCartAboveGround"] = new TrainVehicleSettings
                 {
                     Purchasable = true,
+                    NoDamage = false,
+                    NoCollisionDamage = false,
                     DisplayName = "Work Cart Above Ground",
                     Distance = 12,
                     MinDistanceForPlayers = 6,
@@ -2645,6 +2771,8 @@ namespace Oxide.Plugins
                 ["WorkCartCovered"] = new TrainVehicleSettings
                 {
                     Purchasable = true,
+                    NoDamage = false,
+                    NoCollisionDamage = false,
                     DisplayName = "Covered Work Cart",
                     Distance = 12,
                     MinDistanceForPlayers = 6,
@@ -2676,6 +2804,8 @@ namespace Oxide.Plugins
                 ["CompleteTrain"] = new TrainVehicleSettings
                 {
                     Purchasable = true,
+                    NoDamage = false,
+                    NoCollisionDamage = false,
                     DisplayName = "Complete Train",
                     Distance = 12,
                     MinDistanceForPlayers = 6,
@@ -2730,6 +2860,8 @@ namespace Oxide.Plugins
                 ["Locomotive"] = new TrainVehicleSettings
                 {
                     Purchasable = true,
+                    NoDamage = false,
+                    NoCollisionDamage = false,
                     DisplayName = "Locomotive",
                     Distance = 12,
                     MinDistanceForPlayers = 6,
@@ -2826,6 +2958,9 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Prevent vehicles from damaging players")]
             public bool preventDamagePlayer = true;
             
+            [JsonProperty(PropertyName = "Prevent vehicles from damaging NPCs")]
+            public bool preventDamageNPCs = false;
+            
             [JsonProperty(PropertyName = "Safe dismount players who jump off train")]
             public bool safeTrainDismount = true;
 
@@ -2892,6 +3027,8 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Tugboat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public TugboatSettings tugboat = new TugboatSettings { 
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Tugboat",
                 speedMultiplier = 1,
                 autoAuth = true,
@@ -2918,6 +3055,8 @@ namespace Oxide.Plugins
             public SedanSettings sedan = new SedanSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Sedan",
                 Distance = 5,
                 MinDistanceForPlayers = 3,
@@ -2944,6 +3083,8 @@ namespace Oxide.Plugins
             public ChinookSettings chinook = new ChinookSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Chinook",
                 Distance = 15,
                 MinDistanceForPlayers = 6,
@@ -2970,6 +3111,8 @@ namespace Oxide.Plugins
             public RowboatSettings rowboat = new RowboatSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Row Boat",
                 Distance = 5,
                 MinDistanceForPlayers = 2,
@@ -2996,6 +3139,8 @@ namespace Oxide.Plugins
             public RhibSettings rhib = new RhibSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Rigid Hulled Inflatable Boat",
                 Distance = 10,
                 MinDistanceForPlayers = 3,
@@ -3022,6 +3167,8 @@ namespace Oxide.Plugins
             public HotAirBalloonSettings hotAirBalloon = new HotAirBalloonSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Hot Air Balloon",
                 Distance = 20,
                 MinDistanceForPlayers = 5,
@@ -3048,6 +3195,8 @@ namespace Oxide.Plugins
             public ArmoredHotAirBalloonSettings armoredHotAirBalloon = new ArmoredHotAirBalloonSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Armored Hot Air Balloon",
                 Distance = 10,
                 MinDistanceForPlayers = 5,
@@ -3074,12 +3223,19 @@ namespace Oxide.Plugins
             public RidableHorseSettings ridableHorse = new RidableHorseSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                IsDoubleSaddle = false,
                 DisplayName = "Ridable Horse",
                 Distance = 6,
                 MinDistanceForPlayers = 1,
                 UsePermission = true,
                 Permission = "vehiclelicence.ridablehorse",
                 Commands = new List<string> { "horse", "ridablehorse" },
+                Breeds = new List<string>
+                {
+                    "Appalosa", "Bay", "Buckskin", "Chestnut", "Dapple Grey", "Piebald", "Pinto", "Red Roan", "White Thoroughbred", "Black Thoroughbred"
+                },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
                     ["scrap"] = new PriceInfo { amount = 700, displayName = "Scrap" }
@@ -3100,6 +3256,8 @@ namespace Oxide.Plugins
             public MiniCopterSettings miniCopter = new MiniCopterSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Mini Copter",
                 Distance = 8,
                 MinDistanceForPlayers = 2,
@@ -3130,6 +3288,8 @@ namespace Oxide.Plugins
             public AttackHelicopterSettings attackHelicopter = new AttackHelicopterSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Attack Helicopter",
                 Distance = 8,
                 MinDistanceForPlayers = 2,
@@ -3137,6 +3297,9 @@ namespace Oxide.Plugins
                 flyHackPause = 0,
                 liftFraction = 0.33f,
                 instantTakeoff = false,
+                HVSpawnAmmoAmount = 0,
+                IncendiarySpawnAmmoAmount = 0,
+                FlareSpawnAmmoAmount = 0,
                 UsePermission = true,
                 Permission = "vehiclelicence.attackhelicopter",
                 Commands = new List<string> { "attack", "aheli", "attackheli", "attackhelicopter"},
@@ -3160,6 +3323,8 @@ namespace Oxide.Plugins
             public TransportHelicopterSettings transportHelicopter = new TransportHelicopterSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Transport Copter",
                 Distance = 7,
                 MinDistanceForPlayers = 4,
@@ -3192,6 +3357,8 @@ namespace Oxide.Plugins
             public WorkCartSettings workCart = new WorkCartSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Work Cart",
                 Distance = 12,
                 MinDistanceForPlayers = 6,
@@ -3221,6 +3388,8 @@ namespace Oxide.Plugins
             public WorkCartSettings sedanRail = new WorkCartSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Sedan Rail",
                 Distance = 6,
                 MinDistanceForPlayers = 3,
@@ -3250,6 +3419,8 @@ namespace Oxide.Plugins
             public MagnetCraneSettings magnetCrane = new MagnetCraneSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Magnet Crane",
                 Distance = 16,
                 MinDistanceForPlayers = 8,
@@ -3279,6 +3450,8 @@ namespace Oxide.Plugins
             public SubmarineSoloSettings submarineSolo = new SubmarineSoloSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Submarine Solo",
                 Distance = 5,
                 MinDistanceForPlayers = 2,
@@ -3305,6 +3478,8 @@ namespace Oxide.Plugins
             public SubmarineDuoSettings submarineDuo = new SubmarineDuoSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Submarine Duo",
                 Distance = 5,
                 MinDistanceForPlayers = 2,
@@ -3331,6 +3506,8 @@ namespace Oxide.Plugins
             public SnowmobileSettings snowmobile = new SnowmobileSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Snowmobile",
                 Distance = 5,
                 MinDistanceForPlayers = 2,
@@ -3357,6 +3534,8 @@ namespace Oxide.Plugins
             public SnowmobileSettings tomahaSnowmobile = new SnowmobileSettings
             {
                 Purchasable = true,
+                NoDamage = false,
+                NoCollisionDamage = false,
                 DisplayName = "Tomaha Snowmobile",
                 Distance = 5,
                 MinDistanceForPlayers = 2,
@@ -3389,6 +3568,12 @@ namespace Oxide.Plugins
 
             [JsonProperty(PropertyName = "Purchasable")]
             public bool Purchasable { get; set; }
+            
+            [JsonProperty(PropertyName = "No Damage")]
+            public bool NoDamage { get; set; }
+            
+            [JsonProperty(PropertyName = "No Collision Damage")]
+            public bool NoCollisionDamage { get; set; }
 
             [JsonProperty(PropertyName = "Display Name")]
             public string DisplayName { get; set; }
@@ -3560,6 +3745,7 @@ namespace Oxide.Plugins
                 {
                     (entity as BaseCombatEntity)?.InitializeHealth(MaxHealth, MaxHealth);
                 }
+                
                 var helicopterVehicle = entity as BaseHelicopter;
                 if (helicopterVehicle != null)
                 {
@@ -3594,6 +3780,21 @@ namespace Oxide.Plugins
             
             private BaseEntity ModifyVehicle(BaseEntity entity, Vehicle vehicle, BasePlayer player)
             {
+                if (entity is RidableHorse) // Thanks to Beee :)
+                {
+                    RidableHorse ridableHorse = entity as RidableHorse;
+                    string randBreed = configData.normalVehicles.ridableHorse.Breeds[Random.Range(0, configData.normalVehicles.ridableHorse.Breeds.Count)];
+                    int breedIndex;
+                    if(configData.normalVehicles.ridableHorse.BreedsRef.TryGetValue(randBreed, out breedIndex))
+                        ridableHorse.ApplyBreed(breedIndex);
+                    if (!configData.normalVehicles.ridableHorse.IsDoubleSaddle) return entity;
+                    
+                    ridableHorse.SetFlag(BaseEntity.Flags.Reserved9, false, networkupdate: false);
+                    ridableHorse.SetFlag(BaseEntity.Flags.Reserved10, true, networkupdate: false);
+                    ridableHorse.UpdateMountFlags();
+
+                    return entity;
+                }
                 if (entity is Tugboat)
                 {
                     Tugboat tug = entity as Tugboat;
@@ -3641,15 +3842,17 @@ namespace Oxide.Plugins
                     return entity;
                 }
 
-                if (!(entity is Minicopter)) return entity;
-                Minicopter mini = entity as Minicopter;
-                mini.torqueScale *= configData.normalVehicles.miniCopter.rotationScale;
-                mini.liftFraction = configData.normalVehicles.miniCopter.liftFraction;
+                if (entity is Minicopter)
+                {
+                    Minicopter mini = entity as Minicopter;
+                    // Debug.Log($"Default mini.liftDotMax: {mini.liftDotMax}\nDefault mini.altForceDotMin {mini.altForceDotMin}");
+                    // mini.altForceDotMin = 0;
+                    // mini.liftDotMax = 0.2f;
+                    mini.torqueScale *= configData.normalVehicles.miniCopter.rotationScale;
+                    mini.liftFraction = configData.normalVehicles.miniCopter.liftFraction;
+                    return entity;
+                }
                 return entity;
-                // Debug.Log($"Default mini.liftDotMax: {mini.liftDotMax}\nDefault mini.altForceDotMin {mini.altForceDotMin}");
-                // mini.altForceDotMin = 0;
-                // mini.liftDotMax = 0.2f;
-                // Debug.Log($"Modified mini.liftDotMax: {mini.liftDotMax}");
             }
 
             #endregion Setup
@@ -4362,6 +4565,19 @@ namespace Oxide.Plugins
         
         public class AttackHelicopterSettings : InvFuelVehicleSettings
         {
+            private const int HV_AMMO_ITEM_ID = -1841918730;
+            private const int INCENDIARY_AMMO_ITEM_ID = 1638322904;
+            private const int FLARE_ITEM_ID = 304481038;
+            
+            [JsonProperty("HV Rocket Spawn Amount")] 
+            public int HVSpawnAmmoAmount { get; set; }
+            
+            [JsonProperty("Incendiary Rocket Spawn Amount")] 
+            public int IncendiarySpawnAmmoAmount { get; set; }
+            
+            [JsonProperty("Flare Spawn Amount")] 
+            public int FlareSpawnAmmoAmount { get; set; }
+            
             public override bool IsFightVehicle => true;
             
             [JsonProperty("Rotation Scale")] 
@@ -4386,6 +4602,45 @@ namespace Oxide.Plugins
                 yield return (entity as AttackHelicopter)?.GetRockets().inventory;
                 yield return (entity as AttackHelicopter)?.GetTurret().inventory;
             }
+            
+            public override void SetupVehicle(BaseEntity entity, Vehicle vehicle, BasePlayer player, bool justCreated = true)
+            {
+                if (justCreated)
+                {
+                    TryGiveAmmo(entity);
+                }
+                base.SetupVehicle(entity, vehicle, player, justCreated);
+            }
+            
+            private void TryGiveAmmo(BaseEntity entity)
+            {
+                if (entity == null || (HVSpawnAmmoAmount <= 0 && IncendiarySpawnAmmoAmount <= 0 && FlareSpawnAmmoAmount <= 0))
+                {
+                    return;
+                }
+                
+                AttackHelicopterRockets ammoContainer = (entity as AttackHelicopter)?.GetRockets();
+                
+                if (ammoContainer == null || ammoContainer.inventory == null) return;
+                
+                Item ammoItem = ItemManager.CreateByItemID(HV_AMMO_ITEM_ID, HVSpawnAmmoAmount);
+                if (!ammoItem.MoveToContainer(ammoContainer.inventory))
+                {
+                    ammoItem.Remove();
+                }
+                
+                ammoItem = ItemManager.CreateByItemID(INCENDIARY_AMMO_ITEM_ID, IncendiarySpawnAmmoAmount);
+                if (!ammoItem.MoveToContainer(ammoContainer.inventory))
+                { 
+                    ammoItem.Remove();
+                }
+                
+                ammoItem = ItemManager.CreateByItemID(FLARE_ITEM_ID, FlareSpawnAmmoAmount);
+                if (!ammoItem.MoveToContainer(ammoContainer.inventory))
+                {
+                    ammoItem.Remove();
+                }
+            }
         }
 
         public class TransportHelicopterSettings : FuelVehicleSettings
@@ -4409,6 +4664,18 @@ namespace Oxide.Plugins
 
         public class RidableHorseSettings : InventoryVehicleSettings
         {
+            [JsonProperty("Spawn with Double Saddle")]
+            public bool IsDoubleSaddle { get; set; }
+            
+            [JsonProperty("Breeds")] 
+            public List<string> Breeds { get; set; }
+            
+            [JsonIgnore]
+            public Dictionary<string, int> BreedsRef = new Dictionary<string, int>()
+            {
+                ["Appalosa"] = 0, ["Bay"] = 1, ["Buckskin"] = 2, ["Chestnut"] = 3, ["Dapple Grey"] = 4, ["Piebald"] = 5, ["Pinto"] = 6, ["Red Roan"] = 7, ["White Thoroughbred"] = 8, ["Black Thoroughbred"] = 9
+            };
+            
             protected override IEnumerable<ItemContainer> GetInventories(BaseEntity entity)
             {
                 yield return (entity as RidableHorse)?.inventory;
@@ -5173,6 +5440,16 @@ namespace Oxide.Plugins
                     }
                 }
                 SaveData();
+            }
+
+            if (configData.version < new VersionNumber(1, 8, 0))
+            {
+                configData.normalVehicles.ridableHorse.Breeds = new List<string>
+                {
+                    "Appalosa", "Bay", "Buckskin", "Chestnut", "Dapple Grey", "Piebald", "Pinto", "Red Roan", "White Thoroughbred", "Black Thoroughbred"
+                };
+                configData.normalVehicles.ridableHorse.IsDoubleSaddle = false;
+                SaveConfig();
             }
             configData.version = Version;
         }
