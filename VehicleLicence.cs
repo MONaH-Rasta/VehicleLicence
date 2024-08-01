@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow", "1.0.2")]
+    [Info("Vehicle Licence", "Sorrow", "1.1.0")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
     class VehicleLicence : RustPlugin
@@ -28,6 +28,7 @@ namespace Oxide.Plugins
 
         private bool _useEconomics;
         private bool _useServerRewards;
+        private bool _usePermissions;
         private string _itemsNeededToBuyVehicles;
 
         const string prefix = "<color='orange'>[Licence]</color> ";
@@ -47,6 +48,7 @@ namespace Oxide.Plugins
             _useEconomics = _configData.Settings.UseEconomics;
             _useServerRewards = _configData.Settings.UseServerRewards;
             _itemsNeededToBuyVehicles = _configData.Settings.ItemsNeededToBuyVehicles;
+            _usePermissions = _configData.Settings.UsePermissions;
 
             if (Economics == null && _useEconomics)
             {
@@ -60,6 +62,17 @@ namespace Oxide.Plugins
             LoadData();
             CheckVehicles();
             BroadcastHelp();
+        }
+
+        private void Loaded()
+        {
+            permission.RegisterPermission("vehiclelicence.use", this);
+            permission.RegisterPermission("vehiclelicence.rowboat", this);
+            permission.RegisterPermission("vehiclelicence.rhib", this);
+            permission.RegisterPermission("vehiclelicence.sedan", this);
+            permission.RegisterPermission("vehiclelicence.hotairballoon", this);
+            permission.RegisterPermission("vehiclelicence.minicopter", this);
+            permission.RegisterPermission("vehiclelicence.chinook", this);
         }
 
         private void Unload()
@@ -142,6 +155,11 @@ namespace Oxide.Plugins
                 }
 
                 var arg = args[0].ToLower();
+                if (!PlayerHasPermission(player, arg))
+                {
+                    SendReply(player, Msg("noPermission", player.UserIDString));
+                    return;
+                }
                 if (IsCase(arg, rowBoatPrefab))
                 {
                     BuyVehicle(player, licencedPlayer, rowBoatPrefab);
@@ -197,6 +215,11 @@ namespace Oxide.Plugins
                 if (_licencedPlayer.TryGetValue(player.userID, out licencedPlayer))
                 {
                     var arg = args[0].ToLower();
+                    if (!PlayerHasPermission(player, arg))
+                    {
+                        SendReply(player, Msg("noPermission", player.UserIDString));
+                        return;
+                    }
                     if (IsCase(arg, rowBoatPrefab))
                     {
                         prefab = rowBoatPrefab;
@@ -254,6 +277,11 @@ namespace Oxide.Plugins
             {
                 if (_licencedPlayer.TryGetValue(player.userID, out licencedPlayer)) {
                     var arg = args[0].ToLower();
+                    if (!PlayerHasPermission(player, arg))
+                    {
+                        SendReply(player, Msg("noPermission", player.UserIDString));
+                        return;
+                    }
                     if (IsCase(arg, rowBoatPrefab))
                     {
                         RemoveVehicle(licencedPlayer, GetVehicleSettings(rowBoatPrefab));
@@ -521,6 +549,43 @@ namespace Oxide.Plugins
         }
 
         /// <summary>
+        /// Player has permission.
+        /// </summary>
+        /// <param name="player">The player.</param>
+        /// <param name="arg">The argument.</param>
+        /// <returns></returns>
+        private bool PlayerHasPermission(BasePlayer player, string arg)
+        {
+            if (!_usePermissions) return true;
+            if (permission.UserHasPermission(player.UserIDString, "vehiclelicence.use")) return true;
+            if (IsCase(arg, rowBoatPrefab))
+            {
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.rowboat") ? true : false;
+            }
+            else if (IsCase(arg, rhibPrefab))
+            {
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.rhib") ? true : false;
+            }
+            else if (IsCase(arg, sedanPrefab))
+            {
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.sedan") ? true : false;
+            }
+            else if (IsCase(arg, hotAirBalloonPrefab))
+            {
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.hotairballoon") ? true : false;
+            }
+            else if (IsCase(arg, miniCopterPrefab))
+            {
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.minicopter") ? true : false;
+            }
+            else if (IsCase(arg, chinookPrefab))
+            {
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.chinook") ? true : false;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Gets the vehicle settings.
         /// </summary>
         /// <param name="prefab">The prefab.</param>
@@ -626,6 +691,7 @@ namespace Oxide.Plugins
                 ["vehicleOnCooldown"] = "You must wait {0} seconds before you can spawn your {1}.",
                 ["notInWater"] = "You must be in the water to use this command.",
                 ["buildindBlocked"] = " You can't spawn a boat appear if you don't have the building privileges.",
+                ["noPermission"] = "You do not have permission to do this.",
             }, this);
 
             lang.RegisterMessages(new Dictionary<string, string>
@@ -671,6 +737,7 @@ namespace Oxide.Plugins
                 ["vehicleOnCooldown"] = "Vous devez attendre {0} secondes avant de pouvoir faire apparaître votre {1}.",
                 ["notInWater"] = "Vous devez être dans l'eau pour utiliser cette commande.",
                 ["buildindBlocked"] = "Vous ne pouvez pas faire apparaître un {0} si vous n'avez pas les privilèges de construction.",
+                ["noPermission"] = "Vous n'avez pas la permission de faire ceci.",
             }, this, "fr");
         }
         #endregion
@@ -726,7 +793,8 @@ namespace Oxide.Plugins
                     TimeBeforeVehicleWipe = 15,
                     UseEconomics = false,
                     UseServerRewards = false,
-                    ItemsNeededToBuyVehicles = "scrap"
+                    ItemsNeededToBuyVehicles = "scrap",
+                    UsePermissions = false,
                 },
 
                 Vehicles = new ConfigData.VehiclesOption
@@ -760,6 +828,8 @@ namespace Oxide.Plugins
                 public bool UseServerRewards { get; set; }
                 [JsonProperty(PropertyName = "Shortname of item needed to buy vehicles")]
                 public string ItemsNeededToBuyVehicles { get; set; }
+                [JsonProperty(PropertyName = "Use permissions for chat commands")]
+                public bool UsePermissions { get; set; }
             }
 
             [JsonProperty(PropertyName = "Define your vehicles options")]
