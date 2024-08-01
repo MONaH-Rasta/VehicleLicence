@@ -9,9 +9,8 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle License", "Sorrow|TheDoc", "1.3.1")]
+    [Info("Vehicle License", "Sorrow|TheDoc", "1.3.2")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
-
     class VehicleLicence : RustPlugin
     {
         #region Fields
@@ -95,7 +94,10 @@ namespace Oxide.Plugins
         {
             foreach (var vehicle in _vehiclesCache.ToList())
             {
-                RemoveVehicle(GetLicencedPlayer(vehicle.Value), GetVehicleSettings(vehicle.Value.Prefab));
+                var licencedPlayer = GetLicencedPlayer(vehicle.Value);
+                if (licencedPlayer == null) continue;
+
+                RemoveVehicle(licencedPlayer, GetVehicleSettings(vehicle.Value.Prefab));
             }
 
             SaveData();
@@ -123,10 +125,10 @@ namespace Oxide.Plugins
 		private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo)
         {
 			// TODO check for boats (row or rhib) and check their Health.
-			
+
 			//PrintWarning("entity.name = " + entity.name);
 			//PrintWarning("hitInfo = " + hitInfo.damageTypes.Total());
-			
+
 			// if ((entity.name.Contains("foundation")) & (!entity.name.Contains("triangle")) & (!entity.name.Contains("steps")))
 			// {
 				// if ((ProtectFoundation == true) & (entity is BuildingBlock))
@@ -140,19 +142,20 @@ namespace Oxide.Plugins
         {
             if (entity == null || entity.net?.ID == null) return;
             Vehicle vehicle;
-			
+
             if (!_vehiclesCache.TryGetValue(entity.net.ID, out vehicle)) return;
             _vehiclesCache.Remove(entity.net.ID);
-			
+
 			//PrintWarning("vehicle =" + vehicle.Prefab);
-			
+
 			LicencedPlayer licencedPlayer = GetLicencedPlayer(vehicle);
-			
+            if (licencedPlayer == null) return;
+
             vehicle.Id = 0;
 
             var player = licencedPlayer.Player;
             if (player == null) return;
-			
+
 			//PrintWarning("player =" + player.userID);
 			//PrintWarning("removing vehicle");
 			//PrintWarning("_removeVehicleOnCrash = " + _removeVehicleOnCrash);
@@ -182,14 +185,14 @@ namespace Oxide.Plugins
 				Msg("comatblocked", player);
 				return;
 			}
-			
+
             Msg("helpLicence", player);
             LicencedPlayer licencedPlayer;
             if (_licencedPlayer.TryGetValue(player.userID, out licencedPlayer)) return;
             licencedPlayer = new LicencedPlayer(player.userID, null);
             _licencedPlayer.Add(player.userID, licencedPlayer);
         }
-		
+
         /// <summary>
         /// Commands the buy vehicle.
         /// </summary>
@@ -209,11 +212,11 @@ namespace Oxide.Plugins
 			}
 
             if (args.Count < 1) Msg("helpBuy", player, new object[] {
-                _itemsNeededToBuyVehicles, 
-				GetVehicleSettings(RowBoatPrefab).price.ToString(), 
+                _itemsNeededToBuyVehicles,
+				GetVehicleSettings(RowBoatPrefab).price.ToString(),
 				GetVehicleSettings(RhibPrefab).price.ToString(),
-                GetVehicleSettings(SedanPrefab).price.ToString(), 
-				GetVehicleSettings(HotAirBalloonPrefab).price.ToString(), 
+                GetVehicleSettings(SedanPrefab).price.ToString(),
+				GetVehicleSettings(HotAirBalloonPrefab).price.ToString(),
 				GetVehicleSettings(MiniCopterPrefab).price.ToString(),
 				GetVehicleSettings(TransportCopterPrefab).price.ToString(),
                 GetVehicleSettings(ChinookPrefab).price.ToString()
@@ -226,7 +229,7 @@ namespace Oxide.Plugins
                     licencedPlayer = new LicencedPlayer(player.userID, null);
                     _licencedPlayer.Add(player.userID, licencedPlayer);
                 }
-				
+
                 var arg = args[0].ToLower();
                 if (!PlayerHasPermission(player, arg))
                 {
@@ -435,14 +438,14 @@ namespace Oxide.Plugins
         {
             Vehicle vehicle;
             var vehicleSettings = GetVehicleSettings(prefab);
-			
+
 			if (!vehicleSettings.purchasable) {
                 Msg("vehicleCannotBeBuyed", player, new[] { vehicleSettings.name });
 				return;
 			} else {
 				//PrintWarning("vehicleSettings.purchasable = " + vehicleSettings.purchasable);
 			}
-			
+
             if (licencedPlayer.Vehicles.TryGetValue(prefab, out vehicle))
             {
                 Msg("vehicleAlreadyPurchased", player, new[] { vehicleSettings.name });
@@ -534,7 +537,9 @@ namespace Oxide.Plugins
                 if (vehicleEntity == null) continue;
                 if (vehicleEntity.IsMounted()) continue;
                 if (VehicleIsActive(vehicle)) continue;
-                RemoveVehicle(GetLicencedPlayer(vehicle), GetVehicleSettings(vehicle.Prefab));
+                var licencedPlayer = GetLicencedPlayer(vehicle);
+                if (licencedPlayer == null) continue;
+                RemoveVehicle(licencedPlayer, GetVehicleSettings(vehicle.Prefab));
             }
 
             timer.Once(_intervalToCheckVehicle * 60f, CheckVehicles);
@@ -584,7 +589,7 @@ namespace Oxide.Plugins
 				var playerCoins = (double)Economics.CallHook("Balance", player.UserIDString);
 //				PrintWarning("playerCoins = " + playerCoins);
 //				PrintWarning("vehicleSettings.price = " + vehicleSettings.price);
-				
+
 				if (playerCoins < vehicleSettings.price) {
 					Msg("noMoney", player);
 					return false;
@@ -597,12 +602,12 @@ namespace Oxide.Plugins
             {
 				int RPs = (int)ServerRewards?.Call("CheckPoints", player.userID);
 				//PrintWarning("RPs = " + RPs);
-				
+
 				if (RPs < vehicleSettings.price) {
 					Msg("noMoney", player);
 					return false;
 				}
-				
+
 				result = (bool)ServerRewards?.Call("TakePoints", player.userID, vehicleSettings.price);
 				//PrintWarning("ServerRewards result = " + result);
             }
@@ -711,7 +716,7 @@ namespace Oxide.Plugins
             {
                 return permission.UserHasPermission(player.UserIDString, "vehiclelicence.minicopter");
             }
-			
+
 			if (IsCase(arg, TransportCopterPrefab))
             {
                 return permission.UserHasPermission(player.UserIDString, "vehiclelicence.transportcopter");
@@ -898,7 +903,7 @@ namespace Oxide.Plugins
                 ["buildindBlocked"] = "Vous ne pouvez pas faire apparaître un {0} si vous n'avez pas les privilèges de construction.",
                 ["noPermission"] = "Vous n'avez pas la permission de faire ceci."
             }, this, "fr");
-			
+
 			lang.RegisterMessages(new Dictionary<string, string>
             {
                 ["announcement"] = "Tippe <color=#4DFF4D>/license</color> um Hilfe zu bekommen.",
