@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.21")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.22")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -149,7 +149,6 @@ namespace Oxide.Plugins
             cmd.AddChatCommand(configData.chatS.spawnCommand, this, nameof(CmdSpawnVehicle));
             cmd.AddChatCommand(configData.chatS.recallCommand, this, nameof(CmdRecallVehicle));
             cmd.AddChatCommand(configData.chatS.killCommand, this, nameof(CmdKillVehicle));
-            Unsubscribe(nameof(CanMountEntity));
             Unsubscribe(nameof(OnEntityTakeDamage));
             Unsubscribe(nameof(OnEntityDismounted));
             Unsubscribe(nameof(OnEntityEnter));
@@ -185,9 +184,9 @@ namespace Oxide.Plugins
                     }
                 }
             }
-            if (configData.globalS.preventMounting)
+            if (!configData.globalS.preventMounting)
             {
-                Subscribe(nameof(CanMountEntity));
+                Unsubscribe(nameof(CanMountEntity));
             }
             if (configData.globalS.noDecay)
             {
@@ -257,15 +256,15 @@ namespace Oxide.Plugins
 
         #region Mount
 
-        private object CanMountEntity(BasePlayer friend, BaseMountable entity)
+        private object CanMountEntity(BasePlayer friend, BaseVehicleMountPoint entity)
         {
-            var vehicleParent = entity?.VehicleParent();
-            if (vehicleParent == null || vehicleParent.IsDestroyed) return null;
+            if (friend == null || entity == null) return null;
+            var vehicleParent = entity.GetParentEntity() as ModularCar;
+            if (vehicleParent == null || vehicleParent.IsDestroyed || vehicleParent.OwnerID == 0 || friend.OwnerID == vehicleParent.OwnerID) return null;
             Vehicle vehicle;
             if (!vehiclesCache.TryGetValue(vehicleParent, out vehicle)) return null;
             if (AreFriends(vehicle.playerID, friend.userID)) return null;
-            if (configData.globalS.preventDriverSeat && vehicleParent.HasMountPoints() &&
-                entity != vehicleParent.mountPoints[0].mountable)
+            if (configData.globalS.preventDriverSeat && vehicleParent.HasMountPoints() && entity != vehicleParent.mountPoints[0]?.mountable)
             {
                 return null;
             }
@@ -307,7 +306,7 @@ namespace Oxide.Plugins
 
         private void OnEntitySpawned(MotorRowboat motorRowboat)
         {
-            NextTick(() =>
+            NextFrame(() =>
             {
                 var player = motorRowboat?.creatorEntity as BasePlayer;
                 if (player == null || !player.userID.IsSteamId() || !motorRowboat.OnlyOwnerAccessible()) return;
@@ -317,7 +316,7 @@ namespace Oxide.Plugins
 
         private void OnEntitySpawned(MiniCopter miniCopter)
         {
-            NextTick(() =>
+            NextFrame(() =>
             {
                 var player = miniCopter?.creatorEntity as BasePlayer;
                 if (player == null || !player.userID.IsSteamId() || !miniCopter.OnlyOwnerAccessible()) return;
@@ -432,7 +431,6 @@ namespace Oxide.Plugins
         #endregion Message
 
         #region CheckEntity
-
         private void CheckEntity(BaseCombatEntity entity, bool isCrash = false)
         {
             if (entity == null) return;
@@ -819,8 +817,9 @@ namespace Oxide.Plugins
                             }
                             if (!moved)
                             {
-                                PrintError($"Engine item '{engineItem.info.shortname}' in '{vehicleType}' cannot be move to the vehicle engine inventory");
+                                //PrintError($"Engine item '{engineItem.info.shortname}' in '{vehicleType}' cannot be move to the vehicle engine inventory");
                                 engineItem.Remove();
+                                engineItem.DoRemove();
                             }
                         }
                     }
@@ -1852,7 +1851,7 @@ namespace Oxide.Plugins
                     }
                     if (modularVehicleS.EngineItems.Any())
                     {
-                        NextTick(() => AddItemsToVehicleEngine(modularCar, modularVehicleS, vehicleType));
+                        NextFrame(() => AddItemsToVehicleEngine(modularCar, modularVehicleS, vehicleType));
                     }
                 }
             }
