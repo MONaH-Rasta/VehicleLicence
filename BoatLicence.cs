@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Boat Licence", "Sorrow", "0.5.0")]
+    [Info("Boat Licence", "Sorrow", "0.6.0")]
     [Description("Allows players to buy a boat and then spawn or store it")]
 
     class BoatLicence : RustPlugin
@@ -27,6 +27,7 @@ namespace Oxide.Plugins
 
         private int _intervalToCheckBoat;
         private int _timeBeforeBoatWipe;
+        private double _cooldownToUseSpawnCmd;
 
         private bool _useEconomics;
         private bool _useServerRewards;
@@ -49,6 +50,7 @@ namespace Oxide.Plugins
 
             _intervalToCheckBoat = Convert.ToInt32(Config["Interval in minutes to check boat for wipe"]);
             _timeBeforeBoatWipe = Convert.ToInt32(Config["Time before boat wipe in minutes"]);
+            _cooldownToUseSpawnCmd = Convert.ToDouble(Config["Cooldown time in seconds to use the chat command to spawn a boat"]);
 
             _useEconomics = Convert.ToBoolean(Config["Use Economics to buy boat"]);
             _itemsNeededToBuyBoat = Convert.ToString(Config["Shortname of item needed to buy boat"]);
@@ -233,6 +235,12 @@ namespace Oxide.Plugins
         [ChatCommand("spawnboat")]
         void CmdSpawnBoat(BasePlayer player, string command, string[] args)
         {
+            if (!IsInWater(player))
+            {
+                SendReply(player, Msg("notInWater", player.UserIDString));
+                return;
+            }
+
             Vector3 position = player.transform.position + (player.transform.forward * 3);
             LisencedPlayer lisencedPlayer;
 
@@ -254,8 +262,14 @@ namespace Oxide.Plugins
                                 SendReply(player, Msg("alreadyRowBoatOut", player.UserIDString));
                                 return;
                             }
+                            else if (_cooldownToUseSpawnCmd > 0 && lisencedPlayer.boatSpawned > DateTime.Now.Subtract(TimeSpan.FromSeconds(_cooldownToUseSpawnCmd)).TimeOfDay)
+                            {
+                                SendReply(player, string.Format(Msg("boatOnCooldown", player.UserIDString), Convert.ToInt32((lisencedPlayer.boatSpawned - DateTime.Now.Subtract(TimeSpan.FromSeconds(_cooldownToUseSpawnCmd)).TimeOfDay).TotalSeconds)));
+                                return;
+                            }
                             var entity = SpawnBoat(rowBoatPrefab, position, player.transform.rotation);
                             if (entity == null) return;
+                            lisencedPlayer.boatSpawned = DateTime.Now.TimeOfDay;
                             lisencedPlayer.rowBoat.Id = entity.net.ID;
                             lisencedPlayer.UpdateBoatLastDismount(entity.net.ID);
                             _boatsCache.Add(lisencedPlayer.rowBoat.Id, lisencedPlayer);
@@ -279,8 +293,14 @@ namespace Oxide.Plugins
                                 SendReply(player, Msg("alreadyRhibOut", player.UserIDString));
                                 return;
                             }
+                            else if (_cooldownToUseSpawnCmd > 0 && lisencedPlayer.boatSpawned > DateTime.Now.Subtract(TimeSpan.FromSeconds(_cooldownToUseSpawnCmd)).TimeOfDay)
+                            {
+                                SendReply(player, string.Format(Msg("boatOnCooldown", player.UserIDString), Convert.ToInt32((lisencedPlayer.boatSpawned - DateTime.Now.Subtract(TimeSpan.FromSeconds(_cooldownToUseSpawnCmd)).TimeOfDay).TotalSeconds)));
+                                return;
+                            }
                             var entity = SpawnBoat(rhibBoatPrefab, position, player.transform.rotation);
                             if (entity == null) return;
+                            lisencedPlayer.boatSpawned = DateTime.Now.TimeOfDay;
                             lisencedPlayer.rhibBoat.Id = entity.net.ID;
                             lisencedPlayer.UpdateBoatLastDismount(entity.net.ID);
                             _boatsCache.Add(lisencedPlayer.rhibBoat.Id, lisencedPlayer);
@@ -435,6 +455,12 @@ namespace Oxide.Plugins
         {
             return lastDismount.Ticks >= DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(_timeBeforeBoatWipe)).Ticks;
         }
+
+        private bool IsInWater(BasePlayer player)
+        {
+            var modelState = player.modelState;
+            return modelState != null && modelState.waterLevel > 0f && player.metabolism.wetness.value > 0f;
+        }
         #endregion
 
         #region Localization
@@ -470,6 +496,8 @@ namespace Oxide.Plugins
                 ["boatNotYetPurchased"] = "You have not yet purchased a boat.",
                 ["boatSpawned"] = "You spawned your boat.",
                 ["boatRecalled"] = "You recalled your boat.",
+                ["boatOnCooldown"] = "You must wait {0} seconds before you can spawn your boat.",
+                ["notInWater"] = "You must be in the water to use this command.",
             }, this);
 
             lang.RegisterMessages(new Dictionary<string, string>
@@ -491,6 +519,8 @@ namespace Oxide.Plugins
                 ["boatNotYetPurchased"] = "Vous n'avez pas encore acheté de bateau.",
                 ["boatSpawned"] = "Vous avez fait apparaître votre bateau.",
                 ["boatRecalled"] = "Vous avez rangé votre bateau.",
+                ["boatOnCooldown"] = "Vous devez attendre {0} secondes avant de pouvoir faire apparaître votre bateau.",
+                ["notInWater"] = "Vous devez être dans l'eau pour utiliser cette commande.",
             }, this, "fr");
         }
         #endregion
@@ -513,6 +543,7 @@ namespace Oxide.Plugins
             Config["Use Economics to buy boat"] = false;
             Config["Use ServerRewards to buy boat"] = false;
             Config["Shortname of item needed to buy boat"] = scrap;
+            Config["Cooldown time in seconds to use the chat command to spawn a boat"] = 60;
 
             SaveConfig();
         }
@@ -535,6 +566,7 @@ namespace Oxide.Plugins
         class LisencedPlayer
         {
             private readonly ulong userid;
+            public TimeSpan boatSpawned { get; set; }
             public RowBoat rowBoat { get; set; }
             public RhibBoat rhibBoat { get; set; }
 
