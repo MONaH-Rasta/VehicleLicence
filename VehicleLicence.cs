@@ -9,7 +9,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow|TheDoc", "1.2.2")]
+    [Info("Vehicle License", "Sorrow|TheDoc", "1.2.5")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
     class VehicleLicence : RustPlugin
@@ -31,7 +31,7 @@ namespace Oxide.Plugins
         private bool _usePermissions;
         private string _itemsNeededToBuyVehicles;
 
-        private const string Prefix = "<color=#B366FF>[Vehicle Licence]</color> ";
+        private const string Prefix = "<color=#B366FF>[Vehicle License]</color> ";
         private const string RowBoatPrefab = "assets/content/vehicles/boats/rowboat/rowboat.prefab";
         private const string RhibPrefab = "assets/content/vehicles/boats/rhib/rhib.prefab";
         private const string SedanPrefab = "assets/content/vehicles/sedan_a/sedantest.entity.prefab";
@@ -124,18 +124,18 @@ namespace Oxide.Plugins
 
         #region Commands
         /// <summary>
-        /// Commands the licence help.
+        /// Commands the license help.
         /// </summary>
         /// <param name="player">The player.</param>
         /// <param name="command">The command.</param>
         /// <param name="args">The arguments.</param>
-        [ChatCommand("licence")]
+        [ChatCommand("license")]
         void CmdLicenceHelp(BasePlayer player, string command, string[] args)
         {
             Msg("helpLicence", player);
             LicencedPlayer licencedPlayer;
             if (_licencedPlayer.TryGetValue(player.userID, out licencedPlayer)) return;
-            licencedPlayer = new LicencedPlayer(player.userID);
+            licencedPlayer = new LicencedPlayer(player.userID, null);
             _licencedPlayer.Add(player.userID, licencedPlayer);
         }
 
@@ -158,10 +158,10 @@ namespace Oxide.Plugins
                 LicencedPlayer licencedPlayer;
                 if (!_licencedPlayer.TryGetValue(player.userID, out licencedPlayer))
                 {
-                    licencedPlayer = new LicencedPlayer(player.userID);
+                    licencedPlayer = new LicencedPlayer(player.userID, null);
                     _licencedPlayer.Add(player.userID, licencedPlayer);
                 }
-
+				
                 var arg = args[0].ToLower();
                 if (!PlayerHasPermission(player, arg))
                 {
@@ -339,7 +339,14 @@ namespace Oxide.Plugins
         {
             Vehicle vehicle;
             var vehicleSettings = GetVehicleSettings(prefab);
-
+			
+			if (!vehicleSettings.purchasable) {
+                Msg("vehicleCannotBeBuyed", player, new[] { vehicleSettings.name });
+				return;
+			} else {
+				//PrintWarning("vehicleSettings.purchasable = " + vehicleSettings.purchasable);
+			}
+			
             if (licencedPlayer.Vehicles.TryGetValue(prefab, out vehicle))
             {
                 Msg("vehicleAlreadyPurchased", player, new[] { vehicleSettings.name });
@@ -670,7 +677,7 @@ namespace Oxide.Plugins
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                ["announcement"] = "Type <color=#4DFF4D>/licence</color> to get help.",
+                ["announcement"] = "Type <color=#4DFF4D>/license</color> to get help.",
                 ["helpLicence"] = "These are the available commands: \n" +
                     "<color=#4DFF4D>/buy</color> -- To buy a vehicle \n" +
                     "<color=#4DFF4D>/spawn</color> -- To spawn a vehicle \n" +
@@ -716,7 +723,7 @@ namespace Oxide.Plugins
 
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                ["announcement"] = "Tapez <color=#4DFF4D>/licence</color> pour obtenir de l'aide.",
+                ["announcement"] = "Tapez <color=#4DFF4D>/license</color> pour obtenir de l'aide.",
                 ["helpLicence"] = "Voici les commandes disponibles : \n" +
                     "<color=#4DFF4D>/buy</color> -- Pour acheter un véhicule \n" +
                     "<color=#4DFF4D>/spawn</color> -- Pour faire apparaître un véhicule \n" +
@@ -875,13 +882,13 @@ namespace Oxide.Plugins
         class LicencedPlayer
         {
             public readonly ulong Userid;
-            public Dictionary<string, Vehicle> Vehicles;
+            public readonly Dictionary<string, Vehicle> Vehicles;
 
             [JsonConstructor]
-            public LicencedPlayer(ulong userid)
+            public LicencedPlayer(ulong userid, Dictionary<string, Vehicle> vehicles)
             {
                 Userid = userid;
-                Vehicles = new Dictionary<string, Vehicle>();
+				Vehicles = vehicles ?? new Dictionary<string, Vehicle>();
             }
 
             [JsonIgnore]
