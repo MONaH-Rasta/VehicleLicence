@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Boat Licence", "Sorrow", "0.6.0")]
+    [Info("Boat Licence", "Sorrow", "0.6.1")]
     [Description("Allows players to buy a boat and then spawn or store it")]
 
     class BoatLicence : RustPlugin
@@ -53,6 +53,7 @@ namespace Oxide.Plugins
             _cooldownToUseSpawnCmd = Convert.ToDouble(Config["Cooldown time in seconds to use the chat command to spawn a boat"]);
 
             _useEconomics = Convert.ToBoolean(Config["Use Economics to buy boat"]);
+            _useServerRewards = Convert.ToBoolean(Config["Use ServerRewards to buy boat"]);
             _itemsNeededToBuyBoat = Convert.ToString(Config["Shortname of item needed to buy boat"]);
 
             if (Economics == null && _useEconomics)
