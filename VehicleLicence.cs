@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.5.3")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.5.4")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -89,7 +89,7 @@ namespace Oxide.Plugins
 
         private void Unload()
         {
-            foreach (var entry in vehiclesCache)
+            foreach (var entry in vehiclesCache.ToList())
             {
                 if (entry.Key != null && !entry.Key.IsDestroyed)
                 {
@@ -187,7 +187,7 @@ namespace Oxide.Plugins
 
         private void CheckVehicles()
         {
-            foreach (var entry in vehiclesCache)
+            foreach (var entry in vehiclesCache.ToList())
             {
                 if (entry.Key == null || entry.Key.IsDestroyed) continue;
                 if (VehicleAnyMounted(entry.Key)) continue;
@@ -474,7 +474,7 @@ namespace Oxide.Plugins
                 bool checkWater = vehicleType == VehicleType.Rowboat || vehicleType == VehicleType.RHIB;
                 if (vehicle.entityID != 0)//recall
                 {
-                    foreach (var entry in vehiclesCache)
+                    foreach (var entry in vehiclesCache.ToList())
                     {
                         if (entry.Value.playerID == player.userID && entry.Value.vehicleType == vehicleType)
                         {
@@ -887,7 +887,7 @@ namespace Oxide.Plugins
             }
             if (vehicle.entityID != 0)
             {
-                foreach (var entry in vehiclesCache)
+                foreach (var entry in vehiclesCache.ToList())
                 {
                     if (entry.Value.playerID == player.userID && entry.Value.vehicleType == vehicleType)
                     {
@@ -946,9 +946,24 @@ namespace Oxide.Plugins
         {
             if (configData.globalS.dismountAllPlayersRecall)
             {
-                (vehicle as BaseVehicle)?.DismountAllPlayers();
+                if (vehicle is BaseVehicle)
+                {
+                    //(vehicle as BaseVehicle).DismountAllPlayers();
+                    var array = (vehicle as BaseVehicle).mountPoints;
+                    foreach (var mountPointInfo in array)
+                    {
+                        if (mountPointInfo.mountable != null)
+                        {
+                            var mounted = mountPointInfo.mountable._mounted;
+                            if (mounted != null)
+                            {
+                                mountPointInfo.mountable.DismountPlayer(mounted);
+                            }
+                        }
+                    }
+                }
                 var players = vehicle.GetComponentsInChildren<BasePlayer>();
-                foreach (var p in players) p.SetParent(null);
+                foreach (var p in players) p.SetParent(null, true, true);
             }
 
             var vehicleS = configData.vehicleS[vehicleType];
@@ -1018,7 +1033,7 @@ namespace Oxide.Plugins
             }
             if (vehicle.entityID != 0)
             {
-                foreach (var entry in vehiclesCache)
+                foreach (var entry in vehiclesCache.ToList())
                 {
                     if (entry.Value.playerID == player.userID && entry.Value.vehicleType == vehicleType)
                     {
