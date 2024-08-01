@@ -24,7 +24,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.2")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.3")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -182,6 +182,14 @@ namespace Oxide.Plugins
                         permission.RegisterPermission(settings.Permission, this);
                     }
                 }
+                
+                if (settings.UsePermission && !string.IsNullOrEmpty(settings.BypassCostPermission))
+                {
+                    if (!permission.PermissionExists(settings.BypassCostPermission, this))
+                    {
+                        permission.RegisterPermission(settings.BypassCostPermission, this);
+                    }
+                }
 
                 foreach (var perm in settings.CooldownPermissions.Keys)
                 {
@@ -275,7 +283,7 @@ namespace Oxide.Plugins
         {
             if (!configData.global.storeVehicle)
             {
-                foreach (var entry in vehiclesCache.ToArray())
+                foreach (var entry in vehiclesCache)
                 {
                     if (entry.Key != null && !entry.Key.IsDestroyed)
                     {
@@ -332,20 +340,30 @@ namespace Oxide.Plugins
         // TODO: Fix/finish
         private void OnEngineStarted(BaseMountable entity, BasePlayer player)
         {
+            if (player == null || entity == null) return;
+            
             if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE)) return;
             BaseVehicle mounted = player.GetMountedVehicle();
             // Only allows vehicles spawned with the plugin to use instant take off.
             if (mounted == null || !vehiclesCache.ContainsKey(mounted)) return;
+            
+            PlayerHelicopter heli = mounted as PlayerHelicopter;
 
-            if (mounted is Minicopter && configData.normalVehicles.miniCopter.instantTakeoff)
+            NextTick(() =>
             {
-                (mounted as Minicopter).engineController.FinishStartingEngine();
-                return;
-            }
-            if (mounted is AttackHelicopter && configData.normalVehicles.attackHelicopter.instantTakeoff)
-            {
-                (mounted as AttackHelicopter).engineController.FinishStartingEngine();
-            }
+                if (heli == null) return;
+
+                if (heli is Minicopter && configData.normalVehicles.miniCopter.instantTakeoff)
+                {
+                    heli.engineController.FinishStartingEngine();
+                    return;
+                }
+
+                if (heli is AttackHelicopter && configData.normalVehicles.attackHelicopter.instantTakeoff)
+                {
+                    heli.engineController.FinishStartingEngine();
+                }
+            });
         }
 
         #region Mount
@@ -720,9 +738,9 @@ namespace Oxide.Plugins
 
         #region TryPay
 
-        private bool TryPay(BasePlayer player, Dictionary<string, PriceInfo> prices, out string resources)
+        private bool TryPay(BasePlayer player, BaseVehicleSettings settings, Dictionary<string, PriceInfo> prices, out string resources)
         {
-            if (permission.UserHasPermission(player.UserIDString, PERMISSION_BYPASS_COST))
+            if (permission.UserHasPermission(player.UserIDString, PERMISSION_BYPASS_COST) || permission.UserHasPermission(player.UserIDString, settings.BypassCostPermission))
             {
                 resources = null;
                 return true;
@@ -1834,7 +1852,7 @@ namespace Oxide.Plugins
                 return false;
             }
             string resources;
-            if (settings.PurchasePrices.Count > 0 && !TryPay(player, settings.PurchasePrices, out resources))
+            if (settings.PurchasePrices.Count > 0 && !TryPay(player, settings, settings.PurchasePrices, out resources))
             {
                 Print(player, Lang("NoResourcesToPurchaseVehicle", player.UserIDString, settings.DisplayName, resources));
                 return false;
@@ -1984,7 +2002,7 @@ namespace Oxide.Plugins
             }
 
             string resources;
-            if (settings.SpawnPrices.Count > 0 && !TryPay(player, settings.SpawnPrices, out resources))
+            if (settings.SpawnPrices.Count > 0 && !TryPay(player, settings, settings.SpawnPrices, out resources))
             {
                 reason = Lang("NoResourcesToSpawnVehicle", player.UserIDString, settings.DisplayName, resources);
                 return false;
@@ -2153,7 +2171,7 @@ namespace Oxide.Plugins
                 return false;
             }
             string resources;
-            if (settings.RecallPrices.Count > 0 && !TryPay(player, settings.RecallPrices, out resources))
+            if (settings.RecallPrices.Count > 0 && !TryPay(player, settings, settings.RecallPrices, out resources))
             {
                 reason = Lang("NoResourcesToRecallVehicle", player.UserIDString, settings.DisplayName, resources);
                 return false;
@@ -2416,7 +2434,7 @@ namespace Oxide.Plugins
                     if (bypassCooldown && bypassPrices.Count > 0)
                     {
                         string resources;
-                        if (!TryPay(player, bypassPrices, out resources))
+                        if (!TryPay(player, settings, bypassPrices, out resources))
                         {
                             reason = Lang(isSpawnCooldown ? "NoResourcesToSpawnVehicleBypass" : "NoResourcesToRecallVehicleBypass", player.UserIDString, settings.DisplayName, resources);
                             return false;
@@ -2511,6 +2529,7 @@ namespace Oxide.Plugins
                     MinDistanceForPlayers = 3,
                     UsePermission = true,
                     Permission = "vehiclelicence.smallmodularcar",
+                    BypassCostPermission = "vehiclelicence.smallmodularcarfree",
                     Commands = new List<string> { "small", "smallcar" },
                     PurchasePrices = new Dictionary<string, PriceInfo>
                     {
@@ -2580,6 +2599,7 @@ namespace Oxide.Plugins
                     MinDistanceForPlayers = 3,
                     UsePermission = true,
                     Permission = "vehiclelicence.mediumodularcar",
+                    BypassCostPermission = "vehiclelicence.mediumodularcarfree",
                     Commands = new List<string> { "medium", "mediumcar" },
                     PurchasePrices = new Dictionary<string, PriceInfo>
                     {
@@ -2653,6 +2673,7 @@ namespace Oxide.Plugins
                     MinDistanceForPlayers = 3,
                     UsePermission = true,
                     Permission = "vehiclelicence.largemodularcar",
+                    BypassCostPermission = "vehiclelicence.largemodularcarfree",
                     Commands = new List<string> { "large", "largecar" },
                     PurchasePrices = new Dictionary<string, PriceInfo>
                     {
@@ -2747,6 +2768,7 @@ namespace Oxide.Plugins
                     MinDistanceForPlayers = 6,
                     UsePermission = true,
                     Permission = "vehiclelicence.workcartaboveground",
+                    BypassCostPermission = "vehiclelicence.workcartabovegroundfree",
                     Commands = new List<string>
                     {
                         "cartground", "workcartground"
@@ -2780,6 +2802,7 @@ namespace Oxide.Plugins
                     MinDistanceForPlayers = 6,
                     UsePermission = true,
                     Permission = "vehiclelicence.coveredworkcart",
+                    BypassCostPermission = "vehiclelicence.coveredworkcartfree",
                     Commands = new List<string>
                     {
                         "cartcovered", "coveredworkcart"
@@ -2813,6 +2836,7 @@ namespace Oxide.Plugins
                     MinDistanceForPlayers = 6,
                     UsePermission = true,
                     Permission = "vehiclelicence.completetrain",
+                    BypassCostPermission = "vehiclelicence.completetrainfree",
                     Commands = new List<string>
                     {
                         "ctrain", "completetrain"
@@ -2869,6 +2893,7 @@ namespace Oxide.Plugins
                     MinDistanceForPlayers = 6,
                     UsePermission = true,
                     Permission = "vehiclelicence.locomotive",
+                    BypassCostPermission = "vehiclelicence.locomotivefree",
                     Commands = new List<string>
                     {
                         "loco", "locomotive"
@@ -3038,6 +3063,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 3,
                 UsePermission = true,
                 Permission = "vehiclelicence.tug",
+                BypassCostPermission = "vehiclelicence.tugfree",
                 Commands = new List < string > { "tugboat", "tug" },
                 PurchasePrices = new Dictionary < string, PriceInfo > {
                   ["scrap"] = new PriceInfo {
@@ -3064,6 +3090,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 3,
                 UsePermission = true,
                 Permission = "vehiclelicence.sedan",
+                BypassCostPermission = "vehiclelicence.sedanfree",
                 Commands = new List<string> { "car", "sedan" },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
@@ -3092,6 +3119,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 6,
                 UsePermission = true,
                 Permission = "vehiclelicence.chinook",
+                BypassCostPermission = "vehiclelicence.chinookfree",
                 Commands = new List<string> { "ch47", "chinook" },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
@@ -3120,6 +3148,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 2,
                 UsePermission = true,
                 Permission = "vehiclelicence.rowboat",
+                BypassCostPermission = "vehiclelicence.rowboatfree",
                 Commands = new List<string> { "row", "rowboat" },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
@@ -3148,6 +3177,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 3,
                 UsePermission = true,
                 Permission = "vehiclelicence.rhib",
+                BypassCostPermission = "vehiclelicence.rhibfree",
                 Commands = new List<string> { "rhib" },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
@@ -3176,6 +3206,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 5,
                 UsePermission = true,
                 Permission = "vehiclelicence.hotairballoon",
+                BypassCostPermission = "vehiclelicence.hotairballoonfree",
                 Commands = new List<string> { "hab", "hotairballoon" },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
@@ -3204,6 +3235,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 5,
                 UsePermission = true,
                 Permission = "vehiclelicence.armoredhotairballoon",
+                BypassCostPermission = "vehiclelicence.armoredhotairballoonfree",
                 Commands = new List<string> { "ahab", "armoredhotairballoon", "armoredballoon", "aballoon" },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
@@ -3233,6 +3265,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 1,
                 UsePermission = true,
                 Permission = "vehiclelicence.ridablehorse",
+                BypassCostPermission = "vehiclelicence.ridablehorsefree",
                 Commands = new List<string> { "horse", "ridablehorse" },
                 Breeds = new List<string>
                 {
@@ -3269,6 +3302,7 @@ namespace Oxide.Plugins
                 instantTakeoff = false,
                 UsePermission = true,
                 Permission = "vehiclelicence.minicopter",
+                BypassCostPermission = "vehiclelicence.minicopterfree",
                 Commands = new List<string> { "mini", "minicopter" },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
@@ -3298,12 +3332,12 @@ namespace Oxide.Plugins
                 rotationScale = 1.0f,
                 flyHackPause = 0,
                 liftFraction = 0.33f,
-                instantTakeoff = false,
                 HVSpawnAmmoAmount = 0,
                 IncendiarySpawnAmmoAmount = 0,
                 FlareSpawnAmmoAmount = 0,
                 UsePermission = true,
                 Permission = "vehiclelicence.attackhelicopter",
+                BypassCostPermission = "vehiclelicence.attackhelicopterfree",
                 Commands = new List<string> { "attack", "aheli", "attackheli", "attackhelicopter"},
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
@@ -3335,6 +3369,7 @@ namespace Oxide.Plugins
                 liftFraction = .25f,
                 UsePermission = true,
                 Permission = "vehiclelicence.transportcopter",
+                BypassCostPermission = "vehiclelicence.transportcopterfree",
                 Commands = new List<string>
                 {
                     "tcop", "transportcopter"
@@ -3366,6 +3401,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 6,
                 UsePermission = true,
                 Permission = "vehiclelicence.workcart",
+                BypassCostPermission = "vehiclelicence.workcartfree",
                 Commands = new List<string>
                 {
                     "cart", "workcart"
@@ -3397,6 +3433,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 3,
                 UsePermission = true,
                 Permission = "vehiclelicence.sedanrail",
+                BypassCostPermission = "vehiclelicence.sedanrailfree",
                 Commands = new List<string>
                 {
                     "carrail", "sedanrail"
@@ -3428,6 +3465,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 8,
                 UsePermission = true,
                 Permission = "vehiclelicence.magnetcrane",
+                BypassCostPermission = "vehiclelicence.magnetcranefree",
                 Commands = new List<string>
                 {
                     "crane", "magnetcrane"
@@ -3459,6 +3497,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 2,
                 UsePermission = true,
                 Permission = "vehiclelicence.submarinesolo",
+                BypassCostPermission = "vehiclelicence.submarinesolofree",
                 Commands = new List<string> { "subsolo", "solo" },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
@@ -3487,6 +3526,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 2,
                 UsePermission = true,
                 Permission = "vehiclelicence.submarineduo",
+                BypassCostPermission = "vehiclelicence.submarineduofree",
                 Commands = new List<string> { "subduo", "duo" },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
@@ -3515,6 +3555,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 2,
                 UsePermission = true,
                 Permission = "vehiclelicence.snowmobile",
+                BypassCostPermission = "vehiclelicence.snowmobilefree",
                 Commands = new List<string> { "snow", "snowmobile" },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
@@ -3543,6 +3584,7 @@ namespace Oxide.Plugins
                 MinDistanceForPlayers = 2,
                 UsePermission = true,
                 Permission = "vehiclelicence.tomahasnowmobile",
+                BypassCostPermission = "vehiclelicence.tomahasnowmobilefree",
                 Commands = new List<string> { "tsnow", "tsnowmobile" },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
@@ -3585,6 +3627,9 @@ namespace Oxide.Plugins
 
             [JsonProperty(PropertyName = "Permission")]
             public string Permission { get; set; }
+            
+            [JsonProperty(PropertyName = "Bypass Cost Permission")]
+            public string BypassCostPermission { get; set; }
 
             [JsonProperty(PropertyName = "Distance To Spawn")]
             public float Distance { get; set; }
@@ -5453,6 +5498,39 @@ namespace Oxide.Plugins
                 configData.normalVehicles.ridableHorse.IsDoubleSaddle = false;
                 SaveConfig();
             }
+            
+            if (configData.version < new VersionNumber(1, 8, 3))
+            {
+                configData.normalVehicles.tugboat.BypassCostPermission = "vehiclelicence.tugfree";
+                configData.normalVehicles.sedan.BypassCostPermission = "vehiclelicence.sedanfree";
+                configData.normalVehicles.chinook.BypassCostPermission = "vehiclelicence.chinookfree";
+                configData.normalVehicles.rowboat.BypassCostPermission = "vehiclelicence.rowboatfree";
+                configData.normalVehicles.rhib.BypassCostPermission = "vehiclelicence.rhibfree";
+                configData.normalVehicles.hotAirBalloon.BypassCostPermission = "vehiclelicence.hotairballoonfree";
+                configData.normalVehicles.armoredHotAirBalloon.BypassCostPermission = "vehiclelicence.armoredhotairballoonfree";
+                configData.normalVehicles.ridableHorse.BypassCostPermission = "vehiclelicence.ridablehorsefree";
+                configData.normalVehicles.miniCopter.BypassCostPermission = "vehiclelicence.minicopterfree";
+                configData.normalVehicles.attackHelicopter.BypassCostPermission = "vehiclelicence.attackhelicopterfree";
+                configData.normalVehicles.transportHelicopter.BypassCostPermission = "vehiclelicence.transportcopterfree";
+                configData.normalVehicles.workCart.BypassCostPermission = "vehiclelicence.workcartfree";
+                configData.normalVehicles.sedanRail.BypassCostPermission = "vehiclelicence.sedanrailfree";
+                configData.normalVehicles.magnetCrane.BypassCostPermission = "vehiclelicence.magnetcranefree";
+                configData.normalVehicles.submarineSolo.BypassCostPermission = "vehiclelicence.submarinesolofree";
+                configData.normalVehicles.submarineDuo.BypassCostPermission = "vehiclelicence.submarineduofree";
+                configData.normalVehicles.snowmobile.BypassCostPermission = "vehiclelicence.snowmobilefree";
+                configData.normalVehicles.tomahaSnowmobile.BypassCostPermission = "vehiclelicence.tomahasnowmobilefree";
+                
+                configData.modularVehicles["SmallCar"].BypassCostPermission = "vehiclelicence.smallmodularcarfree";
+                configData.modularVehicles["MediumCar"].BypassCostPermission = "vehiclelicence.mediumodularcarfree";
+                configData.modularVehicles["LargeCar"].BypassCostPermission = "vehiclelicence.largemodularcarfree";
+                
+                configData.trainVehicles["WorkCartAboveGround"].BypassCostPermission = "vehiclelicence.workcartabovegroundfree";
+                configData.trainVehicles["WorkCartCovered"].BypassCostPermission = "vehiclelicence.coveredworkcartfree";
+                configData.trainVehicles["CompleteTrain"].BypassCostPermission = "vehiclelicence.completetrainfree";
+                configData.trainVehicles["Locomotive"].BypassCostPermission = "vehiclelicence.locomotivefree";
+                SaveConfig();
+            }
+            
             configData.version = Version;
         }
 
