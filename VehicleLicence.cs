@@ -1,4 +1,4 @@
-﻿// #define DEBUG
+// #define DEBUG
 
 using System;
 using System.Collections.Generic;
@@ -19,7 +19,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.39")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.40")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -366,6 +366,15 @@ namespace Oxide.Plugins
 
         #region Loot
 
+        private object CanLootEntity(BasePlayer friend, RidableHorse horse)
+        {
+            if (friend == null || horse == null)
+            {
+                return null;
+            }
+            return CanLootEntityInternal(friend, horse);
+        }
+
         private object CanLootEntity(BasePlayer friend, StorageContainer container)
         {
             if (friend == null || container == null)
@@ -377,6 +386,11 @@ namespace Oxide.Plugins
             {
                 return null;
             }
+            return CanLootEntityInternal(friend, parentEntity);
+        }
+
+        private object CanLootEntityInternal(BasePlayer friend, BaseEntity parentEntity)
+        {
             Vehicle vehicle;
             if (!TryGetVehicle(parentEntity, out vehicle))
             {
