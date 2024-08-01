@@ -13,7 +13,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.0")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.1")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -336,8 +336,8 @@ namespace Oxide.Plugins
             var baseVehicleS = GetBaseVehicleS(vehicle.vehicleType);
             if (baseVehicleS == null) return;
 
-            ItemContainer container;
             NormalVehicleType normalVehicleType;
+            var collect = new List<Item>();
             if (Enum.TryParse(vehicle.vehicleType, out normalVehicleType))
             {
                 switch (normalVehicleType)
@@ -348,24 +348,55 @@ namespace Oxide.Plugins
 
                     case NormalVehicleType.MiniCopter:
                     case NormalVehicleType.TransportHelicopter:
-                        if (!CanRefundFuel(baseVehicleS, isCrash, isUnload)) return;
-                        container = (entity as MiniCopter)?.GetFuelSystem()?.GetFuelContainer()?.inventory;
+                        {
+                            if (CanRefundFuel(baseVehicleS, isCrash, isUnload))
+                            {
+                                var fuelContainer = (entity as MiniCopter)?.GetFuelSystem()?.GetFuelContainer()?.inventory;
+                                if (fuelContainer != null) collect.AddRange(fuelContainer.itemList);
+                            }
+                        }
                         break;
 
                     case NormalVehicleType.HotAirBalloon:
-                        if (!CanRefundFuel(baseVehicleS, isCrash, isUnload)) return;
-                        container = (entity as HotAirBalloon)?.fuelSystem?.GetFuelContainer()?.inventory;
+                        {
+                            if (CanRefundFuel(baseVehicleS, isCrash, isUnload))
+                            {
+                                var fuelContainer = (entity as HotAirBalloon)?.fuelSystem?.GetFuelContainer()?.inventory;
+                                if (fuelContainer != null) collect.AddRange(fuelContainer.itemList);
+                            }
+                            if (CanRefundInventory(baseVehicleS, isCrash, isUnload))
+                            {
+                                var itemContainer = ((entity as HotAirBalloon)?.storageUnitInstance.Get(true) as StorageContainer)?.inventory;
+                                if (itemContainer != null) collect.AddRange(itemContainer.itemList);
+                            }
+                        }
                         break;
 
                     case NormalVehicleType.RHIB:
                     case NormalVehicleType.Rowboat:
-                        if (!CanRefundFuel(baseVehicleS, isCrash, isUnload)) return;
-                        container = (entity as MotorRowboat)?.fuelSystem?.GetFuelContainer()?.inventory;
+                        {
+                            if (CanRefundFuel(baseVehicleS, isCrash, isUnload))
+                            {
+                                var fuelContainer = (entity as MotorRowboat)?.fuelSystem?.GetFuelContainer()?.inventory;
+                                if (fuelContainer != null) collect.AddRange(fuelContainer.itemList);
+                            }
+
+                            if (CanRefundInventory(baseVehicleS, isCrash, isUnload))
+                            {
+                                var itemContainer = ((entity as MotorRowboat)?.storageUnitInstance.Get(true) as StorageContainer)?.inventory;
+                                if (itemContainer != null) collect.AddRange(itemContainer.itemList);
+                            }
+                        }
                         break;
 
                     case NormalVehicleType.RidableHorse:
-                        if (!CanRefundInventory(baseVehicleS, isCrash, isUnload)) return;
-                        container = (entity as RidableHorse)?.inventory;
+                        {
+                            if (CanRefundInventory(baseVehicleS, isCrash, isUnload))
+                            {
+                                var itemContainer = (entity as RidableHorse)?.inventory;
+                                if (itemContainer != null) collect.AddRange(itemContainer.itemList);
+                            }
+                        }
                         break;
 
                     default: return;
@@ -379,7 +410,6 @@ namespace Oxide.Plugins
                 bool refundFuel, refundInventory, refundEngine, refundModule;
                 CanModularCarRefund(baseVehicleS, isCrash, isUnload, out refundFuel, out refundInventory, out refundEngine, out refundModule);
 
-                var collect = new List<Item>();
                 foreach (var moduleEntity in modularCar.AttachedModuleEntities.ToArray())
                 {
                     var moduleEngine = moduleEntity as VehicleModuleEngine;
@@ -403,46 +433,34 @@ namespace Oxide.Plugins
                     if (moduleStorage != null && refundInventory)
                     {
                         var storageContainer = moduleStorage.GetContainer()?.inventory;
-                        if (storageContainer != null)
-                        {
-                            collect.AddRange(storageContainer.itemList);
-                        }
+                        if (storageContainer != null) collect.AddRange(storageContainer.itemList);
                     }
                 }
                 if (refundFuel)
                 {
-                    container = modularCar.fuelSystem?.GetFuelContainer()?.inventory;
-                    if (container != null)
-                    {
-                        collect.AddRange(container.itemList);
-                    }
+                    var fuelContainer = modularCar.fuelSystem?.GetFuelContainer()?.inventory;
+                    if (fuelContainer != null) collect.AddRange(fuelContainer.itemList);
                 }
                 if (refundModule)
                 {
                     var moduleContainer = modularCar.Inventory?.ModuleContainer;
-                    if (moduleContainer != null)
-                    {
-                        collect.AddRange(moduleContainer.itemList);
-                    }
+                    if (moduleContainer != null) collect.AddRange(moduleContainer.itemList);
                 }
                 /*var chassisContainer = modularCar.Inventory?.ChassisContainer;
                 if (chassisContainer != null)
                 {
                     collect.AddRange(chassisContainer.itemList);
                 }*/
-                if (collect.Count <= 0) return;
-                container = new ItemContainer
-                {
-                    itemList = collect
-                };
             }
-
-            if (container?.itemList == null || container.itemList.Count <= 0) return;
+            if (collect.Count <= 0) return;
             var player = RustCore.FindPlayerById(vehicle.playerID);
-            if (player == null) container.Drop(PREFAB_ITEM_DROP, entity.GetDropPosition(), entity.transform.rotation);
+            if (player == null)
+            {
+                DropItemContainer(entity, vehicle.playerID, collect);
+            }
             else
             {
-                foreach (var item in container.itemList.ToArray())
+                foreach (var item in collect.ToArray())
                 {
                     player.GiveItem(item);
                 }
@@ -451,6 +469,26 @@ namespace Oxide.Plugins
                     Print(player, Lang("RefundedVehicleItems", player.UserIDString, baseVehicleS.displayName));
                 }
             }
+        }
+
+        private static void DropItemContainer(BaseEntity entity, ulong playerID, List<Item> collect)
+        {
+            var droppedItemContainer = GameManager.server.CreateEntity(PREFAB_ITEM_DROP, entity.GetDropPosition(), entity.transform.rotation) as DroppedItemContainer;
+            droppedItemContainer.inventory = new ItemContainer();
+            droppedItemContainer.inventory.ServerInitialize(null, Mathf.Min(collect.Count, droppedItemContainer.maxItemCount));
+            droppedItemContainer.inventory.GiveUID();
+            droppedItemContainer.inventory.entityOwner = droppedItemContainer;
+            droppedItemContainer.inventory.SetFlag(ItemContainer.Flag.NoItemInput, true);
+            foreach (var item in collect.ToArray())
+            {
+                if (!item.MoveToContainer(droppedItemContainer.inventory))
+                {
+                    item.DropAndTossUpwards(droppedItemContainer.transform.position);
+                }
+            }
+
+            droppedItemContainer.OwnerID = playerID;
+            droppedItemContainer.Spawn();
         }
 
         #endregion Refund
@@ -500,7 +538,7 @@ namespace Oxide.Plugins
             {
                 var modularCar = entity as ModularCar;
                 if (modularCar == null) return;
-                foreach (var moduleEntity in modularCar.AttachedModuleEntities)
+                foreach (var moduleEntity in modularCar.AttachedModuleEntities.ToArray())
                 {
                     if (moduleEntity is VehicleModuleEngine) continue;
                     var moduleStorage = moduleEntity as VehicleModuleStorage;
@@ -1977,8 +2015,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Spawn Chat Command")] public string spawnCommand = "spawn";
             [JsonProperty(PropertyName = "Recall Chat Command")] public string recallCommand = "recall";
             [JsonProperty(PropertyName = "Kill Chat Command")] public string killCommand = "kill";
-            [JsonProperty(PropertyName = "Chat Prefix")] public string prefix = "[VehicleLicense]: ";
-            [JsonProperty(PropertyName = "Chat Prefix Color")] public string prefixColor = "#B366FF";
+            [JsonProperty(PropertyName = "Chat Prefix")] public string prefix = "<color=#B366FF>[VehicleLicense]</color>: ";
             [JsonProperty(PropertyName = "Chat SteamID Icon")] public ulong steamIDIcon = 76561198924840872;
         }
 
@@ -2286,7 +2323,7 @@ namespace Oxide.Plugins
         {
             public bool refundInventoryOnKill { get; set; } = true;
             public bool refundInventoryOnCrash { get; set; } = true;
-            public bool dropInventoryOnRecall { get; set; } = true;
+            public bool dropInventoryOnRecall { get; set; }
         }
 
         public class InvFuelVehicleS : BaseVehicleS, IFuelVehicle, IInventoryVehicle
@@ -2295,7 +2332,7 @@ namespace Oxide.Plugins
             public bool refundFuelOnCrash { get; set; } = true;
             public bool refundInventoryOnKill { get; set; } = true;
             public bool refundInventoryOnCrash { get; set; } = true;
-            public bool dropInventoryOnRecall { get; set; } = true;
+            public bool dropInventoryOnRecall { get; set; }
         }
 
         public class ModularVehicleS : InvFuelVehicleS, IModularVehicle
@@ -2541,11 +2578,7 @@ namespace Oxide.Plugins
 
         private void Print(BasePlayer player, string message)
         {
-            Player.Message(player, message,
-                string.IsNullOrEmpty(configData.chatS.prefix)
-                    ? string.Empty
-                    : $"<color={configData.chatS.prefixColor}>{configData.chatS.prefix}</color>",
-                configData.chatS.steamIDIcon);
+            Player.Message(player, message, configData.chatS.prefix, configData.chatS.steamIDIcon);
         }
 
         private void Print(ConsoleSystem.Arg arg, string message)
@@ -2579,7 +2612,7 @@ namespace Oxide.Plugins
                 ["NotAllowed"] = "You do not have permission to use this command.",
                 ["RaidBlocked"] = "<color=#FF1919>You may not do that while raid blocked</color>.",
                 ["CombatBlocked"] = "<color=#FF1919>You may not do that while combat blocked</color>.",
-                ["OptionNotFound"] = "This '<color=#009EFF>{0}</color>' option doesn't exist.",
+                ["OptionNotFound"] = "This <color=#009EFF>{0}</color> option doesn't exist.",
                 ["VehiclePurchased"] = "You have purchased a <color=#009EFF>{0}</color>, type <color=#4DFF4D>/{1}</color> for more information.",
                 ["VehicleAlreadyPurchased"] = "You have already purchased <color=#009EFF>{0}</color>.",
                 ["VehicleCannotBeBought"] = "<color=#009EFF>{0}</color> is unpurchasable",
@@ -2623,7 +2656,7 @@ namespace Oxide.Plugins
                 ["NotAllowed"] = "您没有权限使用该命令",
                 ["RaidBlocked"] = "<color=#FF1919>您被突袭阻止了，不能使用该命令</color>",
                 ["CombatBlocked"] = "<color=#FF1919>您被战斗阻止了，不能使用该命令</color>",
-                ["OptionNotFound"] = "该 '<color=#009EFF>{0}</color>' 选项不存在",
+                ["OptionNotFound"] = "该 <color=#009EFF>{0}</color> 选项不存在",
                 ["VehiclePurchased"] = "您购买了 <color=#009EFF>{0}</color>, 输入 <color=#4DFF4D>/{1}</color> 了解更多信息",
                 ["VehicleAlreadyPurchased"] = "您已经购买了 <color=#009EFF>{0}</color>",
                 ["VehicleCannotBeBought"] = "<color=#009EFF>{0}</color> 是不可购买的",
@@ -2647,6 +2680,50 @@ namespace Oxide.Plugins
                 ["MountedOrParented"] = "当您坐着或者在附着在实体上时无法生成或召回 <color=#009EFF>{0}</color>",
                 ["RecallTooFar"] = "您必须在 <color=#FF1919>{0}</color> 米内才能召回您的 <color=#009EFF>{1}</color>",
             }, this, "zh-CN");
+            lang.RegisterMessages(new Dictionary<string, string>
+            {
+                ["Help"] = "Список доступных команд:",
+                ["HelpLicence1"] = "<color=#4DFF4D>/{0}</color> -- Купить транспорт",
+                ["HelpLicence2"] = "<color=#4DFF4D>/{0}</color> -- Создать транспорт",
+                ["HelpLicence3"] = "<color=#4DFF4D>/{0}</color> -- Вызвать транспорт",
+                ["HelpLicence4"] = "<color=#4DFF4D>/{0}</color> -- Уничтожить транспорт",
+                ["HelpLicence5"] = "<color=#4DFF4D>/{0}</color> -- Купить, создать, или вызвать <color=#009EFF>{1}</color>",
+
+                ["HelpBuy"] = "<color=#4DFF4D>/{0} {1}</color> -- Купить <color=#009EFF>{2}</color>.",
+                ["HelpBuyPrice"] = "<color=#4DFF4D>/{0} {1}</color> -- Купить <color=#009EFF>{2}</color>. Цена: {3}",
+                ["HelpSpawn"] = "<color=#4DFF4D>/{0} {1}</color> -- Создать <color=#009EFF>{2}</color>",
+                ["HelpSpawnPrice"] = "<color=#4DFF4D>/{0} {1}</color> -- Вызывать <color=#009EFF>{2}</color>. Цена: {3}",
+                ["HelpRecall"] = "<color=#4DFF4D>/{0} {1}</color> -- Вызвать <color=#009EFF>{2}</color>",
+                ["HelpRecallPrice"] = "<color=#4DFF4D>/{0} {1}</color> -- Вызвать <color=#009EFF>{2}</color>. Цена: {3}",
+                ["HelpKill"] = "<color=#4DFF4D>/{0} {1}</color> -- Уничтожить <color=#009EFF>{2}</color>",
+
+                ["NotAllowed"] = "У вас нет разрешения для использования данной команды.",
+                ["RaidBlocked"] = "<color=#FF1919>Вы не можете это сделать из-за блокировки (рейд)</color>.",
+                ["CombatBlocked"] = "<color=#FF1919>Вы не можете это сделать из-за блокировки (бой)</color>.",
+                ["OptionNotFound"] = "Опция <color=#009EFF>{0}</color> не существует.",
+                ["VehiclePurchased"] = "Вы приобрели <color=#009EFF>{0}</color>, напишите <color=#4DFF4D>/{1}</color> для получения дополнительной информации.",
+                ["VehicleAlreadyPurchased"] = "Вы уже приобрели <color=#009EFF>{0}</color>.",
+                ["VehicleCannotBeBought"] = "<color=#009EFF>{0}</color> приобрести невозможно",
+                ["VehicleNotOut"] = "<color=#009EFF>{0}</color> отсутствует. Напишите <color=#4DFF4D>/{1}</color> для получения дополнительной информации.",
+                ["AlreadyVehicleOut"] = "У вас уже есть <color=#009EFF>{0}</color>, напишите <color=#4DFF4D>/{1}</color>  для получения дополнительной информации.",
+                ["VehicleNotYetPurchased"] = "Вы ещё не приобрели <color=#009EFF>{0}</color>. Напишите <color=#4DFF4D>/{1}</color> для получения дополнительной информации.",
+                ["VehicleSpawned"] = "Вы создали ваш <color=#009EFF>{0}</color>.",
+                ["VehicleRecalled"] = "Вы вызвали ваш <color=#009EFF>{0}</color>.",
+                ["VehicleKilled"] = "Вы уничтожили ваш <color=#009EFF>{0}</color>.",
+                ["VehicleOnSpawnCooldown"] = "Вам необходимо подождать <color=#FF1919>{0}</color> секунд прежде, чем создать свой <color=#009EFF>{1}</color>.",
+                ["VehicleOnRecallCooldown"] = "Вам необходимо подождать <color=#FF1919>{0}</color> секунд прежде, чем вызвать свой <color=#009EFF>{1}</color>.",
+                ["NotLookingAtWater"] = "Вы должны смотреть на воду, чтобы создать или вызвать <color=#009EFF>{0}</color>.",
+                ["BuildingBlocked"] = "Вы не можете создать <color=#009EFF>{0}</color> если отсутствует право строительства.",
+                ["RefundedVehicleItems"] = "Запчасти от вашего <color=#009EFF>{0}</color> были возвращены в ваш инвентарь.",
+                ["PlayerMountedOnVehicle"] = "Нельзя вызвать, когда игрок находится в вашем <color=#009EFF>{0}</color>.",
+                ["PlayerInSafeZone"] = "Вы не можете создать, или вызвать ваш <color=#009EFF>{0}</color> в безопасной зоне.",
+                ["VehicleInventoryDropped"] = "Инвентарь из вашего <color=#009EFF>{0}</color> не может быть вызван, он выброшен на землю.",
+                ["NoResourcesToPurchaseVehicle"] = "У вас недостаточно ресурсов для покупки <color=#009EFF>{0}</color>. Вам не хватает: {1}",
+                ["NoResourcesToSpawnVehicle"] = "У вас недостаточно ресурсов для покупки <color=#009EFF>{0}</color>. Вам не хватает: {1}",
+                ["NoResourcesToRecallVehicle"] = "У вас недостаточно ресурсов для покупки <color=#009EFF>{0}</color>. Вам не хватает: {1}",
+                ["MountedOrParented"] = "Вы не можете создать <color=#009EFF>{0}</color> когда сидите или привязаны к объекту.",
+                ["RecallTooFar"] = "Вы должны быть в пределах <color=#FF1919>{0}</color> метров от <color=#009EFF>{1}</color>, чтобы вызывать.",
+            }, this, "ru");
         }
 
         #endregion LanguageFile
