@@ -1,4 +1,5 @@
 ﻿//#define DEBUG
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +15,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.6")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.7")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -1869,6 +1870,19 @@ namespace Oxide.Plugins
                 DropVehicleInventoryItems(player, vehicle.vehicleType, entity, baseVehicleS);
             }
             if (entity.HasParent()) entity.SetParent(null, true, true);
+            if (entity is ModularCar)
+            {
+                var modularCarGarages = Facepunch.Pool.GetList<ModularCarGarage>();
+                Vis.Entities(entity.transform.position, 3f, modularCarGarages, Rust.Layers.Mask.Deployed | Rust.Layers.Mask.Default );
+                var modularCarGarage = modularCarGarages.FirstOrDefault(x => x.carOccupant == entity);
+                Facepunch.Pool.FreeList(ref modularCarGarages);
+                if (modularCarGarage != null)
+                {
+                    modularCarGarage.enabled = false;
+                    modularCarGarage.ReleaseOccupant();
+                    modularCarGarage.Invoke(() => modularCarGarage.enabled = true, 0.5f);
+                }
+            }
 
             vehicle.OnRecall();
             Vector3 position; Quaternion rotation;
@@ -1876,6 +1890,10 @@ namespace Oxide.Plugins
             entity.transform.position = position;
             entity.transform.rotation = rotation;
             entity.transform.hasChanged = true;
+
+            var ridableHorse = entity as RidableHorse;
+            if (ridableHorse != null) ridableHorse.DropToGround(entity.transform.position, true);//ridableHorse.UpdateDropToGroundForDuration(2f);
+
             Print(player, Lang("VehicleRecalled", player.UserIDString, baseVehicleS.displayName));
         }
 
