@@ -9,10 +9,10 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Licence", "Sorrow", "1.0.0")]
+    [Info("Vehicle Licence", "Sorrow", "1.0.1")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
-    class Licence : RustPlugin
+    class VehicleLicence : RustPlugin
     {
         #region Fields
         [PluginReference]
