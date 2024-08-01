@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Boat Licence", "Sorrow", "0.2.2")]
+    [Info("Boat Licence", "Sorrow", "0.2.3")]
     [Description("Allows players to buy a boat and then spawn or store it")]
 
     class BoatLicence: RustPlugin
@@ -55,7 +55,7 @@ namespace Oxide.Plugins
         {
             foreach (var boat in _boatsCache.ToList())
             {
-                BaseNetworkable.serverEntities.Find(boat.Key)?.Kill();
+                RemoveBoat(boat.Key, boat.Value);
             }
 
             SaveData();
@@ -74,20 +74,24 @@ namespace Oxide.Plugins
         private void OnEntityDismounted(BaseMountable entity, BasePlayer player)
         {
             var vehicleParent = entity?.VehicleParent();
+            if (vehicleParent == null) return;
+
             LisencedPlayer lisencedPlayer;
-            if (entity == null || !_boatsCache.TryGetValue(vehicleParent.net.ID, out lisencedPlayer)) return;
+            if (!_boatsCache.TryGetValue(vehicleParent.net.ID, out lisencedPlayer)) return;
             lisencedPlayer.UpdateBoatLastDismount(vehicleParent.net.ID);
         }
 
         private void OnEntityKill(BaseNetworkable entity)
         {
+            if (entity == null) return;
+
             LisencedPlayer lisencedPlayer;
-            if (entity == null || !_boatsCache.TryGetValue(entity.net.ID, out lisencedPlayer)) return;
+            if (!_boatsCache.TryGetValue(entity.net.ID, out lisencedPlayer)) return;
             lisencedPlayer.ResetBoat(entity.net.ID);
             _boatsCache.Remove(entity.net.ID);
         }
         #endregion
-
+        
         #region Commands
         /// <summary>
         /// Commands the boat licence.
@@ -158,7 +162,7 @@ namespace Oxide.Plugins
                             SendReply(player, Msg("rhibCannotBeBuyed", player.UserIDString));
                             break;
                         }
-                                                    if (!_lisencedPlayer.TryGetValue(player.userID, out lisencedPlayer))
+                            if (!_lisencedPlayer.TryGetValue(player.userID, out lisencedPlayer))
                             {
                                 lisencedPlayer = new LisencedPlayer(player.userID);
                                 _lisencedPlayer.Add(player.userID, lisencedPlayer);
@@ -287,15 +291,15 @@ namespace Oxide.Plugins
                     case "row":
                         if (_lisencedPlayer.TryGetValue(player.userID, out lisencedPlayer))
                         {
-                            BaseNetworkable.serverEntities.Find(lisencedPlayer.rowBoat.Id)?.Kill();
-                            SendReply(player, Msg("boatRecalled", player.UserIDString));
+                            RemoveBoat(lisencedPlayer.rowBoat.Id, lisencedPlayer);
+							SendReply(player, Msg("boatRecalled", player.UserIDString));
                         }
                         break;
                     case "rhib":
                         if (_lisencedPlayer.TryGetValue(player.userID, out lisencedPlayer))
                         {
-                            BaseNetworkable.serverEntities.Find(lisencedPlayer.rhibBoat.Id)?.Kill();
-                            SendReply(player, Msg("boatRecalled", player.UserIDString));
+                            RemoveBoat(lisencedPlayer.rhibBoat.Id, lisencedPlayer);
+							SendReply(player, Msg("boatRecalled", player.UserIDString));
                         }
                         break;
                     default:
@@ -325,6 +329,18 @@ namespace Oxide.Plugins
         }
 
         /// <summary>
+        /// Removes the boat.
+        /// </summary>
+        /// <param name="boatID">The boat identifier.</param>
+        /// <param name="lisencedPlayer">The lisenced player.</param>
+        private void RemoveBoat(uint boatID, LisencedPlayer lisencedPlayer)
+        {
+            lisencedPlayer.ResetBoat(boatID);
+            _boatsCache.Remove(boatID);
+            BaseNetworkable.serverEntities.Find(boatID)?.Kill();
+        }
+
+        /// <summary>
         /// Updates the lisenced player.
         /// </summary>
         /// <param name="lisencedPlayer">The lisenced player.</param>
@@ -344,13 +360,14 @@ namespace Oxide.Plugins
             {
                 LisencedPlayer lisencedPlayer = boat.Value;
                 var boatNetworkable = BaseNetworkable.serverEntities.Find(boat.Key);
+                if (boatNetworkable == null) continue;
                 var boatEntity = boatNetworkable.GetComponent<BaseBoat>();
                 if (boatEntity == null) continue;
                 if (boatEntity.IsMounted()) continue;
                 if (lisencedPlayer.rowBoat.Id == boat.Key)
                 {
                     if (BoatIsActive(lisencedPlayer.rowBoat.LastDismount)) continue;
-                    BaseNetworkable.serverEntities.Find(boat.Key)?.Kill();
+                    RemoveBoat(boat.Key, lisencedPlayer);
                     var player = BasePlayer.FindByID(lisencedPlayer.Userid);
                     if (player == null) return;
                     SendReply(player, Msg("boatRecalled", player.UserIDString));
@@ -358,7 +375,7 @@ namespace Oxide.Plugins
                 else if (lisencedPlayer.rhibBoat.Id == boat.Key)
                 {
                     if (BoatIsActive(lisencedPlayer.rhibBoat.LastDismount)) continue;
-                    BaseNetworkable.serverEntities.Find(boat.Key)?.Kill();
+                    RemoveBoat(boat.Key, lisencedPlayer);
                     var player = BasePlayer.FindByID(lisencedPlayer.Userid);
                     if (player == null) return;
                     SendReply(player, Msg("boatRecalled", player.UserIDString));
