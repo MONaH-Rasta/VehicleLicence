@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow", "1.0.1")]
+    [Info("Vehicle Licence", "Sorrow", "1.0.2")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
     class VehicleLicence : RustPlugin
@@ -702,13 +702,13 @@ namespace Oxide.Plugins
         /// </summary>
         private void LoadData()
         {
-            _licencedPlayer = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<ulong, LicencedPlayer>>("Licence");
+            _licencedPlayer = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<ulong, LicencedPlayer>>("VehicleLicence");
         }
 
         /// <summary>
         /// Saves the data.
         /// </summary>
-        private void SaveData() => Interface.Oxide.DataFileSystem.WriteObject("Licence", _licencedPlayer);
+        private void SaveData() => Interface.Oxide.DataFileSystem.WriteObject("VehicleLicence", _licencedPlayer);
 
         /// <summary>
         /// Gets the base configuration.
