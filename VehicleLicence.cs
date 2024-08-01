@@ -5,11 +5,12 @@ using System.Text;
 using Newtonsoft.Json;
 using Oxide.Core;
 using Oxide.Core.Plugins;
+using Oxide.Game.Rust;
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.4.6")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.4.7")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -61,7 +62,7 @@ namespace Oxide.Plugins
         private void Init()
         {
             LoadData();
-            UpdataData();
+            UpdataOldData();
             permission.RegisterPermission(PERMISSION_ALL, this);
             permission.RegisterPermission(PERMISSION_ROWBOAT, this);
             permission.RegisterPermission(PERMISSION_RHIB, this);
@@ -193,7 +194,7 @@ namespace Oxide.Plugins
 
         #region Update Old Data
 
-        private void UpdataData()
+        private void UpdataOldData()
         {
             Dictionary<ulong, LicencedPlayer> licencedPlayer;
             try { licencedPlayer = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<ulong, LicencedPlayer>>(Name); }
@@ -363,7 +364,7 @@ namespace Oxide.Plugins
                     break;
 
                 case VehicleType.RidableHorse:
-                    //itemContainer = (entity as RidableHorse)?.inventory;
+                    itemContainer = (entity as RidableHorse)?.inventory;
                     break;
             }
             if (itemContainer == null) return;
@@ -439,8 +440,19 @@ namespace Oxide.Plugins
         private void CCmdBuyVehicle(ConsoleSystem.Arg arg)
         {
             var player = arg.Player();
-            if (player == null) Print(arg, $"The server console cannot use '{arg.cmd.FullName}'");
-            else CmdBuyVehicle(player, string.Empty, arg.Args);
+            if (player == null && arg.IsAdmin && arg.Args != null && arg.Args.Length == 2)
+            {
+                player = RustCore.FindPlayer(arg.Args[1]);
+                if (player == null)
+                {
+                    Print(arg, $"Player '{arg.Args[1]}' not found");
+                    return;
+                }
+                IsBuyOption(player, arg.Args[0].ToLower(), false);
+                return;
+            }
+            if (player != null) CmdBuyVehicle(player, string.Empty, arg.Args);
+            else Print(arg, $"The server console cannot use '{arg.cmd.FullName}'");
         }
 
         private void CmdBuyVehicle(BasePlayer player, string command, string[] args)
@@ -469,24 +481,24 @@ namespace Oxide.Plugins
             if (IsBlocked(player)) return;
             if (!storedData.playerData.ContainsKey(player.userID))
                 storedData.playerData.Add(player.userID, new Dictionary<VehicleType, Vehicle>());
-            if (!IsBuyOption(player, arg))
-                Print(player, Lang("OptionNotFound", player.UserIDString, arg));
+            IsBuyOption(player, arg);
         }
 
-        private bool IsBuyOption(BasePlayer player, string key)
+        private bool IsBuyOption(BasePlayer player, string key, bool pay = true)
         {
             foreach (var entry in configData.vehicleS)
             {
                 if (entry.Value.commands.Any(x => x.ToLower().Equals(key)))
                 {
-                    BuyVehicle(player, entry.Key);
+                    BuyVehicle(player, entry.Key, pay);
                     return true;
                 }
             }
+            Print(player, Lang("OptionNotFound", player.UserIDString, key));
             return false;
         }
 
-        private void BuyVehicle(BasePlayer player, VehicleType vehicleType)
+        private void BuyVehicle(BasePlayer player, VehicleType vehicleType, bool pay = true)
         {
             var vehicleSetting = configData.vehicleS[vehicleType];
             if (!vehicleSetting.purchasable)
@@ -499,7 +511,7 @@ namespace Oxide.Plugins
                 Print(player, Lang("VehicleAlreadyPurchased", player.UserIDString, vehicleSetting.displayName));
                 return;
             }
-            if (!BuyVehicle(player, vehicleSetting)) return;
+            if (pay && !BuyVehicle(player, vehicleSetting)) return;
             storedData.playerData[player.userID].Add(vehicleType, new Vehicle());
             Print(player, Lang("VehiclePurchased", player.UserIDString, vehicleSetting.displayName, configData.chatS.spawnCommand));
             SaveData();
@@ -615,8 +627,7 @@ namespace Oxide.Plugins
             if (IsBlocked(player)) return;
             if (!storedData.playerData.ContainsKey(player.userID))
                 storedData.playerData.Add(player.userID, new Dictionary<VehicleType, Vehicle>());
-            if (!IsSpawnOption(player, arg))
-                Print(player, Lang("OptionNotFound", player.UserIDString, arg));
+            IsSpawnOption(player, arg);
         }
 
         private bool IsSpawnOption(BasePlayer player, string key)
@@ -630,6 +641,7 @@ namespace Oxide.Plugins
                     return true;
                 }
             }
+            Print(player, Lang("OptionNotFound", player.UserIDString, key));
             return false;
         }
 
@@ -746,8 +758,7 @@ namespace Oxide.Plugins
             if (IsBlocked(player)) return;
             if (!storedData.playerData.ContainsKey(player.userID))
                 storedData.playerData.Add(player.userID, new Dictionary<VehicleType, Vehicle>());
-            if (!IsReallOption(player, arg))
-                Print(player, Lang("OptionNotFound", player.UserIDString, arg));
+            IsReallOption(player, arg);
         }
 
         private bool IsReallOption(BasePlayer player, string key)
@@ -760,6 +771,7 @@ namespace Oxide.Plugins
                     return true;
                 }
             }
+            Print(player, Lang("OptionNotFound", player.UserIDString, key));
             return false;
         }
 
@@ -779,7 +791,7 @@ namespace Oxide.Plugins
                     {
                         if (entry.Key != null && !entry.Key.IsDestroyed)
                         {
-                            if (VehicleAnyMounted(entry.Key))
+                            if (configData.settings.checkAnyMounted && VehicleAnyMounted(entry.Key))
                             {
                                 Print(player, Lang("PlayerMountedOnVehicle", player.UserIDString, vehicleName));
                                 return;
@@ -818,6 +830,9 @@ namespace Oxide.Plugins
 
                 [JsonProperty(PropertyName = "Prevent mounting on driver's seat only")]
                 public bool blockDriverSeat = true;
+
+                [JsonProperty(PropertyName = "Check if any player mounted when recalling a vehicle")]
+                public bool checkAnyMounted = true;
 
                 [JsonProperty(PropertyName = "Use Clans")]
                 public bool useClans = true;
