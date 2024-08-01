@@ -22,7 +22,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.0")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.1")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -504,7 +504,7 @@ namespace Oxide.Plugins
             }
             var sourceEntity = triggerHurtNotChild.SourceEntity;
             
-            if (!vehiclesCache.ContainsKey(sourceEntity)) return null;
+            if (!vehiclesCache.ContainsKey(sourceEntity) || (!configData.global.preventDamageNPCs && !player.userID.IsSteamId())) return null;
             
             var baseVehicle = sourceEntity as BaseVehicle;
             
