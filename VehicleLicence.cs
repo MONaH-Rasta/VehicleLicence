@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.17")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.18")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -52,7 +52,7 @@ namespace Oxide.Plugins
         private const int LAYER_GROUND = Rust.Layers.Solid | Rust.Layers.Mask.Water;
 
         private Timer checkVehiclesTimer;
-        private static object False = false;
+        private static object False;
         public static VehicleLicence Instance { get; private set; }
         public readonly Dictionary<BaseEntity, Vehicle> vehiclesCache = new Dictionary<BaseEntity, Vehicle>();
         public readonly Dictionary<string, BaseVehicleS> allBaseVehicleSettings = new Dictionary<string, BaseVehicleS>();
@@ -88,6 +88,7 @@ namespace Oxide.Plugins
         private void Init()
         {
             LoadData();
+            False = false;
             Instance = this;
             permission.RegisterPermission(PERMISSION_USE, this);
             permission.RegisterPermission(PERMISSION_ALL, this);
@@ -536,7 +537,7 @@ namespace Oxide.Plugins
             if (Enum.TryParse(vehicle.vehicleType, out normalVehicleType))
             {
                 ItemContainer inventory = null;
-                EntityFuelSystem fuelSystem =null ;
+                EntityFuelSystem fuelSystem = null;
                 switch (normalVehicleType)
                 {
                     case NormalVehicleType.Sedan:
@@ -548,7 +549,7 @@ namespace Oxide.Plugins
                         {
                             if (CanRefundFuel(baseVehicleS, isCrash, isUnload))
                             {
-                                fuelSystem = (entity as MiniCopter)?.GetFuelSystem() ; 
+                                fuelSystem = (entity as MiniCopter)?.GetFuelSystem();
                             }
                         }
                         break;
@@ -573,12 +574,12 @@ namespace Oxide.Plugins
                             var motorRowboat = entity as MotorRowboat;
                             if (CanRefundFuel(baseVehicleS, isCrash, isUnload))
                             {
-                                fuelSystem = motorRowboat?.GetFuelSystem( ); 
+                                fuelSystem = motorRowboat?.GetFuelSystem();
                             }
 
                             if (CanRefundInventory(baseVehicleS, isCrash, isUnload))
                             {
-                                inventory = (motorRowboat?.storageUnitInstance.Get(true) as StorageContainer)?.inventory ;
+                                inventory = (motorRowboat?.storageUnitInstance.Get(true) as StorageContainer)?.inventory;
                             }
                         }
                         break;
@@ -587,7 +588,7 @@ namespace Oxide.Plugins
                         {
                             if (CanRefundInventory(baseVehicleS, isCrash, isUnload))
                             {
-                                inventory = (entity as RidableHorse)?.inventory; 
+                                inventory = (entity as RidableHorse)?.inventory;
                             }
                         }
                         break;
@@ -620,7 +621,7 @@ namespace Oxide.Plugins
                             }
                             if (CanRefundInventory(baseVehicleS, isCrash, isUnload))
                             {
-                                inventory = baseSubmarine?.GetTorpedoContainer()?.inventory; 
+                                inventory = baseSubmarine?.GetTorpedoContainer()?.inventory;
                             }
                         }
                         break;
@@ -628,16 +629,16 @@ namespace Oxide.Plugins
                     default: return;
                 }
 
-               var fuelContainer = fuelSystem?.GetFuelContainer()?.inventory;
-               if (fuelContainer != null)
-               {
-                   collect.AddRange(fuelContainer.itemList);
-               }
+                var fuelContainer = fuelSystem?.GetFuelContainer()?.inventory;
+                if (fuelContainer != null)
+                {
+                    collect.AddRange(fuelContainer.itemList);
+                }
 
-               if (inventory != null)
-               {
-                   collect.AddRange(inventory.itemList);
-               }
+                if (inventory != null)
+                {
+                    collect.AddRange(inventory.itemList);
+                }
             }
             else
             {
@@ -769,12 +770,12 @@ namespace Oxide.Plugins
                         break;
 
                     case NormalVehicleType.MagnetCrane:
-                        fuelSystem = (entity as BaseCrane)?.GetFuelSystem() ;
+                        fuelSystem = (entity as BaseCrane)?.GetFuelSystem();
                         break;
 
                     case NormalVehicleType.SubmarineSolo:
                     case NormalVehicleType.SubmarineDouble:
-                        fuelSystem = (entity as BaseSubmarine)?.GetFuelSystem() ;
+                        fuelSystem = (entity as BaseSubmarine)?.GetFuelSystem();
                         break;
 
                     default: return;
@@ -889,7 +890,7 @@ namespace Oxide.Plugins
                             itemContainer = (entity as RidableHorse)?.inventory;
                         }
                         break;
-                         
+
                     case NormalVehicleType.SubmarineSolo:
                     case NormalVehicleType.SubmarineDouble:
                         {
@@ -3760,12 +3761,9 @@ namespace Oxide.Plugins
             {
                 storedData = null;
             }
-            finally
+            if (storedData == null)
             {
-                if (storedData == null)
-                {
-                    ClearData();
-                }
+                ClearData();
             }
         }
 
@@ -3806,7 +3804,18 @@ namespace Oxide.Plugins
             else PrintToConsole(player, message);
         }
 
-        private string Lang(string key, string id = null, params object[] args) => string.Format(lang.GetMessage(key, this, id), args);
+        private string Lang(string key, string id = null, params object[] args)
+        {
+            try
+            {
+                return string.Format(lang.GetMessage(key, this, id), args);
+            }
+            catch (Exception)
+            {
+                PrintError($"Error in the language formatting of '{key}'. (userid: {id}. args: {string.Join(" ,", args)})");
+                throw;
+            }
+        }
 
         protected override void LoadDefaultMessages()
         {
