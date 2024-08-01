@@ -9,7 +9,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle License", "Sorrow|TheDoc", "1.2.9")]
+    [Info("Vehicle License", "Sorrow|TheDoc", "1.3.0")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
     class VehicleLicence : RustPlugin
@@ -76,7 +76,7 @@ namespace Oxide.Plugins
 
             LoadData();
             CheckVehicles();
-            BroadcastHelp();
+            BroadcastHelp(); // TODO remove for relase
         }
 
         private void Loaded()
@@ -189,7 +189,7 @@ namespace Oxide.Plugins
             licencedPlayer = new LicencedPlayer(player.userID, null);
             _licencedPlayer.Add(player.userID, licencedPlayer);
         }
-
+		
         /// <summary>
         /// Commands the buy vehicle.
         /// </summary>
@@ -209,8 +209,13 @@ namespace Oxide.Plugins
 			}
 
             if (args.Count < 1) Msg("helpBuy", player, new object[] {
-                _itemsNeededToBuyVehicles, GetVehicleSettings(RowBoatPrefab).price.ToString(), GetVehicleSettings(RhibPrefab).price.ToString(),
-                GetVehicleSettings(SedanPrefab).price.ToString(), GetVehicleSettings(HotAirBalloonPrefab).price.ToString(), GetVehicleSettings(MiniCopterPrefab).price.ToString(),
+                _itemsNeededToBuyVehicles, 
+				GetVehicleSettings(RowBoatPrefab).price.ToString(), 
+				GetVehicleSettings(RhibPrefab).price.ToString(),
+                GetVehicleSettings(SedanPrefab).price.ToString(), 
+				GetVehicleSettings(HotAirBalloonPrefab).price.ToString(), 
+				GetVehicleSettings(MiniCopterPrefab).price.ToString(),
+				GetVehicleSettings(TransportCopterPrefab).price.ToString(),
                 GetVehicleSettings(ChinookPrefab).price.ToString()
             });
             else
@@ -808,8 +813,8 @@ namespace Oxide.Plugins
                     "<color=#4DFF4D>/buy sedan</color> -- <color=#FF1919>{3}</color> to buy a sedan \n" +
                     "<color=#4DFF4D>/buy hab</color> -- <color=#FF1919>{4}</color> to buy an hot air balloon \n" +
                     "<color=#4DFF4D>/buy copter</color> -- <color=#FF1919>{5}</color> to buy a mini copter \n" +
-					"<color=#4DFF4D>/buy transport</color> -- <color=#FF1919>{5}</color> to buy a transport copter \n" +
-                    "<color=#4DFF4D>/buy ch47</color> -- <color=#FF1919>{6}</color> to buy a chinook \n",
+					"<color=#4DFF4D>/buy transport</color> -- <color=#FF1919>{6}</color> to buy a transport copter \n" +
+                    "<color=#4DFF4D>/buy ch47</color> -- <color=#FF1919>{7}</color> to buy a chinook \n",
                 ["helpSpawn"] = "These are the available commands: \n" +
                     "<color=#4DFF4D>/spawn row</color> -- To spawn a rowing boat \n" +
                     "<color=#4DFF4D>/spawn rhib</color> -- To spawn a RHIB \n" +
