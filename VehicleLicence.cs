@@ -1,27 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using Network;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Oxide.Core;
 using Oxide.Core.Plugins;
 using Oxide.Game.Rust;
+using Rust.Modular;
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.6.0")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.0")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
         #region Fields
 
         [PluginReference] private readonly Plugin Economics, ServerRewards, Friends, Clans, NoEscape;
+
         private const string PERMISSION_USE = "vehiclelicence.use";
         private const string PERMISSION_ALL = "vehiclelicence.all";
         private const string PERMISSION_BYPASS_COST = "vehiclelicence.bypasscost";
+
         private const string PREFAB_ITEM_DROP = "assets/prefabs/misc/item drop/item_drop.prefab";
 
         private const string PREFAB_ROWBOAT = "assets/content/vehicles/boats/rowboat/rowboat.prefab";
@@ -37,14 +40,14 @@ namespace Oxide.Plugins
         private const string PREFAB_CHASSIS_MEDIUM = "assets/content/vehicles/modularcar/car_chassis_3module.entity.prefab";
         private const string PREFAB_CHASSIS_LARGE = "assets/content/vehicles/modularcar/car_chassis_4module.entity.prefab";
 
-        private const string PREFAB_MODULAR_CAR_SMALL = "assets/content/vehicles/modularcar/2module_car_spawned.entity.prefab";
-        private const string PREFAB_MODULAR_CAR_MEDIUM = "assets/content/vehicles/modularcar/3module_car_spawned.entity.prefab";
-        private const string PREFAB_MODULAR_CAR_LARGE = "assets/content/vehicles/modularcar/4module_car_spawned.entity.prefab";
+        private const int LAYER_GROUND = Rust.Layers.Solid | Rust.Layers.Mask.Water;
 
-        private readonly Dictionary<BaseEntity, Vehicle> vehiclesCache = new Dictionary<BaseEntity, Vehicle>();
-        private static readonly int LAYER_GROUND = Rust.Layers.Solid | Rust.Layers.Mask.Water;//LayerMask.GetMask("Terrain", "World", "Construction", "Deployed","Water");
+        private Timer checkVehiclesTimer;
+        public static VehicleLicence Instance { get; private set; }
+        public readonly Dictionary<BaseEntity, Vehicle> vehiclesCache = new Dictionary<BaseEntity, Vehicle>();
+        public readonly Dictionary<string, BaseVehicleS> allBaseVehicleSettings = new Dictionary<string, BaseVehicleS>();
 
-        private enum VehicleType
+        public enum NormalVehicleType
         {
             Rowboat,
             RHIB,
@@ -54,12 +57,13 @@ namespace Oxide.Plugins
             TransportHelicopter,
             Chinook,
             RidableHorse,
-            ChassisSmall,
-            ChassisMedium,
-            ChassisLarge,
-            ModularCarSmall,
-            ModularCarMedium,
-            ModularCarLarge,
+        }
+
+        public enum ChassisType
+        {
+            Small,
+            Medium,
+            Large
         }
 
         #endregion Fields
@@ -69,62 +73,123 @@ namespace Oxide.Plugins
         private void Init()
         {
             LoadData();
+            Instance = this;
+            LoadDefaultMessages();
             permission.RegisterPermission(PERMISSION_USE, this);
             permission.RegisterPermission(PERMISSION_ALL, this);
             permission.RegisterPermission(PERMISSION_BYPASS_COST, this);
-            foreach (var vehicleS in configData.vehicleS.Values)
+
+            foreach (NormalVehicleType value in Enum.GetValues(typeof(NormalVehicleType)))
             {
-                if (string.IsNullOrEmpty(vehicleS.permission)) continue;
-                if (permission.PermissionExists(vehicleS.permission, this)) continue;
-                permission.RegisterPermission(vehicleS.permission, this);
+                allBaseVehicleSettings.Add(value.ToString(), GetBaseVehicleS(value));
             }
-            foreach (var perm in configData.permCooldown.Keys)
+            foreach (var entry in configData.modularCarS)
             {
-                if (permission.PermissionExists(perm, this)) continue;
-                permission.RegisterPermission(perm, this);
+                allBaseVehicleSettings.Add(entry.Key, entry.Value);
             }
-            if (configData.chatS.useUniversalCommand)
+
+            foreach (var baseVehicleS in allBaseVehicleSettings.Values)
             {
-                foreach (var command in configData.vehicleS.Values.SelectMany(x => x.commands))
+                if (baseVehicleS.usePermission && !string.IsNullOrEmpty(baseVehicleS.permission) &&
+                    !permission.PermissionExists(baseVehicleS.permission, this))
                 {
-                    if (string.IsNullOrEmpty(command)) continue;
-                    cmd.AddChatCommand(command, this, nameof(CmdUniversal));
+                    permission.RegisterPermission(baseVehicleS.permission, this);
+                }
+
+                foreach (var perm in baseVehicleS.cooldownPermissions.Keys)
+                {
+                    if (!permission.PermissionExists(perm, this))
+                    {
+                        permission.RegisterPermission(perm, this);
+                    }
+                }
+                if (configData.chatS.useUniversalCommand)
+                {
+                    foreach (var command in baseVehicleS.commands)
+                    {
+                        if (string.IsNullOrEmpty(command)) continue;
+                        cmd.AddChatCommand(command, this, nameof(CmdUniversal));
+                    }
                 }
             }
+
             cmd.AddChatCommand(configData.chatS.helpCommand, this, nameof(CmdLicenseHelp));
             cmd.AddChatCommand(configData.chatS.buyCommand, this, nameof(CmdBuyVehicle));
             cmd.AddChatCommand(configData.chatS.spawnCommand, this, nameof(CmdSpawnVehicle));
             cmd.AddChatCommand(configData.chatS.recallCommand, this, nameof(CmdRecallVehicle));
             cmd.AddChatCommand(configData.chatS.killCommand, this, nameof(CmdKillVehicle));
+            Unsubscribe(nameof(CanMountEntity));
+            Unsubscribe(nameof(OnEntityTakeDamage));
+            Unsubscribe(nameof(OnEntityDismounted));
         }
 
         private void OnServerInitialized()
         {
-            foreach (VehicleType vehicleType in Enum.GetValues(typeof(VehicleType)))
+            if (configData.globalS.storeVehicle)
             {
-                if (!configData.vehicleS.ContainsKey(vehicleType))
+                var currentTimestamp = TimeEx.currentTimestamp;
+                foreach (var playerEntry in storedData.playerData)
                 {
-                    var vehicleS = new ConfigData.VehicleS();
-                    configData.vehicleS.Add(vehicleType, vehicleS);
+                    foreach (var entry in playerEntry.Value)
+                    {
+                        entry.Value.lastRecall = entry.Value.lastDismount = currentTimestamp;
+                        entry.Value.playerID = playerEntry.Key;
+                        entry.Value.vehicleType = entry.Key;
+                        if (entry.Value.entityID == 0)
+                        {
+                            continue;
+                        }
+                        entry.Value.entity = BaseNetworkable.serverEntities.Find(entry.Value.entityID) as BaseEntity;
+                        if (entry.Value.entity == null || entry.Value.entity.IsDestroyed)
+                        {
+                            entry.Value.entityID = 0;
+                        }
+                        else
+                        {
+                            vehiclesCache.Add(entry.Value.entity, entry.Value);
+                        }
+                    }
                 }
             }
-            if (!configData.globalS.preventMounting) Unsubscribe(nameof(CanMountEntity));
-            if (configData.globalS.checkVehiclesInterval > 0) CheckVehicles();
-            else Unsubscribe(nameof(OnEntityDismounted));
-            if (!configData.globalS.noDecay) Unsubscribe(nameof(OnEntityTakeDamage));
+            if (configData.globalS.preventMounting)
+            {
+                Subscribe(nameof(CanMountEntity));
+            }
+            if (configData.globalS.noDecay)
+            {
+                Subscribe(nameof(OnEntityTakeDamage));
+            }
+            if (configData.globalS.checkVehiclesInterval > 0 && allBaseVehicleSettings.Any(x => x.Value.wipeTime > 0))
+            {
+                Subscribe(nameof(OnEntityDismounted));
+                checkVehiclesTimer = timer.Every(configData.globalS.checkVehiclesInterval, CheckVehicles);
+            }
         }
 
         private void Unload()
         {
-            foreach (var entry in vehiclesCache.ToList())
+            checkVehiclesTimer?.Destroy();
+            if (!configData.globalS.storeVehicle)
             {
-                if (entry.Key != null && !entry.Key.IsDestroyed)
+                foreach (var entry in vehiclesCache.ToList())
                 {
-                    RefundFuel(entry.Value, entry.Key);
-                    entry.Key.Kill(BaseNetworkable.DestroyMode.Gib);
+                    if (entry.Key != null && !entry.Key.IsDestroyed)
+                    {
+                        RefundVehicleItems(entry.Value, entry.Key, isUnload: true);
+                        entry.Key.Kill(BaseNetworkable.DestroyMode.Gib);
+                    }
+                }
+
+                foreach (var vehicles in storedData.playerData.Values)
+                {
+                    foreach (var entry in vehicles)
+                    {
+                        entry.Value.entityID = 0;
+                    }
                 }
             }
             SaveData();
+            Instance = null;
         }
 
         private void OnServerSave() => timer.Once(UnityEngine.Random.Range(0f, 60f), SaveData);
@@ -158,10 +223,20 @@ namespace Oxide.Plugins
 
         private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo)
         {
-            if (entity == null) return;
-            if (!vehiclesCache.ContainsKey(entity)) return;
-            if (hitInfo?.damageTypes?.Get(Rust.DamageType.Decay) > 0)
+            if (entity == null | hitInfo?.damageTypes == null) return;
+            if (hitInfo.damageTypes.Get(Rust.DamageType.Decay) > 0)
+            {
+                if (!vehiclesCache.ContainsKey(entity))
+                {
+                    var vehicle = (entity as BaseVehicleModule)?.Vehicle;
+                    if (vehicle == null || !vehiclesCache.ContainsKey(vehicle))
+                    {
+                        return;
+                    }
+                }
+
                 hitInfo.damageTypes.Scale(Rust.DamageType.Decay, 0);
+            }
         }
 
         private void OnEntityDeath(BaseCombatEntity entity, HitInfo info) => CheckEntity(entity, true);
@@ -170,7 +245,7 @@ namespace Oxide.Plugins
 
         #endregion Oxide Hooks
 
-        #region Helpers
+        #region Methods
 
         private void CheckEntity(BaseCombatEntity entity, bool isCrash = false)
         {
@@ -178,586 +253,275 @@ namespace Oxide.Plugins
             Vehicle vehicle;
             if (!vehiclesCache.TryGetValue(entity, out vehicle)) return;
             vehiclesCache.Remove(entity);
-            var vehicleS = configData.vehicleS[vehicle.vehicleType];
+            RefundVehicleItems(vehicle, entity, isCrash);
 
-            RefundFuel(vehicle, entity, isCrash);
-            Dictionary<VehicleType, Vehicle> vehicles;
-            if (storedData.playerData.TryGetValue(vehicle.playerID, out vehicles) && vehicles.ContainsKey(vehicle.vehicleType))
+            Dictionary<string, Vehicle> vehicles;
+            if (storedData.playerData.TryGetValue(vehicle.playerID, out vehicles))
             {
-                if (isCrash && vehicleS.removeLicenseOnCrash)
+                var baseVehicleS = GetBaseVehicleS(vehicle.vehicleType);
+                if (isCrash && baseVehicleS.removeLicenseOnceCrash)
                 {
                     vehicles.Remove(vehicle.vehicleType);
+                    return;
                 }
-                else vehicles[vehicle.vehicleType].OnDeath();
+                if (vehicles.TryGetValue(vehicle.vehicleType, out vehicle))
+                {
+                    vehicle.OnDeath();
+                }
             }
         }
+
+        #region CheckVehicles
 
         private void CheckVehicles()
         {
+            var currentTimestamp = TimeEx.currentTimestamp;
             foreach (var entry in vehiclesCache.ToList())
             {
                 if (entry.Key == null || entry.Key.IsDestroyed) continue;
-                if (VehicleIsActive(entry.Value)) continue;
+                if (VehicleIsActive(entry.Value, currentTimestamp)) continue;
                 if (VehicleAnyMounted(entry.Key)) continue;
-                RefundFuel(entry.Value, entry.Key);
                 entry.Key.Kill(BaseNetworkable.DestroyMode.Gib);
             }
-            timer.Once(configData.globalS.checkVehiclesInterval, CheckVehicles);
         }
 
-        private bool VehicleIsActive(Vehicle vehicle)
+        private bool VehicleIsActive(Vehicle vehicle, double currentTimestamp)
         {
-            var vehicleS = configData.vehicleS[vehicle.vehicleType];
-            if (vehicleS.wipeTime <= 0) return true;
-            return TimeEx.currentTimestamp - vehicle.lastDismount < vehicleS.wipeTime;
+            var baseVehicleS = GetBaseVehicleS(vehicle.vehicleType);
+            if (baseVehicleS.wipeTime <= 0) return true;
+            return currentTimestamp - vehicle.lastDismount < baseVehicleS.wipeTime;
         }
 
-        private readonly FieldInfo habFuelSystemField = typeof(HotAirBalloon).GetField("fuelSystem", BindingFlags.Instance | BindingFlags.NonPublic);
+        #endregion CheckVehicles
 
-        private void RefundFuel(Vehicle vehicle, BaseEntity entity = null, bool isCrash = false)
+        #region Refund
+
+        private static bool CanRefundFuel(BaseVehicleS baseVehicleS, bool isCrash, bool isUnload)
         {
-            var vehicleS = configData.vehicleS[vehicle.vehicleType];
-            bool refundFuel = vehicleS.refundFuel;
-            bool refundInventory = vehicleS.refundInventory;
-            if (isCrash)
+            if (isUnload) return true;
+            var fuelVehicleS = baseVehicleS as IFuelVehicle;
+            return fuelVehicleS != null && (isCrash ? fuelVehicleS.refundFuelOnCrash : fuelVehicleS.refundFuelOnKill);
+        }
+
+        private static bool CanRefundInventory(BaseVehicleS baseVehicleS, bool isCrash, bool isUnload)
+        {
+            if (isUnload) return true;
+            var inventoryVehicleS = baseVehicleS as IInventoryVehicle;
+            return inventoryVehicleS != null && (isCrash ? inventoryVehicleS.refundInventoryOnCrash : inventoryVehicleS.refundInventoryOnKill);
+        }
+
+        private static void CanModularCarRefund(BaseVehicleS baseVehicleS, bool isCrash, bool isUnload, out bool refundFuel, out bool refundInventory, out bool refundEngine, out bool refundModule)
+        {
+            if (isUnload)
             {
-                refundFuel = !vehicleS.notRefundFuelOnCrash;
-                refundInventory = !vehicleS.notRefundInventoryOnCrash;
+                refundFuel = refundInventory = refundEngine = refundModule = true;
+                return;
             }
-            if (!refundFuel && !refundInventory) return;
+            var modularVehicleS = baseVehicleS as ModularVehicleS;
+            if (modularVehicleS == null)
+            {
+                refundFuel = refundInventory = refundEngine = refundModule = false;
+                return;
+            }
+            refundFuel = isCrash ? modularVehicleS.refundFuelOnCrash : modularVehicleS.refundFuelOnKill;
+            refundInventory = isCrash ? modularVehicleS.refundInventoryOnCrash : modularVehicleS.refundInventoryOnKill;
+            refundEngine = isCrash ? modularVehicleS.refundEngineOnCrash : modularVehicleS.refundEngineOnKill;
+            refundModule = isCrash ? modularVehicleS.refundModuleOnCrash : modularVehicleS.refundModuleOnKill;
+        }
 
+        private void RefundVehicleItems(Vehicle vehicle, BaseEntity entity = null, bool isCrash = false, bool isUnload = false)
+        {
             if (entity == null) entity = vehicle.entity;
-            ItemContainer itemContainer;
-            switch (vehicle.vehicleType)
+            if (entity == null) return;
+            var baseVehicleS = GetBaseVehicleS(vehicle.vehicleType);
+            if (baseVehicleS == null) return;
+
+            ItemContainer container;
+            NormalVehicleType normalVehicleType;
+            if (Enum.TryParse(vehicle.vehicleType, out normalVehicleType))
             {
-                case VehicleType.Sedan:
-                case VehicleType.Chinook:
-                    return;
+                switch (normalVehicleType)
+                {
+                    case NormalVehicleType.Sedan:
+                    case NormalVehicleType.Chinook:
+                        return;
 
-                case VehicleType.MiniCopter:
-                case VehicleType.TransportHelicopter:
-                    if (!refundFuel) return;
-                    itemContainer = (entity as MiniCopter)?.GetFuelSystem()?.GetFuelContainer()?.inventory;
-                    break;
+                    case NormalVehicleType.MiniCopter:
+                    case NormalVehicleType.TransportHelicopter:
+                        if (!CanRefundFuel(baseVehicleS, isCrash, isUnload)) return;
+                        container = (entity as MiniCopter)?.GetFuelSystem()?.GetFuelContainer()?.inventory;
+                        break;
 
-                case VehicleType.HotAirBalloon:
-                    if (!refundFuel) return;
-                    var hotAirBalloon = entity as HotAirBalloon;
-                    var fuelSystem = habFuelSystemField?.GetValue(hotAirBalloon) as EntityFuelSystem;
-                    itemContainer = fuelSystem?.GetFuelContainer()?.inventory;
-                    break;
+                    case NormalVehicleType.HotAirBalloon:
+                        if (!CanRefundFuel(baseVehicleS, isCrash, isUnload)) return;
+                        container = (entity as HotAirBalloon)?.fuelSystem?.GetFuelContainer()?.inventory;
+                        break;
 
-                case VehicleType.RHIB:
-                case VehicleType.Rowboat:
-                    if (!refundFuel) return;
-                    itemContainer = (entity as MotorRowboat)?.fuelSystem?.GetFuelContainer()?.inventory;
-                    break;
+                    case NormalVehicleType.RHIB:
+                    case NormalVehicleType.Rowboat:
+                        if (!CanRefundFuel(baseVehicleS, isCrash, isUnload)) return;
+                        container = (entity as MotorRowboat)?.fuelSystem?.GetFuelContainer()?.inventory;
+                        break;
 
-                case VehicleType.RidableHorse:
-                    if (!refundInventory) return;
-                    itemContainer = (entity as RidableHorse)?.inventory;
-                    break;
+                    case NormalVehicleType.RidableHorse:
+                        if (!CanRefundInventory(baseVehicleS, isCrash, isUnload)) return;
+                        container = (entity as RidableHorse)?.inventory;
+                        break;
 
-                case VehicleType.ChassisSmall:
-                case VehicleType.ChassisMedium:
-                case VehicleType.ChassisLarge:
-                case VehicleType.ModularCarSmall:
-                case VehicleType.ModularCarMedium:
-                case VehicleType.ModularCarLarge:
-                    var modularCar = entity as ModularCar;
-                    if (modularCar == null) return;
-                    List<Item> collect = new List<Item>();
-                    if (refundFuel)
-                    {
-                        itemContainer = modularCar.fuelSystem?.GetFuelContainer()?.inventory;
-                        if (itemContainer != null)
-                        {
-                            collect.AddRange(itemContainer.itemList);
-                        }
-                    }
-
-                    if (refundInventory)
-                    {
-                        foreach (var moduleEntity in modularCar.AttachedModuleEntities)
-                        {
-                            /*var moduleEngine = moduleEntity as VehicleModuleEngine;
-                            if (moduleEngine != null)
-                            {
-                                var engineContainer = moduleEngine.GetContainer()?.inventory;
-                                if (engineContainer != null)
-                                {
-                                    collect.AddRange(engineContainer.itemList);
-                                }
-                                continue;
-                            }*/
-                            var moduleStorage = moduleEntity as VehicleModuleStorage;
-                            if (moduleStorage != null)
-                            {
-                                var storageContainer = moduleStorage.GetContainer()?.inventory;
-                                if (storageContainer != null)
-                                {
-                                    collect.AddRange(storageContainer.itemList);
-                                }
-                            }
-                        }
-                        var moduleContainer = modularCar.Inventory?.ModuleContainer;
-                        if (moduleContainer != null)
-                        {
-                            collect.AddRange(moduleContainer.itemList);
-                        }
-                        /*var chassisContainer = modularCar.Inventory?.ChassisContainer;
-                        if (chassisContainer != null)
-                        {
-                            collect.AddRange(chassisContainer.itemList);
-                        }*/
-                    }
-                    if (collect.Count <= 0) return;
-                    itemContainer = new ItemContainer
-                    {
-                        itemList = collect
-                    };
-                    break;
-
-                default: return;
+                    default: return;
+                }
             }
-            if (itemContainer?.itemList == null || itemContainer.itemList.Count <= 0) return;
-            var player = RustCore.FindPlayerById(vehicle.playerID);
-            if (player == null) itemContainer.Drop(PREFAB_ITEM_DROP, entity.GetDropPosition(), entity.transform.rotation);
             else
             {
-                foreach (var item in itemContainer.itemList.ToList())
+                var modularCar = entity as ModularCar;
+                if (modularCar == null) return;
+
+                bool refundFuel, refundInventory, refundEngine, refundModule;
+                CanModularCarRefund(baseVehicleS, isCrash, isUnload, out refundFuel, out refundInventory, out refundEngine, out refundModule);
+
+                var collect = new List<Item>();
+                foreach (var moduleEntity in modularCar.AttachedModuleEntities.ToArray())
+                {
+                    var moduleEngine = moduleEntity as VehicleModuleEngine;
+                    if (moduleEngine != null)
+                    {
+                        var engineContainer = moduleEngine.GetContainer()?.inventory;
+                        if (engineContainer != null)
+                        {
+                            if (refundEngine)
+                            {
+                                collect.AddRange(engineContainer.itemList);
+                            }
+                            else
+                            {
+                                engineContainer.Clear();
+                            }
+                        }
+                        continue;
+                    }
+                    var moduleStorage = moduleEntity as VehicleModuleStorage;
+                    if (moduleStorage != null && refundInventory)
+                    {
+                        var storageContainer = moduleStorage.GetContainer()?.inventory;
+                        if (storageContainer != null)
+                        {
+                            collect.AddRange(storageContainer.itemList);
+                        }
+                    }
+                }
+                if (refundFuel)
+                {
+                    container = modularCar.fuelSystem?.GetFuelContainer()?.inventory;
+                    if (container != null)
+                    {
+                        collect.AddRange(container.itemList);
+                    }
+                }
+                if (refundModule)
+                {
+                    var moduleContainer = modularCar.Inventory?.ModuleContainer;
+                    if (moduleContainer != null)
+                    {
+                        collect.AddRange(moduleContainer.itemList);
+                    }
+                }
+                /*var chassisContainer = modularCar.Inventory?.ChassisContainer;
+                if (chassisContainer != null)
+                {
+                    collect.AddRange(chassisContainer.itemList);
+                }*/
+                if (collect.Count <= 0) return;
+                container = new ItemContainer
+                {
+                    itemList = collect
+                };
+            }
+
+            if (container?.itemList == null || container.itemList.Count <= 0) return;
+            var player = RustCore.FindPlayerById(vehicle.playerID);
+            if (player == null) container.Drop(PREFAB_ITEM_DROP, entity.GetDropPosition(), entity.transform.rotation);
+            else
+            {
+                foreach (var item in container.itemList.ToArray())
                 {
                     player.GiveItem(item);
                 }
-                Print(player, Lang("RefundedVehicleFuel", player.UserIDString, configData.vehicleS[vehicle.vehicleType].displayName));
+                if (player.IsConnected)
+                {
+                    Print(player, Lang("RefundedVehicleItems", player.UserIDString, baseVehicleS.displayName));
+                }
             }
         }
 
-        private void PurchaseAllVehicles(ulong playerID)
+        #endregion Refund
+
+        #region Drop
+
+        private static bool CanDropInventory(BaseVehicleS baseVehicleS)
         {
-            Dictionary<VehicleType, Vehicle> vehicles;
-            var array = Enum.GetValues(typeof(VehicleType));
-            if (!storedData.playerData.TryGetValue(playerID, out vehicles))
+            var inventoryVehicle = baseVehicleS as IInventoryVehicle;
+            return inventoryVehicle != null && inventoryVehicle.dropInventoryOnRecall;
+        }
+
+        private void DropVehicleInventoryItems(BasePlayer player, string vehicleType, BaseEntity entity, BaseVehicleS baseVehicleS)
+        {
+            DroppedItemContainer droppedItemContainer = null;
+            NormalVehicleType normalVehicleType;
+            if (Enum.TryParse(vehicleType, out normalVehicleType))
             {
-                vehicles = new Dictionary<VehicleType, Vehicle>();
-                foreach (VehicleType vehicleType in array)
-                    vehicles.Add(vehicleType, new Vehicle());
-                storedData.playerData.Add(playerID, vehicles);
+                switch (normalVehicleType)
+                {
+                    case NormalVehicleType.Rowboat:
+                    case NormalVehicleType.RHIB:
+                        {
+                            var storageContainer = (entity as MotorRowboat)?.storageUnitInstance.Get(true) as StorageContainer;
+                            droppedItemContainer = storageContainer?.inventory?.Drop(PREFAB_ITEM_DROP, entity.GetDropPosition(),
+                                entity.transform.rotation);
+                        }
+                        break;
+
+                    case NormalVehicleType.HotAirBalloon:
+                        {
+                            var storageContainer = (entity as HotAirBalloon)?.storageUnitInstance.Get(true) as StorageContainer;
+                            droppedItemContainer = storageContainer?.inventory?.Drop(PREFAB_ITEM_DROP, entity.GetDropPosition(),
+                                entity.transform.rotation);
+                        }
+                        break;
+
+                    case NormalVehicleType.RidableHorse:
+                        {
+                            droppedItemContainer = (entity as RidableHorse)?.inventory?.Drop(PREFAB_ITEM_DROP, entity.GetDropPosition(),
+                                entity.transform.rotation);
+                        }
+                        break;
+                }
             }
             else
             {
-                if (vehicles.Count == array.Length) return;
-                foreach (VehicleType vehicleType in array)
+                var modularCar = entity as ModularCar;
+                if (modularCar == null) return;
+                foreach (var moduleEntity in modularCar.AttachedModuleEntities)
                 {
-                    if (!vehicles.ContainsKey(vehicleType))
-                        vehicles.Add(vehicleType, new Vehicle());
-                }
-            }
-            SaveData();
-        }
-
-        private bool PlayerIsBlocked(BasePlayer player)
-        {
-            if (configData.globalS.useRaidBlocker && IsRaidBlocked(player.UserIDString))
-            {
-                Print(player, Lang("RaidBlocked", player.UserIDString));
-                return true;
-            }
-            if (configData.globalS.useCombatBlocker && IsCombatBlocked(player.UserIDString))
-            {
-                Print(player, Lang("CombatBlocked", player.UserIDString));
-                return true;
-            }
-            return false;
-        }
-
-        private bool IsRaidBlocked(string playerID) => (bool)(NoEscape?.Call("IsRaidBlocked", playerID) ?? false);
-
-        private bool IsCombatBlocked(string playerID) => (bool)(NoEscape?.Call("IsCombatBlocked", playerID) ?? false);
-
-        #region Methods
-
-        private bool HasPermission(BasePlayer player, VehicleType vehicleType)
-        {
-            var vehicleS = configData.vehicleS[vehicleType];
-            if (!vehicleS.usePermission || string.IsNullOrEmpty(vehicleS.permission)) return true;
-            if (permission.UserHasPermission(player.UserIDString, PERMISSION_ALL)) return true;
-            return permission.UserHasPermission(player.UserIDString, vehicleS.permission);
-        }
-
-        private double GetCooldownForPlayer(BasePlayer player, VehicleType vehicleType, double defaultCooldown)
-        {
-            foreach (var entry in configData.permCooldown)
-            {
-                float cooldown;
-                if (entry.Value.TryGetValue(vehicleType, out cooldown) && defaultCooldown > cooldown && permission.UserHasPermission(player.UserIDString, entry.Key))
-                    defaultCooldown = cooldown;
-            }
-            return defaultCooldown;
-        }
-
-        private bool AreFriends(ulong playerID, ulong friendID)
-        {
-            if (playerID == friendID) return true;
-            if (configData.globalS.useTeams && SameTeam(playerID, friendID)) return true;
-            if (configData.globalS.useFriends && HasFriend(playerID, friendID)) return true;
-            if (configData.globalS.useClans && SameClan(playerID, friendID)) return true;
-            return false;
-        }
-
-        private bool SameTeam(ulong playerID, ulong friendID)
-        {
-            if (!RelationshipManager.TeamsEnabled()) return false;
-            var playerTeam = RelationshipManager.Instance.FindPlayersTeam(playerID);
-            if (playerTeam == null) return false;
-            var friendTeam = RelationshipManager.Instance.FindPlayersTeam(friendID);
-            if (friendTeam == null) return false;
-            return playerTeam == friendTeam;
-        }
-
-        private bool HasFriend(ulong playerID, ulong friendID)
-        {
-            if (Friends == null) return false;
-            return (bool)Friends.Call("HasFriend", playerID, friendID);
-        }
-
-        private bool SameClan(ulong playerID, ulong friendID)
-        {
-            if (Clans == null) return false;
-            //Clans
-            var isMember = Clans.Call("IsClanMember", playerID.ToString(), friendID.ToString());
-            if (isMember != null) return (bool)isMember;
-            //Rust:IO Clans
-            var playerClan = Clans.Call("GetClanOf", playerID);
-            if (playerClan == null) return false;
-            var friendClan = Clans.Call("GetClanOf", friendID);
-            if (friendClan == null) return false;
-            return (string)playerClan == (string)friendClan;
-        }
-
-        private static string GetVehiclePrefab(VehicleType vehicleType)
-        {
-            switch (vehicleType)
-            {
-                case VehicleType.Rowboat: return PREFAB_ROWBOAT;
-                case VehicleType.RHIB: return PREFAB_RHIB;
-                case VehicleType.Sedan: return PREFAB_SEDAN;
-                case VehicleType.HotAirBalloon: return PREFAB_HOTAIRBALLOON;
-                case VehicleType.MiniCopter: return PREFAB_MINICOPTER;
-                case VehicleType.TransportHelicopter: return PREFAB_TRANSPORTCOPTER;
-                case VehicleType.Chinook: return PREFAB_CHINOOK;
-                case VehicleType.RidableHorse: return PREFAB_RIDABLEHORSE;
-                case VehicleType.ChassisSmall: return PREFAB_CHASSIS_SMALL;
-                case VehicleType.ChassisMedium: return PREFAB_CHASSIS_MEDIUM;
-                case VehicleType.ChassisLarge: return PREFAB_CHASSIS_LARGE;
-                case VehicleType.ModularCarSmall: return PREFAB_MODULAR_CAR_SMALL;
-                case VehicleType.ModularCarMedium: return PREFAB_MODULAR_CAR_MEDIUM;
-                case VehicleType.ModularCarLarge: return PREFAB_MODULAR_CAR_LARGE;
-            }
-            return string.Empty;
-        }
-
-        private static bool VehicleAnyMounted(BaseEntity entity)
-        {
-            var vehicle = entity as BaseVehicle;
-            if (vehicle != null && vehicle.AnyMounted())
-            {
-                return true;
-            }
-            return entity.GetComponentsInChildren<BasePlayer>()?.Length > 0;
-        }
-
-        private static Vector3 GetLookingAtGroundPos(BasePlayer player, float distance)
-        {
-            RaycastHit hit;
-            Ray ray = player.eyes.HeadRay();
-            if (Physics.Raycast(ray, out hit, distance, LAYER_GROUND))
-                return hit.point;
-            var position = ray.origin + ray.direction * distance;
-            if (Physics.Raycast(position + Vector3.up * 200, Vector3.down, out hit, 500, LAYER_GROUND))
-                return hit.point;
-            position.y = TerrainMeta.HeightMap.GetHeight(position);
-            return position;
-        }
-
-        private static bool IsLookingAtWater(BasePlayer player, float distance)
-        {
-            Vector3 lookingAt = GetLookingAtGroundPos(player, distance);
-            return WaterLevel.Test(lookingAt);
-        }
-
-        private static Vector3 GetGroundPosition(Vector3 position)
-        {
-            RaycastHit hitInfo;
-            if (Physics.Raycast(position + Vector3.up * 200, Vector3.down, out hitInfo, 500f, LAYER_GROUND)) position.y = hitInfo.point.y;
-            else position.y = TerrainMeta.HeightMap.GetHeight(position);
-            return position;
-        }
-
-        private static void DismountAllPlayers(BaseEntity vehicle)
-        {
-            var baseVehicle = vehicle as BaseVehicle;
-            if (baseVehicle != null)
-            {
-                //(vehicle as BaseVehicle).DismountAllPlayers();
-                var array = baseVehicle.mountPoints;
-                foreach (var mountPointInfo in array)
-                {
-                    var mounted = mountPointInfo.mountable?._mounted;
-                    if (mounted != null)
+                    if (moduleEntity is VehicleModuleEngine) continue;
+                    var moduleStorage = moduleEntity as VehicleModuleStorage;
+                    if (moduleStorage != null)
                     {
-                        mountPointInfo.mountable.DismountPlayer(mounted);
+                        droppedItemContainer = moduleStorage.GetContainer()?.inventory?.Drop(PREFAB_ITEM_DROP, entity.GetDropPosition(),
+                            entity.transform.rotation);
                     }
                 }
             }
-            var players = vehicle.GetComponentsInChildren<BasePlayer>();
-            foreach (var p in players)
+            if (droppedItemContainer != null)
             {
-                p.SetParent(null, true, true);
+                Print(player, Lang("VehicleInventoryDropped", player.UserIDString, baseVehicleS.displayName));
             }
         }
 
-        #endregion Methods
+        #endregion Drop
 
-        #region API
+        #region TryPay
 
-        private bool HaveVehicleLicense(ulong playerID, string license)
-        {
-            VehicleType vehicleType;
-            if (!Enum.TryParse(license, true, out vehicleType)) return false;
-            Dictionary<VehicleType, Vehicle> vehicles;
-            return storedData.playerData.TryGetValue(playerID, out vehicles) && vehicles.ContainsKey(vehicleType);
-        }
-
-        private List<string> GetPlayerLicenses(ulong playerID)
-        {
-            Dictionary<VehicleType, Vehicle> vehicles;
-            if (storedData.playerData.TryGetValue(playerID, out vehicles))
-            {
-                return vehicles.Keys.Select(x => x.ToString()).ToList();
-            }
-            return new List<string>();
-        }
-
-        private BaseEntity GetLicensedVehicle(ulong playerID, string license)
-        {
-            VehicleType vehicleType;
-            if (!Enum.TryParse(license, true, out vehicleType))
-            {
-                return null;
-            }
-            Dictionary<VehicleType, Vehicle> vehicles;
-            if (storedData.playerData.TryGetValue(playerID, out vehicles))
-            {
-                Vehicle vehicle;
-                if (vehicles.TryGetValue(vehicleType, out vehicle))
-                {
-                    return vehicle.entity;
-                }
-            }
-            return null;
-        }
-
-        private bool IsLicensedVehicle(BaseEntity entity)
-        {
-            foreach (var playerData in storedData.playerData)
-            {
-                foreach (var vehicle in playerData.Value)
-                {
-                    if (vehicle.Value.entity == entity)
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        #endregion API
-
-        #endregion Helpers
-
-        #region Commands
-
-        #region Universal Command
-
-        private void CmdUniversal(BasePlayer player, string command, string[] args)
-        {
-            if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE))
-            {
-                Print(player, Lang("NotAllowed", player.UserIDString));
-                return;
-            }
-            command = command.ToLower();
-            foreach (var entry in configData.vehicleS)
-            {
-                if (entry.Value.commands.Any(x => x.ToLower() == command))
-                {
-                    HandleUniversalCmd(player, entry.Key);
-                    return;
-                }
-            }
-        }
-
-        private void HandleUniversalCmd(BasePlayer player, VehicleType vehicleType)
-        {
-            if (!HasPermission(player, vehicleType))
-            {
-                Print(player, Lang("NotAllowed", player.UserIDString));
-                return;
-            }
-            if (PlayerIsBlocked(player)) return;
-            Dictionary<VehicleType, Vehicle> vehicles;
-            if (!storedData.playerData.TryGetValue(player.userID, out vehicles))
-            {
-                vehicles = new Dictionary<VehicleType, Vehicle>();
-            }
-            string reason;
-            Vehicle vehicle;
-            if (vehicles.TryGetValue(vehicleType, out vehicle))
-            {
-                bool checkWater = vehicleType == VehicleType.Rowboat || vehicleType == VehicleType.RHIB;
-                if (vehicle.entity != null && !vehicle.entity.IsDestroyed)//recall
-                {
-                    if (CanRecall(player, vehicle.entity, vehicleType, out reason, checkWater))
-                    {
-                        RecallVehicle(player, vehicle.entity, vehicleType, checkWater);
-                        return;
-                    }
-                }
-                else//spawn
-                {
-                    if (CanSpawn(player, vehicleType, out reason, checkWater))
-                    {
-                        SpawnVehicle(player, vehicleType, checkWater);
-                        return;
-                    }
-                }
-                Print(player, reason);
-                return;
-            }
-
-            if (!BuyVehicle(player, vehicleType, out reason))//buy
-            {
-                Print(player, reason);
-            }
-        }
-
-        #endregion Universal Command
-
-        #region Help Command
-
-        private void CmdLicenseHelp(BasePlayer player, string command, string[] args)
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(Lang("Help", player.UserIDString));
-            stringBuilder.AppendLine(Lang("HelpLicence1", player.UserIDString, configData.chatS.buyCommand));
-            stringBuilder.AppendLine(Lang("HelpLicence2", player.UserIDString, configData.chatS.spawnCommand));
-            stringBuilder.AppendLine(Lang("HelpLicence3", player.UserIDString, configData.chatS.recallCommand));
-            stringBuilder.AppendLine(Lang("HelpLicence4", player.UserIDString, configData.chatS.killCommand));
-            foreach (var entry in configData.vehicleS)
-            {
-                if (entry.Value.purchasable && entry.Value.commands.Count > 0)
-                    stringBuilder.AppendLine(Lang("HelpLicence5", player.UserIDString, entry.Value.commands[0]));
-            }
-            Print(player, stringBuilder.ToString());
-        }
-
-        #endregion Help Command
-
-        #region Buy Command
-
-        [ConsoleCommand("vl.buy")]
-        private void CCmdBuyVehicle(ConsoleSystem.Arg arg)
-        {
-            var player = arg.Player();
-            if (arg.IsAdmin && arg.Args != null && arg.Args.Length == 2)
-            {
-                player = RustCore.FindPlayer(arg.Args[1]);
-                if (player == null)
-                {
-                    Print(arg, $"Player '{arg.Args[1]}' not found");
-                    return;
-                }
-                HandleBuyCmd(player, arg.Args[0].ToLower(), false);
-                return;
-            }
-            if (player != null) CmdBuyVehicle(player, string.Empty, arg.Args);
-            else Print(arg, $"The server console cannot use '{arg.cmd.FullName}'");
-        }
-
-        private void CmdBuyVehicle(BasePlayer player, string command, string[] args)
-        {
-            if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE))
-            {
-                Print(player, Lang("NotAllowed", player.UserIDString));
-                return;
-            }
-            if (args == null || args.Length < 1)
-            {
-                StringBuilder stringBuilder = new StringBuilder();
-                stringBuilder.AppendLine(Lang("Help", player.UserIDString));
-                foreach (var entry in configData.vehicleS)
-                {
-                    if (entry.Value.purchasable && entry.Value.commands.Count > 0)
-                    {
-                        var prices = string.Join(", ", from p in entry.Value.price select $"{p.Value.displayName} x{p.Value.amount}");
-                        stringBuilder.AppendLine(Lang("HelpBuy", player.UserIDString, configData.chatS.buyCommand, entry.Value.commands[0], entry.Value.displayName, prices));
-                    }
-                }
-                Print(player, stringBuilder.ToString());
-                return;
-            }
-            if (PlayerIsBlocked(player)) return;
-            HandleBuyCmd(player, args[0].ToLower());
-        }
-
-        private void HandleBuyCmd(BasePlayer player, string option, bool shouldPay = true)
-        {
-            VehicleType vehicleType;
-            if (IsValidOption(player, option, out vehicleType))
-            {
-                string reason;
-                if (!BuyVehicle(player, vehicleType, out reason, shouldPay))
-                {
-                    Print(player, reason);
-                }
-            }
-        }
-
-        private bool BuyVehicle(BasePlayer player, VehicleType vehicleType, out string reason, bool shouldPay = true)
-        {
-            var vehicleS = configData.vehicleS[vehicleType];
-            if (!vehicleS.purchasable)
-            {
-                reason = Lang("VehicleCannotBeBought", player.UserIDString, vehicleS.displayName);
-                return false;
-            }
-            Dictionary<VehicleType, Vehicle> vehicles;
-            if (!storedData.playerData.TryGetValue(player.userID, out vehicles))
-            {
-                vehicles = new Dictionary<VehicleType, Vehicle>();
-                storedData.playerData.Add(player.userID, vehicles);
-            }
-            if (vehicles.ContainsKey(vehicleType))
-            {
-                reason = Lang("VehicleAlreadyPurchased", player.UserIDString, vehicleS.displayName);
-                return false;
-            }
-            string missingResources;
-            if (shouldPay && !TryPay(player, vehicleS.price, out missingResources))
-            {
-                reason = Lang("NotEnoughCost", player.UserIDString, vehicleS.displayName, missingResources);
-                return false;
-            }
-            vehicles.Add(vehicleType, new Vehicle());
-            Print(player, Lang("VehiclePurchased", player.UserIDString, vehicleS.displayName, configData.chatS.spawnCommand));
-            reason = null;
-            SaveData();
-            return true;
-        }
-
-        private bool TryPay(BasePlayer player, Dictionary<string, ConfigData.PriceInfo> prices, out string missingResources)
+        private bool TryPay(BasePlayer player, Dictionary<string, PriceInfo> prices, out string missingResources)
         {
             if (permission.UserHasPermission(player.UserIDString, PERMISSION_BYPASS_COST))
             {
@@ -769,15 +533,15 @@ namespace Oxide.Plugins
             {
                 return false;
             }
-            List<Item> collect = new List<Item>();
+            var collect = new List<Item>();
             foreach (var entry in prices)
             {
                 if (entry.Value.amount <= 0) continue;
-                var item = ItemManager.FindItemDefinition(entry.Key);
-                if (item != null)
+                var itemDefinition = ItemManager.FindItemDefinition(entry.Key);
+                if (itemDefinition != null)
                 {
-                    player.inventory.Take(collect, item.itemid, entry.Value.amount);
-                    player.Command("note.inv", item.itemid, -entry.Value.amount);
+                    player.inventory.Take(collect, itemDefinition.itemid, entry.Value.amount);
+                    player.Command("note.inv", itemDefinition.itemid, -entry.Value.amount);
                     continue;
                 }
                 switch (entry.Key.ToLower())
@@ -791,37 +555,34 @@ namespace Oxide.Plugins
                         continue;
                 }
             }
-            foreach (Item item in collect) item.Remove();
+            foreach (var item in collect) item.Remove();
             missingResources = null;
             return true;
         }
 
-        private bool CanPay(BasePlayer player, Dictionary<string, ConfigData.PriceInfo> prices, out string missingResources)
+        private bool CanPay(BasePlayer player, Dictionary<string, PriceInfo> prices, out string missingResources)
         {
-            Dictionary<string, int> resources = new Dictionary<string, int>();
+            var collect = new Dictionary<string, int>();
             foreach (var entry in prices)
             {
                 if (entry.Value.amount <= 0) continue;
                 int missingAmount;
-                var item = ItemManager.FindItemDefinition(entry.Key);
-                if (item != null) missingAmount = entry.Value.amount - player.inventory.GetAmount(item.itemid);
+                var itemDefinition = ItemManager.FindItemDefinition(entry.Key);
+                if (itemDefinition != null) missingAmount = entry.Value.amount - player.inventory.GetAmount(itemDefinition.itemid);
                 else missingAmount = MissingMoney(entry.Key, entry.Value.amount, player.userID);
-                if (missingAmount > 0)
+                if (missingAmount <= 0) continue;
+                if (!collect.ContainsKey(entry.Value.displayName))
                 {
-                    if (!resources.ContainsKey(entry.Value.displayName))
-                    {
-                        resources.Add(entry.Value.displayName, 0);
-                    }
-                    resources[entry.Value.displayName] += missingAmount;
+                    collect.Add(entry.Value.displayName, missingAmount);
+                }
+                else
+                {
+                    collect[entry.Value.displayName] += missingAmount;
                 }
             }
-            if (resources.Count > 0)
+            if (collect.Count > 0)
             {
-                missingResources = string.Empty;
-                foreach (var entry in resources)
-                {
-                    missingResources += $"\n* {entry.Key} x{entry.Value}";
-                }
+                missingResources = collect.Aggregate(string.Empty, (current, entry) => current + $"\n* <color=#FF1919>{entry.Key}</color> x{entry.Value}");
                 return false;
             }
             missingResources = null;
@@ -856,6 +617,632 @@ namespace Oxide.Plugins
             }
         }
 
+        #endregion TryPay
+
+        #region PurchaseAllVehicles
+
+        private void PurchaseAllVehicles(ulong playerID)
+        {
+            bool changed = false;
+            Dictionary<string, Vehicle> vehicles;
+            var allVehicleNames = GetAllVehicleNames();
+            if (!storedData.playerData.TryGetValue(playerID, out vehicles))
+            {
+                vehicles = allVehicleNames.ToDictionary(x => x, y => new Vehicle());
+                storedData.playerData.Add(playerID, vehicles);
+                changed = true;
+            }
+            else
+            {
+                foreach (var vehicleName in allVehicleNames)
+                {
+                    if (!vehicles.ContainsKey(vehicleName))
+                    {
+                        vehicles.Add(vehicleName, new Vehicle());
+                        changed = true;
+                    }
+                }
+            }
+            if (changed) SaveData();
+        }
+
+        private IEnumerable<string> GetAllVehicleNames()
+        {
+            foreach (var vehicleName in allBaseVehicleSettings.Keys)
+            {
+                yield return vehicleName;
+            }
+        }
+
+        #endregion PurchaseAllVehicles
+
+        #region AreFriends
+
+        private bool AreFriends(ulong playerID, ulong friendID)
+        {
+            if (playerID == friendID) return true;
+            if (configData.globalS.useTeams && SameTeam(playerID, friendID)) return true;
+            if (configData.globalS.useFriends && HasFriend(playerID, friendID)) return true;
+            if (configData.globalS.useClans && SameClan(playerID, friendID)) return true;
+            return false;
+        }
+
+        private static bool SameTeam(ulong playerID, ulong friendID)
+        {
+            if (!RelationshipManager.TeamsEnabled()) return false;
+            var playerTeam = RelationshipManager.Instance.FindPlayersTeam(playerID);
+            if (playerTeam == null) return false;
+            var friendTeam = RelationshipManager.Instance.FindPlayersTeam(friendID);
+            if (friendTeam == null) return false;
+            return playerTeam == friendTeam;
+        }
+
+        private bool HasFriend(ulong playerID, ulong friendID)
+        {
+            if (Friends == null) return false;
+            return (bool)Friends.Call("HasFriend", playerID, friendID);
+        }
+
+        private bool SameClan(ulong playerID, ulong friendID)
+        {
+            if (Clans == null) return false;
+            //Clans
+            var isMember = Clans.Call("IsClanMember", playerID.ToString(), friendID.ToString());
+            if (isMember != null) return (bool)isMember;
+            //Rust:IO Clans
+            var playerClan = Clans.Call("GetClanOf", playerID);
+            if (playerClan == null) return false;
+            var friendClan = Clans.Call("GetClanOf", friendID);
+            if (friendClan == null) return false;
+            return (string)playerClan == (string)friendClan;
+        }
+
+        #endregion AreFriends
+
+        #region PlayerIsBlocked
+
+        private bool PlayerIsBlocked(BasePlayer player)
+        {
+            if (NoEscape == null) return false;
+            if (configData.globalS.useRaidBlocker && IsRaidBlocked(player.UserIDString))
+            {
+                Print(player, Lang("RaidBlocked", player.UserIDString));
+                return true;
+            }
+            if (configData.globalS.useCombatBlocker && IsCombatBlocked(player.UserIDString))
+            {
+                Print(player, Lang("CombatBlocked", player.UserIDString));
+                return true;
+            }
+            return false;
+        }
+
+        private bool IsRaidBlocked(string playerID) => (bool)NoEscape.Call("IsRaidBlocked", playerID);
+
+        private bool IsCombatBlocked(string playerID) => (bool)NoEscape.Call("IsCombatBlocked", playerID);
+
+        #endregion PlayerIsBlocked
+
+        #region GetBaseVehicleS
+
+        private BaseVehicleS GetBaseVehicleS(string vehicleName)
+        {
+            BaseVehicleS baseVehicleS;
+            return allBaseVehicleSettings.TryGetValue(vehicleName, out baseVehicleS) ? baseVehicleS : null;
+        }
+
+        private BaseVehicleS GetBaseVehicleS(NormalVehicleType normalVehicleType)
+        {
+            switch (normalVehicleType)
+            {
+                case NormalVehicleType.Rowboat: return configData.normalVehicleS.rowboatS;
+                case NormalVehicleType.RHIB: return configData.normalVehicleS.rhibS;
+                case NormalVehicleType.Sedan: return configData.normalVehicleS.sedanS;
+                case NormalVehicleType.HotAirBalloon: return configData.normalVehicleS.hotAirBalloonS;
+                case NormalVehicleType.MiniCopter: return configData.normalVehicleS.miniCopterS;
+                case NormalVehicleType.TransportHelicopter: return configData.normalVehicleS.transportHelicopterS;
+                case NormalVehicleType.Chinook: return configData.normalVehicleS.chinookS;
+                case NormalVehicleType.RidableHorse: return configData.normalVehicleS.ridableHorseS;
+                default: return null;
+            }
+        }
+
+        #endregion GetBaseVehicleS
+
+        #region HasVehiclePermission
+
+        private bool CanViewVehicleInfo(BasePlayer player, string vehicleType, BaseVehicleS baseVehicleS)
+        {
+            if (baseVehicleS.purchasable && baseVehicleS.commands.Count > 0)
+            {
+                return HasVehiclePermission(player, vehicleType, baseVehicleS);
+            }
+            return false;
+        }
+
+        private bool HasVehiclePermission(BasePlayer player, string vehicleType, BaseVehicleS baseVehicleS = null)
+        {
+            if (baseVehicleS == null) baseVehicleS = GetBaseVehicleS(vehicleType);
+            if (!baseVehicleS.usePermission || string.IsNullOrEmpty(baseVehicleS.permission)) return true;
+            return permission.UserHasPermission(player.UserIDString, PERMISSION_ALL) ||
+                   permission.UserHasPermission(player.UserIDString, baseVehicleS.permission);
+        }
+
+        #endregion HasVehiclePermission
+
+        #region GetCooldown
+
+        private double GetSpawnCooldown(BasePlayer player, BaseVehicleS baseVehicleS)
+        {
+            double cooldown = baseVehicleS.spawnCooldown;
+            foreach (var entry in baseVehicleS.cooldownPermissions)
+            {
+                if (cooldown > entry.Value.spawnCooldown && permission.UserHasPermission(player.UserIDString, entry.Key))
+                {
+                    cooldown = entry.Value.spawnCooldown;
+                }
+            }
+            return cooldown;
+        }
+
+        private double GetRecallCooldown(BasePlayer player, BaseVehicleS baseVehicleS)
+        {
+            double cooldown = baseVehicleS.recallCooldown;
+            foreach (var entry in baseVehicleS.cooldownPermissions)
+            {
+                if (cooldown > entry.Value.recallCooldown && permission.UserHasPermission(player.UserIDString, entry.Key))
+                {
+                    cooldown = entry.Value.recallCooldown;
+                }
+            }
+            return cooldown;
+        }
+
+        #endregion GetCooldown
+
+        #region Helpers
+
+        private static string GetVehiclePrefab(string vehicleType, BaseVehicleS baseVehicleS)
+        {
+            NormalVehicleType normalVehicleType;
+            if (Enum.TryParse(vehicleType, out normalVehicleType))
+            {
+                switch (normalVehicleType)
+                {
+                    case NormalVehicleType.Rowboat: return PREFAB_ROWBOAT;
+                    case NormalVehicleType.RHIB: return PREFAB_RHIB;
+                    case NormalVehicleType.Sedan: return PREFAB_SEDAN;
+                    case NormalVehicleType.HotAirBalloon: return PREFAB_HOTAIRBALLOON;
+                    case NormalVehicleType.MiniCopter: return PREFAB_MINICOPTER;
+                    case NormalVehicleType.TransportHelicopter: return PREFAB_TRANSPORTCOPTER;
+                    case NormalVehicleType.Chinook: return PREFAB_CHINOOK;
+                    case NormalVehicleType.RidableHorse: return PREFAB_RIDABLEHORSE;
+                }
+            }
+            else
+            {
+                var modularVehicleS = baseVehicleS as ModularVehicleS;
+                if (modularVehicleS != null)
+                {
+                    switch (modularVehicleS.chassisType)
+                    {
+                        case ChassisType.Small: return PREFAB_CHASSIS_SMALL;
+                        case ChassisType.Medium: return PREFAB_CHASSIS_MEDIUM;
+                        case ChassisType.Large: return PREFAB_CHASSIS_LARGE;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static bool VehicleAnyMounted(BaseEntity entity)
+        {
+            var baseVehicle = entity as BaseVehicle;
+            if (baseVehicle != null && baseVehicle.AnyMounted())
+            {
+                return true;
+            }
+            return entity.GetComponentsInChildren<BasePlayer>()?.Length > 0;
+        }
+
+        private static void DismountAllPlayers(BaseEntity entity)
+        {
+            var baseVehicle = entity as BaseVehicle;
+            if (baseVehicle != null)
+            {
+                //(vehicle as BaseVehicle).DismountAllPlayers();
+                foreach (var mountPointInfo in baseVehicle.mountPoints)
+                {
+                    var mounted = mountPointInfo.mountable?._mounted;
+                    if (mounted != null)
+                    {
+                        mountPointInfo.mountable.DismountPlayer(mounted);
+                    }
+                }
+            }
+            var players = entity.GetComponentsInChildren<BasePlayer>();
+            foreach (var p in players)
+            {
+                p.SetParent(null, true, true);
+            }
+        }
+
+        private static Vector3 GetLookingAtGroundPos(BasePlayer player, float distance)
+        {
+            RaycastHit hit;
+            var ray = player.eyes.HeadRay();
+            if (Physics.Raycast(ray, out hit, distance, LAYER_GROUND))
+                return hit.point;
+            var position = ray.origin + ray.direction * distance;
+            if (Physics.Raycast(position + Vector3.up * 200, Vector3.down, out hit, 500, LAYER_GROUND))
+                return hit.point;
+            position.y = TerrainMeta.HeightMap.GetHeight(position);
+            return position;
+        }
+
+        private static bool IsLookingAtWater(BasePlayer player, float distance)
+        {
+            var lookingAt = GetLookingAtGroundPos(player, distance);
+            return WaterLevel.Test(lookingAt);
+        }
+
+        private static Vector3 GetGroundPosition(Vector3 position)
+        {
+            RaycastHit hitInfo;
+            position.y = Physics.Raycast(position + Vector3.up * 200, Vector3.down, out hitInfo, 500f, LAYER_GROUND)
+                ? hitInfo.point.y
+                : TerrainMeta.HeightMap.GetHeight(position);
+            return position;
+        }
+
+        #endregion Helpers
+
+        #endregion Methods
+
+        #region API
+
+        private BaseEntity GetLicensedVehicle(ulong playerID, string license)
+        {
+            Dictionary<string, Vehicle> vehicles;
+            if (storedData.playerData.TryGetValue(playerID, out vehicles))
+            {
+                Vehicle vehicle;
+                if (vehicles.TryGetValue(license, out vehicle))
+                {
+                    return vehicle.entity;
+                }
+            }
+            return null;
+        }
+
+        private bool IsLicensedVehicle(BaseEntity entity)
+        {
+            foreach (var playerData in storedData.playerData)
+            {
+                foreach (var vehicle in playerData.Value)
+                {
+                    if (vehicle.Value.entity == entity)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private bool HasVehicleLicense(ulong playerID, string license)
+        {
+            Dictionary<string, Vehicle> vehicles;
+            return storedData.playerData.TryGetValue(playerID, out vehicles) && vehicles.ContainsKey(license);
+        }
+
+        private bool RemoveVehicleLicense(ulong playerID, string license)
+        {
+            Dictionary<string, Vehicle> vehicles;
+            return storedData.playerData.TryGetValue(playerID, out vehicles) && vehicles.Remove(license);
+        }
+
+        private bool AddVehicleLicense(ulong playerID, string license)
+        {
+            Dictionary<string, Vehicle> vehicles;
+            if (!storedData.playerData.TryGetValue(playerID, out vehicles))
+            {
+                vehicles = new Dictionary<string, Vehicle> { [license.ToString()] = new Vehicle() };
+                storedData.playerData.Add(playerID, vehicles);
+            }
+            else
+            {
+                if (!vehicles.ContainsKey(license))
+                {
+                    vehicles.Add(license, new Vehicle());
+                }
+                else return false;
+            }
+            SaveData();
+            return true;
+        }
+
+        private List<string> GetVehicleLicenses(ulong playerID)
+        {
+            Dictionary<string, Vehicle> vehicles;
+            if (storedData.playerData.TryGetValue(playerID, out vehicles))
+            {
+                return vehicles.Keys.ToList();
+            }
+            return null;
+        }
+
+        #endregion API
+
+        #region Commands
+
+        #region Universal Command
+
+        private void CmdUniversal(BasePlayer player, string command, string[] args)
+        {
+            if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE))
+            {
+                Print(player, Lang("NotAllowed", player.UserIDString));
+                return;
+            }
+            command = command.ToLower();
+            foreach (var entry in allBaseVehicleSettings)
+            {
+                if (entry.Value.commands.Any(x => x.ToLower() == command))
+                {
+                    HandleUniversalCmd(player, entry.Key);
+                    return;
+                }
+            }
+        }
+
+        private void HandleUniversalCmd(BasePlayer player, string vehicleType)
+        {
+            if (!HasVehiclePermission(player, vehicleType))
+            {
+                Print(player, Lang("NotAllowed", player.UserIDString));
+                return;
+            }
+            if (PlayerIsBlocked(player)) return;
+            Vehicle vehicle;
+            Dictionary<string, Vehicle> vehicles;
+            storedData.playerData.TryGetValue(player.userID, out vehicles);
+            if (vehicles != null && vehicles.TryGetValue(vehicleType, out vehicle))
+            {
+                string reason;
+                bool checkWater = vehicleType == nameof(NormalVehicleType.Rowboat) || vehicleType == nameof(NormalVehicleType.RHIB);
+                if (vehicle.entity != null && !vehicle.entity.IsDestroyed)//recall
+                {
+                    if (CanRecall(player, vehicle, vehicleType, checkWater, out reason))
+                    {
+                        RecallVehicle(player, vehicle, vehicleType, checkWater);
+                        return;
+                    }
+                }
+                else//spawn
+                {
+                    if (CanSpawn(player, vehicleType, checkWater, out reason))
+                    {
+                        SpawnVehicle(player, vehicleType, checkWater);
+                        return;
+                    }
+                }
+                Print(player, reason);
+                return;
+            }
+            BuyVehicle(player, vehicleType); //buy
+        }
+
+        #endregion Universal Command
+
+        #region Help Command
+
+        private void CmdLicenseHelp(BasePlayer player, string command, string[] args)
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine(Lang("Help", player.UserIDString));
+            stringBuilder.AppendLine(Lang("HelpLicence1", player.UserIDString, configData.chatS.buyCommand));
+            stringBuilder.AppendLine(Lang("HelpLicence2", player.UserIDString, configData.chatS.spawnCommand));
+            stringBuilder.AppendLine(Lang("HelpLicence3", player.UserIDString, configData.chatS.recallCommand));
+            stringBuilder.AppendLine(Lang("HelpLicence4", player.UserIDString, configData.chatS.killCommand));
+            if (configData.chatS.useUniversalCommand)
+            {
+                foreach (var entry in allBaseVehicleSettings)
+                {
+                    if (CanViewVehicleInfo(player, entry.Key, entry.Value))
+                    {
+                        stringBuilder.AppendLine(Lang("HelpLicence5", player.UserIDString, entry.Value.commands[0],
+                            entry.Value.displayName));
+                    }
+                }
+            }
+            Print(player, stringBuilder.ToString());
+        }
+
+        #endregion Help Command
+
+        #region Remove Command
+
+        [ConsoleCommand("vl.remove")]
+        private void CCmdRemoveVehicle(ConsoleSystem.Arg arg)
+        {
+            if (arg.IsAdmin && arg.Args != null && arg.Args.Length == 2)
+            {
+                var option = arg.Args[0].ToLower();
+                string vehicleType;
+                if (!IsValidVehicleType(option, out vehicleType))
+                {
+                    Print(arg, $"{option} is not a valid vehicle type");
+                    return;
+                }
+                switch (arg.Args[1].ToLower())
+                {
+                    case "*":
+                    case "all":
+                        {
+                            foreach (var entry in storedData.playerData)
+                            {
+                                entry.Value.Remove(vehicleType);
+                            }
+                            var vehicleName = GetBaseVehicleS(vehicleType).displayName;
+                            Print(arg, $"You successfully deleted the {vehicleName} vehicle of all players");
+                        }
+                        return;
+
+                    default:
+                        {
+                            var target = RustCore.FindPlayer(arg.Args[1]);
+                            if (target == null)
+                            {
+                                Print(arg, $"Player '{arg.Args[1]}' not found");
+                                return;
+                            }
+
+                            var vehicleName = GetBaseVehicleS(vehicleType).displayName;
+                            if (RemoveVehicleLicense(target.userID, vehicleType))
+                            {
+                                Print(arg, $"You successfully deleted the {vehicleName} vehicle of {target.displayName}");
+                                return;
+                            }
+
+                            Print(arg, $"{target.displayName} has not purchased {vehicleName} vehicle and cannot be deleted");
+                        }
+                        return;
+                }
+            }
+        }
+
+        #endregion Remove Command
+
+        #region Buy Command
+
+        [ConsoleCommand("vl.buy")]
+        private void CCmdBuyVehicle(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (arg.IsAdmin && arg.Args != null && arg.Args.Length == 2)
+            {
+                var option = arg.Args[0].ToLower();
+                string vehicleType;
+                if (!IsValidVehicleType(option, out vehicleType))
+                {
+                    Print(arg, $"{option} is not a valid vehicle type");
+                    return;
+                }
+                switch (arg.Args[1].ToLower())
+                {
+                    case "*":
+                    case "all":
+                        {
+                            foreach (var entry in storedData.playerData)
+                            {
+                                if (!entry.Value.ContainsKey(vehicleType))
+                                    entry.Value.Add(vehicleType, new Vehicle());
+                            }
+                            var vehicleName = GetBaseVehicleS(vehicleType).displayName;
+                            Print(arg, $"You successfully purchased the {vehicleName} vehicle for all players");
+                        }
+                        return;
+
+                    default:
+                        {
+                            var target = RustCore.FindPlayer(arg.Args[1]);
+                            if (target == null)
+                            {
+                                Print(arg, $"Player '{arg.Args[1]}' not found");
+                                return;
+                            }
+
+                            var vehicleName = GetBaseVehicleS(vehicleType).displayName;
+                            if (AddVehicleLicense(target.userID, vehicleType))
+                            {
+                                Print(arg, $"You successfully purchased the {vehicleName} vehicle for {target.displayName}");
+                                return;
+                            }
+
+                            Print(arg, $"{target.displayName} has purchased {vehicleName} vehicle");
+                        }
+                        return;
+                }
+            }
+            if (player != null) CmdBuyVehicle(player, string.Empty, arg.Args);
+            else Print(arg, $"The server console cannot use the '{arg.cmd.FullName}' command");
+        }
+
+        private void CmdBuyVehicle(BasePlayer player, string command, string[] args)
+        {
+            if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE))
+            {
+                Print(player, Lang("NotAllowed", player.UserIDString));
+                return;
+            }
+            if (args == null || args.Length < 1)
+            {
+                StringBuilder stringBuilder = new StringBuilder();
+                stringBuilder.AppendLine(Lang("Help", player.UserIDString));
+                foreach (var entry in allBaseVehicleSettings)
+                {
+                    if (CanViewVehicleInfo(player, entry.Key, entry.Value))
+                    {
+                        if (entry.Value.purchasePrices.Count > 0)
+                        {
+                            var prices = string.Join(", ", from p in entry.Value.purchasePrices select $"<color=#FF1919>{p.Value.displayName}</color> x{p.Value.amount}");
+                            stringBuilder.AppendLine(Lang("HelpBuyPrice", player.UserIDString, configData.chatS.buyCommand, entry.Value.commands[0], entry.Value.displayName, prices));
+                        }
+                        else
+                        {
+                            stringBuilder.AppendLine(Lang("HelpBuy", player.UserIDString, configData.chatS.buyCommand, entry.Value.commands[0], entry.Value.displayName));
+                        }
+                    }
+                }
+                Print(player, stringBuilder.ToString());
+                return;
+            }
+            if (PlayerIsBlocked(player)) return;
+            HandleBuyCmd(player, args[0].ToLower());
+        }
+
+        private void HandleBuyCmd(BasePlayer player, string option)
+        {
+            string vehicleType;
+            if (IsValidOption(player, option, out vehicleType))
+            {
+                BuyVehicle(player, vehicleType);
+            }
+        }
+
+        private bool BuyVehicle(BasePlayer player, string vehicleType)
+        {
+            var baseVehicleS = GetBaseVehicleS(vehicleType);
+            if (!baseVehicleS.purchasable)
+            {
+                Print(player, Lang("VehicleCannotBeBought", player.UserIDString, baseVehicleS.displayName));
+                return false;
+            }
+            Dictionary<string, Vehicle> vehicles;
+            if (!storedData.playerData.TryGetValue(player.userID, out vehicles))
+            {
+                vehicles = new Dictionary<string, Vehicle>();
+                storedData.playerData.Add(player.userID, vehicles);
+            }
+            if (vehicles.ContainsKey(vehicleType))
+            {
+                Print(player, Lang("VehicleAlreadyPurchased", player.UserIDString, baseVehicleS.displayName));
+                return false;
+            }
+            string missingResources;
+            if (baseVehicleS.purchasePrices.Count > 0 && !TryPay(player, baseVehicleS.purchasePrices, out missingResources))
+            {
+                Print(player, Lang("NoResourcesToPurchaseVehicle", player.UserIDString, baseVehicleS.displayName, missingResources));
+                return false;
+            }
+            vehicles.Add(vehicleType, new Vehicle());
+            SaveData();
+            Print(player, Lang("VehiclePurchased", player.UserIDString, baseVehicleS.displayName, configData.chatS.spawnCommand));
+            return true;
+        }
+
         #endregion Buy Command
 
         #region Spawn Command
@@ -864,7 +1251,7 @@ namespace Oxide.Plugins
         private void CCmdSpawnVehicle(ConsoleSystem.Arg arg)
         {
             var player = arg.Player();
-            if (player == null) Print(arg, $"The server console cannot use '{arg.cmd.FullName}'");
+            if (player == null) Print(arg, $"The server console cannot use the '{arg.cmd.FullName}' command");
             else CmdSpawnVehicle(player, string.Empty, arg.Args);
         }
 
@@ -879,11 +1266,19 @@ namespace Oxide.Plugins
             {
                 StringBuilder stringBuilder = new StringBuilder();
                 stringBuilder.AppendLine(Lang("Help", player.UserIDString));
-                foreach (var entry in configData.vehicleS)
+                foreach (var entry in allBaseVehicleSettings)
                 {
-                    if (entry.Value.purchasable && entry.Value.commands.Count > 0)
+                    if (CanViewVehicleInfo(player, entry.Key, entry.Value))
                     {
-                        stringBuilder.AppendLine(Lang("HelpSpawn", player.UserIDString, configData.chatS.spawnCommand, entry.Value.commands[0], entry.Value.displayName));
+                        if (entry.Value.spawnPrices.Count > 0)
+                        {
+                            var prices = string.Join(", ", from p in entry.Value.spawnPrices select $"<color=#FF1919>{p.Value.displayName}</color> x{p.Value.amount}");
+                            stringBuilder.AppendLine(Lang("HelpSpawnPrice", player.UserIDString, configData.chatS.spawnCommand, entry.Value.commands[0], entry.Value.displayName, prices));
+                        }
+                        else
+                        {
+                            stringBuilder.AppendLine(Lang("HelpSpawn", player.UserIDString, configData.chatS.spawnCommand, entry.Value.commands[0], entry.Value.displayName));
+                        }
                     }
                 }
                 Print(player, stringBuilder.ToString());
@@ -895,105 +1290,172 @@ namespace Oxide.Plugins
 
         private void HandleSpawnCmd(BasePlayer player, string option)
         {
-            VehicleType vehicleType;
+            string vehicleType;
             if (IsValidOption(player, option, out vehicleType))
             {
                 string reason;
-                bool checkWater = vehicleType == VehicleType.Rowboat || vehicleType == VehicleType.RHIB;
-                if (CanSpawn(player, vehicleType, out reason, checkWater))
+                bool checkWater = vehicleType == nameof(NormalVehicleType.Rowboat) || vehicleType == nameof(NormalVehicleType.RHIB);
+                if (CanSpawn(player, vehicleType, checkWater, out reason))
                 {
                     SpawnVehicle(player, vehicleType, checkWater);
+                    return;
                 }
-                else Print(player, reason);
+                Print(player, reason);
             }
         }
 
-        private bool CanSpawn(BasePlayer player, VehicleType vehicleType, out string reason, bool checkWater = false)
+        private bool CanSpawn(BasePlayer player, string vehicleType, bool checkWater, out string reason)
         {
-            var vehicleS = configData.vehicleS[vehicleType];
+            var baseVehicleS = GetBaseVehicleS(vehicleType);
+            if (!HasVehiclePermission(player, vehicleType, baseVehicleS))
+            {
+                reason = Lang("NotAllowed", player.UserIDString);
+                return false;
+            }
             if (player.IsBuildingBlocked())
             {
-                reason = Lang("BuildingBlocked", player.UserIDString, vehicleS.displayName);
+                reason = Lang("BuildingBlocked", player.UserIDString, baseVehicleS.displayName);
                 return false;
             }
-            if (player.isMounted || player.HasParent())
+            if (player.GetMountedVehicle() != null || player.HasParent())
             {
-                reason = Lang("MountedOrParented", player.UserIDString, vehicleS.displayName);
+                reason = Lang("MountedOrParented", player.UserIDString, baseVehicleS.displayName);
                 return false;
             }
-            Dictionary<VehicleType, Vehicle> vehicles;
-            storedData.playerData.TryGetValue(player.userID, out vehicles);
+            if (configData.globalS.preventSafeZone && player.InSafeZone())
+            {
+                reason = Lang("PlayerInSafeZone", player.UserIDString, baseVehicleS.displayName);
+                return false;
+            }
             Vehicle vehicle;
-            if (vehicles == null || !vehicles.TryGetValue(vehicleType, out vehicle))
+            Dictionary<string, Vehicle> vehicles;
+            if (!storedData.playerData.TryGetValue(player.userID, out vehicles) || !vehicles.TryGetValue(vehicleType, out vehicle))
             {
-                reason = Lang("VehicleNotYetPurchased", player.UserIDString, vehicleS.displayName);
+                reason = Lang("VehicleNotYetPurchased", player.UserIDString, baseVehicleS.displayName, configData.chatS.buyCommand);
                 return false;
             }
             if (vehicle.entity != null && !vehicle.entity.IsDestroyed)
             {
-                reason = Lang("AlreadyVehicleOut", player.UserIDString, vehicleS.displayName, configData.chatS.recallCommand);
+                reason = Lang("AlreadyVehicleOut", player.UserIDString, baseVehicleS.displayName, configData.chatS.recallCommand);
                 return false;
             }
-            if (checkWater && !IsLookingAtWater(player, vehicleS.distance))
+            if (checkWater && !IsLookingAtWater(player, baseVehicleS.distance))
             {
-                reason = Lang("NotLookingAtWater", player.UserIDString, vehicleS.displayName);
+                reason = Lang("NotLookingAtWater", player.UserIDString, baseVehicleS.displayName);
                 return false;
             }
-            var cooldown = GetCooldownForPlayer(player, vehicleType, vehicleS.cooldown);
-            if (cooldown > 0)
+            var spawnCooldown = GetSpawnCooldown(player, baseVehicleS);
+            if (spawnCooldown > 0)
             {
-                var timeleft = Math.Ceiling(cooldown - (TimeEx.currentTimestamp - vehicle.lastDeath));
-                if (timeleft > 0)
+                var timeLeft = Math.Ceiling(spawnCooldown - (TimeEx.currentTimestamp - vehicle.lastDeath));
+                if (timeLeft > 0)
                 {
-                    reason = Lang("VehicleOnCooldown", player.UserIDString, timeleft, vehicleS.displayName);
+                    reason = Lang("VehicleOnSpawnCooldown", player.UserIDString, timeLeft, baseVehicleS.displayName);
                     return false;
                 }
+            }
+            string missingResources;
+            if (baseVehicleS.spawnPrices.Count > 0 && !TryPay(player, baseVehicleS.spawnPrices, out missingResources))
+            {
+                reason = Lang("NoResourcesToSpawnVehicle", player.UserIDString, baseVehicleS.displayName, missingResources);
+                return false;
             }
             reason = null;
             return true;
         }
 
-        private void SpawnVehicle(BasePlayer player, VehicleType vehicleType, bool checkWater = false)
+        private void SpawnVehicle(BasePlayer player, string vehicleType, bool checkWater = false)
         {
-            var prefab = GetVehiclePrefab(vehicleType);
+            var baseVehicleS = GetBaseVehicleS(vehicleType);
+            var prefab = GetVehiclePrefab(vehicleType, baseVehicleS);
             if (string.IsNullOrEmpty(prefab)) return;
-            var vehicleS = configData.vehicleS[vehicleType];
             Vector3 position; Quaternion rotation;
-            GetVehicleSpawnPos(player, vehicleS.distance, checkWater, vehicleType, out position, out rotation);
+            GetVehicleSpawnPos(player, baseVehicleS.distance, checkWater, vehicleType, out position, out rotation);
             var entity = GameManager.server.CreateEntity(prefab, position, rotation);
             if (entity == null) return;
-            entity.enableSaving = false;
+            entity.enableSaving = configData.globalS.storeVehicle;
             entity.OwnerID = player.userID;
             entity.Spawn();
 
-            if (vehicleS.maxHealth > 0 && Math.Abs(vehicleS.maxHealth - entity.MaxHealth()) > 0f)
+            if (baseVehicleS.maxHealth > 0 && Math.Abs(baseVehicleS.maxHealth - entity.MaxHealth()) > 0f)
             {
-                (entity as BaseCombatEntity)?.InitializeHealth(vehicleS.maxHealth, vehicleS.maxHealth);
+                (entity as BaseCombatEntity)?.InitializeHealth(baseVehicleS.maxHealth, baseVehicleS.maxHealth);
+            }
+            var modularCar = entity as ModularCar;
+            if (modularCar != null)
+            {
+                var modularVehicleS = baseVehicleS as ModularVehicleS;
+                if (modularVehicleS != null)
+                {
+                    foreach (var moduleItem in modularVehicleS.CreateModuleItems())
+                    {
+                        if (!modularCar.TryAddModule(moduleItem))
+                        {
+                            PrintError($"Module item '{moduleItem.info.shortname}' in '{vehicleType}' cannot be attached to the vehicle");
+                            moduleItem.Remove();
+                        }
+                    }
+                    NextTick(() => AddItemsToVehicleEngine(modularCar, modularVehicleS, vehicleType));
+                }
+            }
+            else
+            {
+                var helicopterVehicle = entity as BaseHelicopterVehicle;
+                if (helicopterVehicle != null)
+                {
+                    if (configData.globalS.noServerGibs) helicopterVehicle.serverGibs.guid = string.Empty;
+                    if (configData.globalS.noFireBall) helicopterVehicle.fireBall.guid = string.Empty;
+                    if (configData.globalS.noMapMarker)
+                    {
+                        var ch47Helicopter = entity as CH47Helicopter;
+                        if (ch47Helicopter != null)
+                        {
+                            ch47Helicopter.mapMarkerInstance?.Kill();
+                            ch47Helicopter.mapMarkerEntityPrefab.guid = string.Empty;
+                        }
+                    }
+                }
             }
 
-            var helicopterVehicle = entity as BaseHelicopterVehicle;
-            if (helicopterVehicle != null)
-            {
-                if (configData.globalS.noServerGibs)
-                    helicopterVehicle.serverGibs.guid = string.Empty;
-                if (configData.globalS.noFireBall)
-                    helicopterVehicle.fireBall.guid = string.Empty;
-            }
-
-            if (configData.globalS.noMapMarker && entity is CH47Helicopter)
-            {
-                var helicopter = entity as CH47Helicopter;
-                helicopter.mapMarkerInstance?.Kill();
-                helicopter.mapMarkerEntityPrefab.guid = string.Empty;
-            }
-
-            var vehicle = new Vehicle { playerID = player.userID, vehicleType = vehicleType, entity = entity, lastDismount = TimeEx.currentTimestamp };
+            var vehicle = new Vehicle { playerID = player.userID, vehicleType = vehicleType, entity = entity, entityID = entity.net.ID };
+            vehicle.lastDismount = vehicle.lastRecall = TimeEx.currentTimestamp;
             vehiclesCache.Add(entity, vehicle);
             storedData.playerData[player.userID][vehicleType] = vehicle;
-            Print(player, Lang("VehicleSpawned", player.UserIDString, vehicleS.displayName));
+            Print(player, Lang("VehicleSpawned", player.UserIDString, baseVehicleS.displayName));
+            Interface.CallHook("OnLicensedVehicleSpawned", entity, player, vehicleType);
+        }
 
-            ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            Interface.CallHook("OnLicensedVehicleSpawned", entity);
+        private void AddItemsToVehicleEngine(ModularCar modularCar, ModularVehicleS modularVehicleS, string vehicleType)
+        {
+            if (modularCar == null || modularCar.IsDestroyed) return;
+            foreach (var moduleEntity in modularCar.AttachedModuleEntities)
+            {
+                var vehicleModuleEngine = moduleEntity as VehicleModuleEngine;
+                if (vehicleModuleEngine != null)
+                {
+                    var engineInventory = vehicleModuleEngine.GetContainer()?.inventory;
+                    if (engineInventory != null)
+                    {
+                        foreach (var engineItem in modularVehicleS.CreateEngineItems())
+                        {
+                            bool moved = false;
+                            for (int i = 0; i < engineInventory.capacity; i++)
+                            {
+                                if (engineItem.MoveToContainer(engineInventory, i, false))
+                                {
+                                    moved = true;
+                                    break;
+                                }
+                            }
+                            if (!moved)
+                            {
+                                PrintError($"Engine item '{engineItem.info.shortname}' in '{vehicleType}' cannot be move to the vehicle engine inventory");
+                                engineItem.Remove();
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         #endregion Spawn Command
@@ -1004,7 +1466,7 @@ namespace Oxide.Plugins
         private void CCmdRecallVehicle(ConsoleSystem.Arg arg)
         {
             var player = arg.Player();
-            if (player == null) Print(arg, $"The server console cannot use '{arg.cmd.FullName}'");
+            if (player == null) Print(arg, $"The server console cannot use the '{arg.cmd.FullName}' command");
             else CmdRecallVehicle(player, string.Empty, arg.Args);
         }
 
@@ -1019,9 +1481,21 @@ namespace Oxide.Plugins
             {
                 StringBuilder stringBuilder = new StringBuilder();
                 stringBuilder.AppendLine(Lang("Help", player.UserIDString));
-                foreach (var entry in configData.vehicleS)
-                    if (entry.Value.purchasable && entry.Value.commands.Count > 0)
-                        stringBuilder.AppendLine(Lang("HelpRecall", player.UserIDString, configData.chatS.recallCommand, entry.Value.commands[0], entry.Value.displayName));
+                foreach (var entry in allBaseVehicleSettings)
+                {
+                    if (CanViewVehicleInfo(player, entry.Key, entry.Value))
+                    {
+                        if (entry.Value.recallPrices.Count > 0)
+                        {
+                            var prices = string.Join(", ", from p in entry.Value.recallPrices select $"<color=#FF1919>{p.Value.displayName}</color> x{p.Value.amount}");
+                            stringBuilder.AppendLine(Lang("HelpRecallPrice", player.UserIDString, configData.chatS.recallCommand, entry.Value.commands[0], entry.Value.displayName, prices));
+                        }
+                        else
+                        {
+                            stringBuilder.AppendLine(Lang("HelpRecall", player.UserIDString, configData.chatS.recallCommand, entry.Value.commands[0], entry.Value.displayName));
+                        }
+                    }
+                }
                 Print(player, stringBuilder.ToString());
                 return;
             }
@@ -1031,120 +1505,113 @@ namespace Oxide.Plugins
 
         private void HandleRecallCmd(BasePlayer player, string option)
         {
-            VehicleType vehicleType;
+            string vehicleType;
             if (IsValidOption(player, option, out vehicleType))
             {
                 RecallVehicle(player, vehicleType);
             }
         }
 
-        private bool RecallVehicle(BasePlayer player, VehicleType vehicleType)
+        private bool RecallVehicle(BasePlayer player, string vehicleType)
         {
-            var vehicleS = configData.vehicleS[vehicleType];
-            Dictionary<VehicleType, Vehicle> vehicles;
-            storedData.playerData.TryGetValue(player.userID, out vehicles);
+            var baseVehicleS = GetBaseVehicleS(vehicleType);
             Vehicle vehicle;
-            if (vehicles == null || !vehicles.TryGetValue(vehicleType, out vehicle))
+            Dictionary<string, Vehicle> vehicles;
+            if (!storedData.playerData.TryGetValue(player.userID, out vehicles) || !vehicles.TryGetValue(vehicleType, out vehicle))
             {
-                Print(player, Lang("VehicleNotYetPurchased", player.UserIDString, vehicleS.displayName));
+                Print(player, Lang("VehicleNotYetPurchased", player.UserIDString, baseVehicleS.displayName, configData.chatS.buyCommand));
                 return false;
             }
             if (vehicle.entity != null && !vehicle.entity.IsDestroyed)
             {
                 string reason;
-                bool checkWater = vehicleType == VehicleType.Rowboat || vehicleType == VehicleType.RHIB;
-                if (CanRecall(player, vehicle.entity, vehicleType, out reason, checkWater))
+                bool checkWater = vehicleType == nameof(NormalVehicleType.Rowboat) || vehicleType == nameof(NormalVehicleType.RHIB);
+                if (CanRecall(player, vehicle, vehicleType, checkWater, out reason))
                 {
-                    RecallVehicle(player, vehicle.entity, vehicleType, checkWater);
+                    RecallVehicle(player, vehicle, vehicleType, checkWater);
                     return true;
                 }
                 Print(player, reason);
                 return false;
             }
-            Print(player, Lang("VehicleNotOut", player.UserIDString, vehicleS.displayName));
+            Print(player, Lang("VehicleNotOut", player.UserIDString, baseVehicleS.displayName, configData.chatS.spawnCommand));
             return false;
         }
 
-        private bool CanRecall(BasePlayer player, BaseEntity vehicle, VehicleType vehicleType, out string reason, bool checkWater = false)
+        private bool CanRecall(BasePlayer player, Vehicle vehicle, string vehicleType, bool checkWater, out string reason)
         {
-            var vehicleS = configData.vehicleS[vehicleType];
-            if (configData.globalS.anyMountedRecall && VehicleAnyMounted(vehicle))
-            {
-                reason = Lang("PlayerMountedOnVehicle", player.UserIDString, vehicleS.displayName);
-                return false;
-            }
-            if (vehicleS.recallMinDistance > 0 && Vector3.Distance(player.transform.position, vehicle.transform.position) < vehicleS.recallMinDistance)
-            {
-                reason = Lang("RecallTooFar", player.UserIDString, vehicleS.recallMinDistance, vehicleS.displayName);
-                return false;
-            }
+            var baseVehicleS = GetBaseVehicleS(vehicleType);
             if (player.IsBuildingBlocked())
             {
-                reason = Lang("BuildingBlocked", player.UserIDString, vehicleS.displayName);
+                reason = Lang("BuildingBlocked", player.UserIDString, baseVehicleS.displayName);
                 return false;
             }
-            if (player.isMounted || player.HasParent())
+            if (player.GetMountedVehicle() != null || player.HasParent())
             {
-                reason = Lang("MountedOrParented", player.UserIDString, vehicleS.displayName);
+                reason = Lang("MountedOrParented", player.UserIDString, baseVehicleS.displayName);
                 return false;
             }
-            if (checkWater && !IsLookingAtWater(player, vehicleS.distance))
+            if (configData.globalS.preventSafeZone && player.InSafeZone())
             {
-                reason = Lang("NotLookingAtWater", player.UserIDString, vehicleS.displayName);
+                reason = Lang("PlayerInSafeZone", player.UserIDString, baseVehicleS.displayName);
+                return false;
+            }
+            if (configData.globalS.anyMountedRecall && VehicleAnyMounted(vehicle.entity))
+            {
+                reason = Lang("PlayerMountedOnVehicle", player.UserIDString, baseVehicleS.displayName);
+                return false;
+            }
+            if (baseVehicleS.recallMaxDistance > 0 && Vector3.Distance(player.transform.position, vehicle.entity.transform.position) > baseVehicleS.recallMaxDistance)
+            {
+                reason = Lang("RecallTooFar", player.UserIDString, baseVehicleS.recallMaxDistance, baseVehicleS.displayName);
+                return false;
+            }
+            if (checkWater && !IsLookingAtWater(player, baseVehicleS.distance))
+            {
+                reason = Lang("NotLookingAtWater", player.UserIDString, baseVehicleS.displayName);
+                return false;
+            }
+            var recallCooldown = GetRecallCooldown(player, baseVehicleS);
+            if (recallCooldown > 0)
+            {
+                var timeLeft = Math.Ceiling(recallCooldown - (TimeEx.currentTimestamp - vehicle.lastRecall));
+                if (timeLeft > 0)
+                {
+                    reason = Lang("VehicleOnRecallCooldown", player.UserIDString, timeLeft, baseVehicleS.displayName);
+                    return false;
+                }
+            }
+            string missingResources;
+            if (baseVehicleS.recallPrices.Count > 0 && !TryPay(player, baseVehicleS.recallPrices, out missingResources))
+            {
+                reason = Lang("NoResourcesToRecallVehicle", player.UserIDString, baseVehicleS.displayName, missingResources);
                 return false;
             }
             reason = null;
             return true;
         }
 
-        private void RecallVehicle(BasePlayer player, BaseEntity entity, VehicleType vehicleType, bool checkWater = false)
+        private void RecallVehicle(BasePlayer player, Vehicle vehicle, string vehicleType, bool checkWater)
         {
+            var entity = vehicle.entity;
             if (configData.globalS.dismountAllPlayersRecall)
             {
                 DismountAllPlayers(entity);
             }
-            var vehicleS = configData.vehicleS[vehicleType];
-            if (vehicleS.dropItemsOnRecall)
+            var baseVehicleS = GetBaseVehicleS(vehicleType);
+            if (CanDropInventory(baseVehicleS))
             {
-                DropItems(vehicleType, entity);
+                DropVehicleInventoryItems(player, vehicle.vehicleType, entity, baseVehicleS);
             }
+            if (entity.HasParent()) entity.SetParent(null, true, true);
+
+            vehicle.OnRecall();
             Vector3 position; Quaternion rotation;
-            GetVehicleSpawnPos(player, vehicleS.distance, checkWater, vehicleType, out position, out rotation);
+            GetVehicleSpawnPos(player, baseVehicleS.distance, checkWater, vehicleType, out position, out rotation);
             entity.transform.position = position;
             entity.transform.rotation = rotation;
             entity.transform.hasChanged = true;
-            Print(player, Lang("VehicleRecalled", player.UserIDString, vehicleS.displayName));
-        }
-
-        private static void DropItems(VehicleType vehicleType, BaseEntity entity)
-        {
-            switch (vehicleType)
-            {
-                case VehicleType.RidableHorse:
-                    var itemContainer = (entity as RidableHorse)?.inventory;
-                    itemContainer?.Drop(PREFAB_ITEM_DROP, entity.GetDropPosition(), entity.transform.rotation);
-                    return;
-
-                case VehicleType.ChassisSmall:
-                case VehicleType.ChassisMedium:
-                case VehicleType.ChassisLarge:
-                case VehicleType.ModularCarSmall:
-                case VehicleType.ModularCarMedium:
-                case VehicleType.ModularCarLarge:
-                    var modularCar = entity as ModularCar;
-                    if (modularCar == null) return;
-                    foreach (var moduleEntity in modularCar.AttachedModuleEntities)
-                    {
-                        if (moduleEntity is VehicleModuleEngine) continue;
-                        var moduleStorage = moduleEntity as VehicleModuleStorage;
-                        if (moduleStorage != null)
-                        {
-                            var storageContainer = moduleStorage.GetContainer()?.inventory;
-                            storageContainer?.Drop(PREFAB_ITEM_DROP, entity.GetDropPosition(), entity.transform.rotation);
-                        }
-                    }
-                    return;
-            }
+            Print(player, Lang("VehicleRecalled", player.UserIDString, baseVehicleS.displayName));
         }
 
         #endregion Recall Command
@@ -1155,7 +1622,7 @@ namespace Oxide.Plugins
         private void CCmdKillVehicle(ConsoleSystem.Arg arg)
         {
             var player = arg.Player();
-            if (player == null) Print(arg, $"The server console cannot use '{arg.cmd.FullName}'");
+            if (player == null) Print(arg, $"The server console cannot use the '{arg.cmd.FullName}' command");
             else CmdKillVehicle(player, string.Empty, arg.Args);
         }
 
@@ -1170,9 +1637,9 @@ namespace Oxide.Plugins
             {
                 StringBuilder stringBuilder = new StringBuilder();
                 stringBuilder.AppendLine(Lang("Help", player.UserIDString));
-                foreach (var entry in configData.vehicleS)
+                foreach (var entry in allBaseVehicleSettings)
                 {
-                    if (entry.Value.purchasable && entry.Value.commands.Count > 0)
+                    if (CanViewVehicleInfo(player, entry.Key, entry.Value))
                     {
                         stringBuilder.AppendLine(Lang("HelpKill", player.UserIDString, configData.chatS.killCommand, entry.Value.commands[0], entry.Value.displayName));
                     }
@@ -1186,37 +1653,35 @@ namespace Oxide.Plugins
 
         private void HandleKillCmd(BasePlayer player, string option)
         {
-            VehicleType vehicleType;
+            string vehicleType;
             if (IsValidOption(player, option, out vehicleType))
             {
                 KillVehicle(player, vehicleType);
             }
         }
 
-        private bool KillVehicle(BasePlayer player, VehicleType vehicleType)
+        private bool KillVehicle(BasePlayer player, string vehicleType)
         {
-            var vehicleS = configData.vehicleS[vehicleType];
-            Dictionary<VehicleType, Vehicle> vehicles;
-            storedData.playerData.TryGetValue(player.userID, out vehicles);
+            var baseVehicleS = GetBaseVehicleS(vehicleType);
             Vehicle vehicle;
-            if (vehicles == null || !vehicles.TryGetValue(vehicleType, out vehicle))
+            Dictionary<string, Vehicle> vehicles;
+            if (!storedData.playerData.TryGetValue(player.userID, out vehicles) || !vehicles.TryGetValue(vehicleType, out vehicle))
             {
-                Print(player, Lang("VehicleNotYetPurchased", player.UserIDString, vehicleS.displayName));
+                Print(player, Lang("VehicleNotYetPurchased", player.UserIDString, baseVehicleS.displayName, configData.chatS.buyCommand));
                 return false;
             }
             if (vehicle.entity != null && !vehicle.entity.IsDestroyed)
             {
                 if (configData.globalS.anyMountedKill && VehicleAnyMounted(vehicle.entity))
                 {
-                    Print(player, Lang("PlayerMountedOnVehicle", player.UserIDString, vehicleS.displayName));
+                    Print(player, Lang("PlayerMountedOnVehicle", player.UserIDString, baseVehicleS.displayName));
                     return false;
                 }
-                RefundFuel(vehicle);
                 vehicle.entity.Kill(BaseNetworkable.DestroyMode.Gib);
-                Print(player, Lang("VehicleKilled", player.UserIDString, vehicleS.displayName));
+                Print(player, Lang("VehicleKilled", player.UserIDString, baseVehicleS.displayName));
                 return true;
             }
-            Print(player, Lang("VehicleNotOut", player.UserIDString, vehicleS.displayName));
+            Print(player, Lang("VehicleNotOut", player.UserIDString, baseVehicleS.displayName, configData.chatS.spawnCommand));
             return false;
         }
 
@@ -1224,16 +1689,31 @@ namespace Oxide.Plugins
 
         #region Command Helper
 
-        private bool IsValidOption(BasePlayer player, string option, out VehicleType vehicleType)
+        private bool IsValidVehicleType(string option, out string vehicleType)
         {
-            foreach (var entry in configData.vehicleS)
+            foreach (var entry in allBaseVehicleSettings)
+            {
+                if (entry.Key.ToLower() == option)
+                {
+                    vehicleType = entry.Key;
+                    return true;
+                }
+            }
+
+            vehicleType = null;
+            return false;
+        }
+
+        private bool IsValidOption(BasePlayer player, string option, out string vehicleType)
+        {
+            foreach (var entry in allBaseVehicleSettings)
             {
                 if (entry.Value.commands.Any(x => x.ToLower() == option))
                 {
-                    if (!HasPermission(player, entry.Key))
+                    if (!HasVehiclePermission(player, entry.Key, entry.Value))
                     {
                         Print(player, Lang("NotAllowed", player.UserIDString));
-                        vehicleType = default(VehicleType);
+                        vehicleType = null;
                         return false;
                     }
                     vehicleType = entry.Key;
@@ -1241,13 +1721,49 @@ namespace Oxide.Plugins
                 }
             }
             Print(player, Lang("OptionNotFound", player.UserIDString, option));
-            vehicleType = default(VehicleType);
+            vehicleType = null;
             return false;
         }
 
-        private void GetVehicleSpawnPos(BasePlayer player, float distance, bool checkWater, VehicleType vehicleType, out Vector3 spawnPos, out Quaternion spawnRot)
+        private void GetVehicleSpawnPos(BasePlayer player, float distance, bool checkWater, string vehicleType, out Vector3 spawnPos, out Quaternion spawnRot)
         {
-            if (configData.globalS.spawnLookingAt) spawnPos = GetLookingAtGroundPos(player, distance);
+            if (configData.globalS.spawnLookingAt)
+            {
+                bool needGetGround = true;
+                spawnPos = GetLookingAtGroundPos(player, distance);
+                if (checkWater)
+                {
+                    RaycastHit hit;
+                    if (Physics.Raycast(spawnPos, Vector3.up, out hit, 200, LAYER_GROUND) &&
+                        hit.GetEntity() is StabilityEntity)
+                    {
+                        needGetGround = false;
+                    }
+                }
+                else
+                {
+                    var buildingBlocks = Facepunch.Pool.GetList<BuildingBlock>();
+                    Vis.Entities(spawnPos, 2f, buildingBlocks, Rust.Layers.Mask.Construction);
+                    if (buildingBlocks.Count > 0)
+                    {
+                        var pos = spawnPos;
+                        var closestBuildingBlock = buildingBlocks
+                            .Where(x => x.ShortPrefabName.Contains("foundation") || x.ShortPrefabName.Contains("floor"))
+                            .OrderBy(x => Vector3.Distance(x.transform.position, pos)).FirstOrDefault();
+                        if (closestBuildingBlock != null)
+                        {
+                            spawnPos = closestBuildingBlock.CenterPoint();
+                            spawnPos.y = closestBuildingBlock.WorldSpaceBounds().ToBounds().max.y;
+                            needGetGround = false;
+                        }
+                    }
+                    Facepunch.Pool.FreeList(ref buildingBlocks);
+                }
+                if (needGetGround)
+                {
+                    spawnPos = GetGroundPosition(spawnPos);
+                }
+            }
             else
             {
                 if (checkWater)
@@ -1256,24 +1772,24 @@ namespace Oxide.Plugins
                     for (int i = 0; i < 10; i++)
                     {
                         var originPos = GetLookingAtGroundPos(player, distance);
-                        var sphere = UnityEngine.Random.insideUnitSphere * distance;
-                        sphere.y = 0;
-                        spawnPos = originPos + sphere;
-                        if (Vector3.Distance(spawnPos, player.transform.position) > 2f) break;
+                        var unitSphere = UnityEngine.Random.insideUnitSphere * distance;
+                        unitSphere.y = 0;
+                        spawnPos = originPos + unitSphere;
+                        if (Vector3Ex.Distance2D(spawnPos, player.transform.position) > 2f) break;
                     }
                 }
                 else
                 {
-                    var sphere = UnityEngine.Random.insideUnitSphere * distance;
-                    sphere.y = 0;
-                    spawnPos = player.transform.position + sphere;
+                    var unitSphere = UnityEngine.Random.insideUnitSphere * distance;
+                    unitSphere.y = 0;
+                    spawnPos = player.transform.position + unitSphere;
                 }
+                spawnPos = GetGroundPosition(spawnPos);
             }
-            spawnPos = GetGroundPosition(spawnPos);
             var normalized = (spawnPos - player.transform.position).normalized;
             var angle = normalized != Vector3.zero ? Quaternion.LookRotation(normalized).eulerAngles.y : UnityEngine.Random.Range(0f, 360f);
             spawnRot = Quaternion.Euler(new Vector3(0f, angle + 90f, 0f));
-            if (vehicleType != VehicleType.RidableHorse) spawnPos += Vector3.up * 1f;
+            if (vehicleType != nameof(NormalVehicleType.RidableHorse)) spawnPos += Vector3.up * 0.5f;
         }
 
         #endregion Command Helper
@@ -1282,258 +1798,636 @@ namespace Oxide.Plugins
 
         #region ConfigurationFile
 
-        private ConfigData configData;
+        public ConfigData configData { get; private set; }
 
-        private class ConfigData
+        public class ConfigData
         {
             [JsonProperty(PropertyName = "Settings")]
             public Settings globalS = new Settings();
 
-            public class Settings
-            {
-                [JsonProperty(PropertyName = "Interval to check vehicle for wipe (Seconds)")] public float checkVehiclesInterval = 300;
-                [JsonProperty(PropertyName = "Spawn vehicle in the direction you are looking at")] public bool spawnLookingAt = true;
-
-                [JsonProperty(PropertyName = "Check if any player mounted when recalling a vehicle")] public bool anyMountedRecall = true;
-                [JsonProperty(PropertyName = "Check if any player mounted when killing a vehicle")] public bool anyMountedKill = true;
-                [JsonProperty(PropertyName = "Dismount all players when a vehicle is recalled")] public bool dismountAllPlayersRecall = true;
-
-                [JsonProperty(PropertyName = "Prevent other players from mounting vehicle")] public bool preventMounting = true;
-                [JsonProperty(PropertyName = "Prevent mounting on driver's seat only")] public bool blockDriverSeat = true;
-                [JsonProperty(PropertyName = "Use Teams")] public bool useTeams;
-                [JsonProperty(PropertyName = "Use Clans")] public bool useClans = true;
-                [JsonProperty(PropertyName = "Use Friends")] public bool useFriends = true;
-
-                [JsonProperty(PropertyName = "Vehicle No Decay")] public bool noDecay;
-                [JsonProperty(PropertyName = "Vehicle No Fire Ball")] public bool noFireBall = true;
-                [JsonProperty(PropertyName = "Vehicle No Server Gibs")] public bool noServerGibs = true;
-                [JsonProperty(PropertyName = "Chinook No Map Marker")] public bool noMapMarker = true;
-
-                [JsonProperty(PropertyName = "Clear Vehicle Data On Map Wipe")] public bool clearVehicleOnWipe;
-                [JsonProperty(PropertyName = "Use Raid Blocker (Need NoEscape Plugin)")] public bool useRaidBlocker;
-                [JsonProperty(PropertyName = "Use Combat Blocker (Need NoEscape Plugin)")] public bool useCombatBlocker;
-            }
-
             [JsonProperty(PropertyName = "Chat Settings")]
             public ChatSettings chatS = new ChatSettings();
 
-            public class ChatSettings
-            {
-                [JsonProperty(PropertyName = "Use Universal Chat Command")] public bool useUniversalCommand = true;
-                [JsonProperty(PropertyName = "Help Chat Command")] public string helpCommand = "license";
-                [JsonProperty(PropertyName = "Buy Chat Command")] public string buyCommand = "buy";
-                [JsonProperty(PropertyName = "Spawn Chat Command")] public string spawnCommand = "spawn";
-                [JsonProperty(PropertyName = "Recall Chat Command")] public string recallCommand = "recall";
-                [JsonProperty(PropertyName = "Kill Chat Command")] public string killCommand = "kill";
-                [JsonProperty(PropertyName = "Chat Prefix")] public string prefix = "[VehicleLicense]: ";
-                [JsonProperty(PropertyName = "Chat Prefix Color")] public string prefixColor = "#B366FF";
-                [JsonProperty(PropertyName = "Chat SteamID Icon")] public ulong steamIDIcon = 76561198924840872;
-            }
+            [JsonProperty(PropertyName = "Normal Vehicle Settings")]
+            public NormalVehicleSettings normalVehicleS = new NormalVehicleSettings();
 
-            [JsonProperty(PropertyName = "Cooldown Permission Settings", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public Dictionary<string, Dictionary<VehicleType, float>> permCooldown = new Dictionary<string, Dictionary<VehicleType, float>>
+            [JsonProperty(PropertyName = "Modular Vehicle Settings", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Dictionary<string, ModularVehicleS> modularCarS = new Dictionary<string, ModularVehicleS>
             {
-                ["vehiclelicence.vip"] = new Dictionary<VehicleType, float>
-                {
-                    [VehicleType.Rowboat] = 90f,
-                    [VehicleType.RHIB] = 150f,
-                    [VehicleType.Sedan] = 450f,
-                    [VehicleType.HotAirBalloon] = 450f,
-                    [VehicleType.MiniCopter] = 900f,
-                    [VehicleType.TransportHelicopter] = 1200f,
-                    [VehicleType.Chinook] = 1500f,
-                    [VehicleType.RidableHorse] = 1500f,
-                    [VehicleType.ChassisSmall] = 500f,
-                    [VehicleType.ChassisMedium] = 700f,
-                    [VehicleType.ChassisLarge] = 900f,
-                    [VehicleType.ModularCarSmall] = 1800f,
-                    [VehicleType.ModularCarMedium] = 2000f,
-                    [VehicleType.ModularCarLarge] = 2200f,
-                }
-            };
-
-            [JsonProperty(PropertyName = "Vehicle Settings")]
-            public Dictionary<VehicleType, VehicleS> vehicleS = new Dictionary<VehicleType, VehicleS>
-            {
-                [VehicleType.Rowboat] = new VehicleS
-                {
-                    purchasable = true,
-                    displayName = "Row Boat",
-                    maxHealth = 400,
-                    cooldown = 180,
-                    distance = 5,
-                    permission = "vehiclelicence.rowboat",
-                    commands = new List<string> { "row", "rowboat" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 500, displayName = "Scrap" } }
-                },
-                [VehicleType.RHIB] = new VehicleS
-                {
-                    purchasable = true,
-                    displayName = "RHIB",
-                    maxHealth = 500,
-                    cooldown = 300,
-                    distance = 10,
-                    permission = "vehiclelicence.rhib",
-                    commands = new List<string> { "rhib" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 1000, displayName = "Scrap" } }
-                },
-                [VehicleType.Sedan] = new VehicleS
-                {
-                    purchasable = true,
-                    displayName = "Sedan",
-                    maxHealth = 300,
-                    cooldown = 180,
-                    distance = 5,
-                    permission = "vehiclelicence.sedan",
-                    commands = new List<string> { "car", "sedan" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 300, displayName = "Scrap" } }
-                },
-                [VehicleType.HotAirBalloon] = new VehicleS
-                {
-                    purchasable = true,
-                    displayName = "Hot Air Balloon",
-                    maxHealth = 1500,
-                    cooldown = 900,
-                    distance = 20,
-                    permission = "vehiclelicence.hotairballoon",
-                    commands = new List<string> { "hab", "hotairballoon" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 5000, displayName = "Scrap" } }
-                },
-                [VehicleType.MiniCopter] = new VehicleS
-                {
-                    purchasable = true,
-                    displayName = "Mini Copter",
-                    maxHealth = 750,
-                    cooldown = 1800,
-                    distance = 8,
-                    permission = "vehiclelicence.minicopter",
-                    commands = new List<string> { "mini", "minicopter" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 10000, displayName = "Scrap" } }
-                },
-                [VehicleType.TransportHelicopter] = new VehicleS
-                {
-                    purchasable = true,
-                    displayName = "Transport Copter",
-                    maxHealth = 1000,
-                    cooldown = 2400,
-                    distance = 10,
-                    permission = "vehiclelicence.transportcopter",
-                    commands = new List<string> { "tcop", "transportcopter" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 20000, displayName = "Scrap" } }
-                },
-                [VehicleType.Chinook] = new VehicleS
-                {
-                    purchasable = true,
-                    displayName = "Chinook",
-                    maxHealth = 1000,
-                    cooldown = 3000,
-                    distance = 15,
-                    permission = "vehiclelicence.chinook",
-                    commands = new List<string> { "ch47", "chinook" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 30000, displayName = "Scrap" } }
-                },
-                [VehicleType.RidableHorse] = new VehicleS
-                {
-                    purchasable = true,
-                    displayName = "Ridable Horse",
-                    maxHealth = 400,
-                    cooldown = 3000,
-                    distance = 5,
-                    permission = "vehiclelicence.ridablehorse",
-                    commands = new List<string> { "horse", "ridablehorse" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 700, displayName = "Scrap" } }
-                },
-                [VehicleType.ChassisSmall] = new VehicleS
-                {
-                    purchasable = false,
-                    displayName = "Small Chassis",
-                    maxHealth = 200,
-                    cooldown = 3300,
-                    distance = 5,
-                    permission = "vehiclelicence.smallchassis",
-                    commands = new List<string> { "smallchassis" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 1000, displayName = "Scrap" } }
-                },
-                [VehicleType.ChassisMedium] = new VehicleS
-                {
-                    purchasable = false,
-                    displayName = "Medium Chassis",
-                    maxHealth = 250,
-                    cooldown = 3600,
-                    distance = 5,
-                    permission = "vehiclelicence.mediumchassis",
-                    commands = new List<string> { "mediumchassis" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 1300, displayName = "Scrap" } }
-                },
-                [VehicleType.ChassisLarge] = new VehicleS
-                {
-                    purchasable = false,
-                    displayName = "Large Chassis",
-                    maxHealth = 300,
-                    cooldown = 3900,
-                    distance = 5,
-                    permission = "vehiclelicence.largechassis",
-                    commands = new List<string> { "largechassis" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 1600, displayName = "Scrap" } }
-                },
-                [VehicleType.ModularCarSmall] = new VehicleS
+                ["SmallCar"] = new ModularVehicleS
                 {
                     purchasable = true,
                     displayName = "Small Modular Car",
-                    cooldown = 4900,
                     distance = 5,
+                    usePermission = true,
                     permission = "vehiclelicence.smallmodularcar",
-                    commands = new List<string> { "smallcar" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 1600, displayName = "Scrap" } }
+                    commands = new List<string> { "small", "smallcar" },
+                    purchasePrices = new Dictionary<string, PriceInfo>
+                    {
+                        ["scrap"] = new PriceInfo { amount = 1600, displayName = "Scrap" }
+                    },
+                    spawnPrices = new Dictionary<string, PriceInfo>
+                    {
+                        ["metal.refined"] = new PriceInfo { amount = 10, displayName = "High Quality Metal" }
+                    },
+                    recallPrices = new Dictionary<string, PriceInfo>
+                    {
+                        ["scrap"] = new PriceInfo { amount = 5, displayName = "Scrap" }
+                    },
+                    spawnCooldown = 7200,
+                    recallCooldown = 30,
+                    cooldownPermissions = new Dictionary<string, PermissionS>
+                    {
+                        ["vehiclelicence.vip"] = new PermissionS
+                        {
+                            spawnCooldown = 3600,
+                            recallCooldown = 10,
+                        }
+                    },
+                    chassisType = ChassisType.Small,
+                    moduleItems = new List<ModuleItem>
+                    {
+                        new ModuleItem
+                        {
+                            shortName = "vehicle.1mod.cockpit.with.engine" ,healthPercentage = 50f
+                        },
+                        new ModuleItem
+                        {
+                            shortName = "vehicle.1mod.storage" ,healthPercentage = 50f
+                        },
+                    },
+                    engineItems = new List<EngineItem>
+                    {
+                        new EngineItem
+                        {
+                            shortName = "carburetor1",conditionPercentage = 20f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "crankshaft1",conditionPercentage = 20f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "piston1",conditionPercentage = 20f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "sparkplug1",conditionPercentage = 20f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "valve1",conditionPercentage = 20f
+                        }
+                    }
                 },
-                [VehicleType.ModularCarMedium] = new VehicleS
-                {
-                    purchasable = true,
-                    displayName = "Medium Modular Car",
-                    cooldown = 5100,
-                    distance = 5,
-                    permission = "vehiclelicence.mediummodularcar",
-                    commands = new List<string> { "mediumcar" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 1800, displayName = "Scrap" } }
-                },
-                [VehicleType.ModularCarLarge] = new VehicleS
+                ["LargeCar"] = new ModularVehicleS
                 {
                     purchasable = true,
                     displayName = "Large Modular Car",
-                    cooldown = 5400,
-                    distance = 5,
+                    distance = 6,
+                    usePermission = true,
                     permission = "vehiclelicence.largemodularcar",
-                    commands = new List<string> { "largecar" },
-                    price = new Dictionary<string, ConfigData.PriceInfo> { ["scrap"] = new ConfigData.PriceInfo { amount = 2000, displayName = "Scrap" } }
+                    commands = new List<string> { "large", "largecar" },
+                    purchasePrices = new Dictionary<string, PriceInfo>
+                    {
+                        ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                    },
+                    spawnPrices = new Dictionary<string, PriceInfo>
+                    {
+                        ["metal.refined"] = new PriceInfo { amount = 100, displayName = "High Quality Metal" }
+                    },
+                    recallPrices = new Dictionary<string, PriceInfo>
+                    {
+                        ["scrap"] = new PriceInfo { amount = 10, displayName = "Scrap" }
+                    },
+                    spawnCooldown = 10800,
+                    recallCooldown = 30,
+                    cooldownPermissions = new Dictionary<string, PermissionS>
+                    {
+                        ["vehiclelicence.vip"] = new PermissionS
+                        {
+                            spawnCooldown = 5400,
+                            recallCooldown = 10,
+                        }
+                    },
+                    chassisType = ChassisType.Large,
+                    moduleItems = new List<ModuleItem>
+                    {
+                        new ModuleItem
+                        {
+                            shortName = "vehicle.1mod.engine",healthPercentage = 50f
+                        },
+                        new ModuleItem
+                        {
+                            shortName = "vehicle.1mod.cockpit.armored",healthPercentage = 50f
+                        },
+                        new ModuleItem
+                        {
+                            shortName = "vehicle.1mod.passengers.armored",healthPercentage = 50f
+                        },
+                        new ModuleItem
+                        {
+                            shortName = "vehicle.1mod.storage",healthPercentage = 50f
+                        },
+                    },
+                    engineItems = new List<EngineItem>
+                    {
+                        new EngineItem
+                        {
+                            shortName = "carburetor3",conditionPercentage = 10f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "crankshaft3",conditionPercentage = 10f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "piston3",conditionPercentage = 10f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "piston3",conditionPercentage = 10f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "sparkplug3",conditionPercentage = 10f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "sparkplug3",conditionPercentage = 10f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "valve3",conditionPercentage = 10f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "valve3",conditionPercentage = 10f
+                        }
+                    }
+                },
+            };
+        }
+
+        public class ChatSettings
+        {
+            [JsonProperty(PropertyName = "Use Universal Chat Command")] public bool useUniversalCommand = true;
+            [JsonProperty(PropertyName = "Help Chat Command")] public string helpCommand = "license";
+            [JsonProperty(PropertyName = "Buy Chat Command")] public string buyCommand = "buy";
+            [JsonProperty(PropertyName = "Spawn Chat Command")] public string spawnCommand = "spawn";
+            [JsonProperty(PropertyName = "Recall Chat Command")] public string recallCommand = "recall";
+            [JsonProperty(PropertyName = "Kill Chat Command")] public string killCommand = "kill";
+            [JsonProperty(PropertyName = "Chat Prefix")] public string prefix = "[VehicleLicense]: ";
+            [JsonProperty(PropertyName = "Chat Prefix Color")] public string prefixColor = "#B366FF";
+            [JsonProperty(PropertyName = "Chat SteamID Icon")] public ulong steamIDIcon = 76561198924840872;
+        }
+
+        public class Settings
+        {
+            [JsonProperty(PropertyName = "Store Vehicle On Plugin Unloaded / Server Restart")] public bool storeVehicle = true;
+            [JsonProperty(PropertyName = "Clear Vehicle Data On Map Wipe")] public bool clearVehicleOnWipe;
+
+            [JsonProperty(PropertyName = "Interval to check vehicle for wipe (Seconds)")] public float checkVehiclesInterval = 300;
+            [JsonProperty(PropertyName = "Spawn vehicle in the direction you are looking at")] public bool spawnLookingAt = true;
+
+            [JsonProperty(PropertyName = "Check if any player mounted when recalling a vehicle")] public bool anyMountedRecall = true;
+            [JsonProperty(PropertyName = "Check if any player mounted when killing a vehicle")] public bool anyMountedKill = true;
+            [JsonProperty(PropertyName = "Dismount all players when a vehicle is recalled")] public bool dismountAllPlayersRecall = true;
+            [JsonProperty(PropertyName = "Prevent vehicles from spawning or recalling in safe zone")] public bool preventSafeZone = true;
+
+            [JsonProperty(PropertyName = "Prevent other players from mounting vehicle")] public bool preventMounting = true;
+            [JsonProperty(PropertyName = "Prevent mounting on driver's seat only")] public bool blockDriverSeat = true;
+            [JsonProperty(PropertyName = "Use Teams")] public bool useTeams;
+            [JsonProperty(PropertyName = "Use Clans")] public bool useClans = true;
+            [JsonProperty(PropertyName = "Use Friends")] public bool useFriends = true;
+
+            [JsonProperty(PropertyName = "Vehicle No Decay")] public bool noDecay;
+            [JsonProperty(PropertyName = "Vehicle No Fire Ball")] public bool noFireBall = true;
+            [JsonProperty(PropertyName = "Vehicle No Server Gibs")] public bool noServerGibs = true;
+            [JsonProperty(PropertyName = "Chinook No Map Marker")] public bool noMapMarker = true;
+
+            [JsonProperty(PropertyName = "Use Raid Blocker (Need NoEscape Plugin)")] public bool useRaidBlocker;
+            [JsonProperty(PropertyName = "Use Combat Blocker (Need NoEscape Plugin)")] public bool useCombatBlocker;
+        }
+
+        public class NormalVehicleSettings
+        {
+            [JsonProperty(PropertyName = "Sedan Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BaseVehicleS sedanS = new BaseVehicleS
+            {
+                purchasable = true,
+                displayName = "Sedan",
+                distance = 5,
+                usePermission = true,
+                permission = "vehiclelicence.sedan",
+                commands = new List<string> { "car", "sedan" },
+                purchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 300, displayName = "Scrap" }
+                },
+                spawnPrices = new Dictionary<string, PriceInfo>(),
+                recallPrices = new Dictionary<string, PriceInfo>(),
+                spawnCooldown = 300,
+                recallCooldown = 30,
+                cooldownPermissions = new Dictionary<string, PermissionS>
+                {
+                    ["vehiclelicence.vip"] = new PermissionS
+                    {
+                        spawnCooldown = 150,
+                        recallCooldown = 10,
+                    }
                 },
             };
 
-            public class VehicleS
+            [JsonProperty(PropertyName = "Chinook Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BaseVehicleS chinookS = new BaseVehicleS
             {
-                [JsonProperty(PropertyName = "Purchasable")] public bool purchasable;
-                [JsonProperty(PropertyName = "Use Permission")] public bool usePermission = true;
-                [JsonProperty(PropertyName = "Permission")] public string permission;
-                [JsonProperty(PropertyName = "Display Name")] public string displayName;
-                [JsonProperty(PropertyName = "Cooldown (Seconds)")] public double cooldown;
-                [JsonProperty(PropertyName = "Max Health")] public float maxHealth;
-                [JsonProperty(PropertyName = "Distance To Spawn")] public float distance;
-                [JsonProperty(PropertyName = "Can Recall Min Distance")] public float recallMinDistance;
-                [JsonProperty(PropertyName = "Time Before Vehicle Wipe (Seconds)")] public double wipeTime;
-                [JsonProperty(PropertyName = "Remove License On Crash")] public bool removeLicenseOnCrash;
-                [JsonProperty(PropertyName = "Refund Fuel")] public bool refundFuel = true;
-                [JsonProperty(PropertyName = "Refund Inventory")] public bool refundInventory = true;
-                [JsonProperty(PropertyName = "Not Refund Fuel On Crash")] public bool notRefundFuelOnCrash;
-                [JsonProperty(PropertyName = "Not Refund Inventory On Crash")] public bool notRefundInventoryOnCrash;
-                [JsonProperty(PropertyName = "Drop Inventory Items When Vehicle Recall")] public bool dropItemsOnRecall;
-                [JsonProperty(PropertyName = "Commands")] public List<string> commands;
-                [JsonProperty(PropertyName = "Price")] public Dictionary<string, PriceInfo> price;
+                purchasable = true,
+                displayName = "Chinook",
+                distance = 15,
+                usePermission = true,
+                permission = "vehiclelicence.chinook",
+                commands = new List<string> { "ch47", "chinook" },
+                purchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                spawnPrices = new Dictionary<string, PriceInfo>(),
+                recallPrices = new Dictionary<string, PriceInfo>(),
+                spawnCooldown = 3000,
+                recallCooldown = 30,
+                cooldownPermissions = new Dictionary<string, PermissionS>
+                {
+                    ["vehiclelicence.vip"] = new PermissionS
+                    {
+                        spawnCooldown = 1500,
+                        recallCooldown = 10,
+                    }
+                },
+            };
+
+            [JsonProperty(PropertyName = "Rowboat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public InvFuelVehicleS rowboatS = new InvFuelVehicleS
+            {
+                purchasable = true,
+                displayName = "Row Boat",
+                distance = 5,
+                usePermission = true,
+                permission = "vehiclelicence.rowboat",
+                commands = new List<string> { "row", "rowboat" },
+                purchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 500, displayName = "Scrap" }
+                },
+                spawnPrices = new Dictionary<string, PriceInfo>(),
+                recallPrices = new Dictionary<string, PriceInfo>(),
+                spawnCooldown = 300,
+                recallCooldown = 30,
+                cooldownPermissions = new Dictionary<string, PermissionS>
+                {
+                    ["vehiclelicence.vip"] = new PermissionS
+                    {
+                        spawnCooldown = 150,
+                        recallCooldown = 10,
+                    }
+                },
+            };
+
+            [JsonProperty(PropertyName = "RHIB Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public InvFuelVehicleS rhibS = new InvFuelVehicleS
+            {
+                purchasable = true,
+                displayName = "Rigid Hulled Inflatable Boat",
+                distance = 10,
+                usePermission = true,
+                permission = "vehiclelicence.rhib",
+                commands = new List<string> { "rhib" },
+                purchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1000, displayName = "Scrap" }
+                },
+                spawnPrices = new Dictionary<string, PriceInfo>(),
+                recallPrices = new Dictionary<string, PriceInfo>(),
+                spawnCooldown = 450,
+                recallCooldown = 30,
+                cooldownPermissions = new Dictionary<string, PermissionS>
+                {
+                    ["vehiclelicence.vip"] = new PermissionS
+                    {
+                        spawnCooldown = 225,
+                        recallCooldown = 10,
+                    }
+                },
+            };
+
+            [JsonProperty(PropertyName = "Hot Air Balloon Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public InvFuelVehicleS hotAirBalloonS = new InvFuelVehicleS
+            {
+                purchasable = true,
+                displayName = "Hot Air Balloon",
+                distance = 20,
+                usePermission = true,
+                permission = "vehiclelicence.hotairballoon",
+                commands = new List<string> { "hab", "hotairballoon" },
+                purchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 500, displayName = "Scrap" }
+                },
+                spawnPrices = new Dictionary<string, PriceInfo>(),
+                recallPrices = new Dictionary<string, PriceInfo>(),
+                spawnCooldown = 900,
+                recallCooldown = 30,
+                cooldownPermissions = new Dictionary<string, PermissionS>
+                {
+                    ["vehiclelicence.vip"] = new PermissionS
+                    {
+                        spawnCooldown = 450,
+                        recallCooldown = 10,
+                    }
+                },
+            };
+
+            [JsonProperty(PropertyName = "Ridable Horse Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public InventoryVehicleS ridableHorseS = new InventoryVehicleS
+            {
+                purchasable = true,
+                displayName = "Ridable Horse",
+                distance = 6,
+                usePermission = true,
+                permission = "vehiclelicence.ridablehorse",
+                commands = new List<string> { "horse", "ridablehorse" },
+                purchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 700, displayName = "Scrap" }
+                },
+                spawnPrices = new Dictionary<string, PriceInfo>(),
+                recallPrices = new Dictionary<string, PriceInfo>(),
+                spawnCooldown = 3000,
+                recallCooldown = 30,
+                cooldownPermissions = new Dictionary<string, PermissionS>
+                {
+                    ["vehiclelicence.vip"] = new PermissionS
+                    {
+                        spawnCooldown = 1500,
+                        recallCooldown = 10,
+                    }
+                },
+            };
+
+            [JsonProperty(PropertyName = "Mini Copter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FuelVehicleS miniCopterS = new FuelVehicleS
+            {
+                purchasable = true,
+                displayName = "Mini Copter",
+                distance = 8,
+                usePermission = true,
+                permission = "vehiclelicence.minicopter",
+                commands = new List<string> { "mini", "minicopter" },
+                purchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                spawnPrices = new Dictionary<string, PriceInfo>(),
+                recallPrices = new Dictionary<string, PriceInfo>(),
+                spawnCooldown = 1800,
+                recallCooldown = 30,
+                cooldownPermissions = new Dictionary<string, PermissionS>
+                {
+                    ["vehiclelicence.vip"] = new PermissionS
+                    {
+                        spawnCooldown = 900,
+                        recallCooldown = 10,
+                    }
+                },
+            };
+
+            [JsonProperty(PropertyName = "Transport Helicopter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FuelVehicleS transportHelicopterS = new FuelVehicleS
+            {
+                purchasable = true,
+                displayName = "Transport Copter",
+                distance = 10,
+                usePermission = true,
+                permission = "vehiclelicence.transportcopter",
+                commands = new List<string>
+                {
+                    "tcop", "transportcopter"
+                },
+                purchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                spawnPrices = new Dictionary<string, PriceInfo>(),
+                recallPrices = new Dictionary<string, PriceInfo>(),
+                spawnCooldown = 2400,
+                recallCooldown = 30,
+                cooldownPermissions = new Dictionary<string, PermissionS>
+                {
+                    ["vehiclelicence.vip"] = new PermissionS
+                    {
+                        spawnCooldown = 1200,
+                        recallCooldown = 10,
+                    }
+                },
+            };
+        }
+
+        public class BaseVehicleS
+        {
+            [JsonProperty(PropertyName = "Purchasable")] public bool purchasable;
+            [JsonProperty(PropertyName = "Display Name")] public string displayName { get; set; }
+            [JsonProperty(PropertyName = "Use Permission")] public bool usePermission { get; set; }
+            [JsonProperty(PropertyName = "Permission")] public string permission { get; set; }
+            [JsonProperty(PropertyName = "Distance To Spawn")] public float distance { get; set; }
+            [JsonProperty(PropertyName = "Time Before Vehicle Wipe (Seconds)")] public double wipeTime { get; set; }
+
+            [JsonProperty(PropertyName = "Maximum Health")] public float maxHealth { get; set; }
+            [JsonProperty(PropertyName = "Can Recall Maximum Distance")] public float recallMaxDistance { get; set; }
+            [JsonProperty(PropertyName = "Remove License Once Crashed")] public bool removeLicenseOnceCrash { get; set; }
+
+            [JsonProperty(PropertyName = "Purchase Prices")] public Dictionary<string, PriceInfo> purchasePrices { get; set; }
+            [JsonProperty(PropertyName = "Spawn Prices")] public Dictionary<string, PriceInfo> spawnPrices { get; set; }
+            [JsonProperty(PropertyName = "Recall Prices")] public Dictionary<string, PriceInfo> recallPrices { get; set; }
+
+            [JsonProperty(PropertyName = "Commands")] public List<string> commands { get; set; }
+            [JsonProperty(PropertyName = "Spawn Cooldown (Seconds)")] public double spawnCooldown { get; set; }
+            [JsonProperty(PropertyName = "Recall Cooldown (Seconds)")] public double recallCooldown { get; set; }
+            [JsonProperty(PropertyName = "Cooldown Permissions")] public Dictionary<string, PermissionS> cooldownPermissions { get; set; }
+        }
+
+        public interface IFuelVehicle
+        {
+            [JsonProperty(PropertyName = "Refund Fuel On Kill", Order = 20)] bool refundFuelOnKill { get; }
+            [JsonProperty(PropertyName = "Refund Fuel On Crash", Order = 21)] bool refundFuelOnCrash { get; }
+        }
+
+        public interface IInventoryVehicle
+        {
+            [JsonProperty(PropertyName = "Refund Inventory On Kill", Order = 22)] bool refundInventoryOnKill { get; }
+            [JsonProperty(PropertyName = "Refund Inventory On Crash", Order = 23)] bool refundInventoryOnCrash { get; }
+            [JsonProperty(PropertyName = "Drop Inventory Items When Vehicle Recall", Order = 29)] bool dropInventoryOnRecall { get; }
+        }
+
+        public interface IModularVehicle
+        {
+            [JsonProperty(PropertyName = "Refund Engine Items On Kill", Order = 24)] bool refundEngineOnKill { get; }
+            [JsonProperty(PropertyName = "Refund Engine Items On Crash", Order = 25)] bool refundEngineOnCrash { get; }
+            [JsonProperty(PropertyName = "Refund Module Items On Kill", Order = 26)] bool refundModuleOnKill { get; }
+            [JsonProperty(PropertyName = "Refund Module Items On Crash", Order = 27)] bool refundModuleOnCrash { get; }
+        }
+
+        public class FuelVehicleS : BaseVehicleS, IFuelVehicle
+        {
+            public bool refundFuelOnKill { get; set; } = true;
+            public bool refundFuelOnCrash { get; set; } = true;
+        }
+
+        public class InventoryVehicleS : BaseVehicleS, IInventoryVehicle
+        {
+            public bool refundInventoryOnKill { get; set; } = true;
+            public bool refundInventoryOnCrash { get; set; } = true;
+            public bool dropInventoryOnRecall { get; set; } = true;
+        }
+
+        public class InvFuelVehicleS : BaseVehicleS, IFuelVehicle, IInventoryVehicle
+        {
+            public bool refundFuelOnKill { get; set; } = true;
+            public bool refundFuelOnCrash { get; set; } = true;
+            public bool refundInventoryOnKill { get; set; } = true;
+            public bool refundInventoryOnCrash { get; set; } = true;
+            public bool dropInventoryOnRecall { get; set; } = true;
+        }
+
+        public class ModularVehicleS : InvFuelVehicleS, IModularVehicle
+        {
+            public bool refundEngineOnKill { get; set; } = true;
+            public bool refundEngineOnCrash { get; set; } = true;
+            public bool refundModuleOnKill { get; set; } = true;
+            public bool refundModuleOnCrash { get; set; } = true;
+
+            [JsonConverter(typeof(StringEnumConverter))]
+            [JsonProperty(PropertyName = "Chassis Type (Small, Medium, Large)", Order = 30)] public ChassisType chassisType { get; set; }
+
+            [JsonProperty(PropertyName = "Vehicle Module Items", Order = 31)] public List<ModuleItem> moduleItems { get; set; }
+            [JsonProperty(PropertyName = "Vehicle Engine Items", Order = 32)] public List<EngineItem> engineItems { get; set; }
+
+            #region ModuleItems
+
+            [JsonIgnore] private List<ModuleItem> _validModuleItems;
+
+            [JsonIgnore]
+            private IEnumerable<ModuleItem> ModuleItems
+            {
+                get
+                {
+                    if (_validModuleItems == null)
+                    {
+                        _validModuleItems = new List<ModuleItem>();
+                        foreach (var modularItem in moduleItems)
+                        {
+                            var itemDefinition = ItemManager.FindItemDefinition(modularItem.shortName);
+                            if (itemDefinition != null)
+                            {
+                                var itemModVehicleModule = itemDefinition.GetComponent<ItemModVehicleModule>();
+                                if (itemModVehicleModule == null || !itemModVehicleModule.entityPrefab.isValid)
+                                {
+                                    Instance.PrintError($"'{modularItem}' is not a valid vehicle module");
+                                    continue;
+                                }
+                                _validModuleItems.Add(modularItem);
+                            }
+                        }
+                    }
+                    return _validModuleItems;
+                }
             }
 
-            public struct PriceInfo
+            public IEnumerable<Item> CreateModuleItems()
             {
-                public int amount;
-                public string displayName;
+                foreach (var moduleItem in ModuleItems)
+                {
+                    var item = ItemManager.CreateByName(moduleItem.shortName);
+                    if (item != null)
+                    {
+                        item.condition = item.maxCondition * (moduleItem.healthPercentage / 100f);
+                        item.MarkDirty();
+                        yield return item;
+                    }
+                }
             }
+
+            #endregion ModuleItems
+
+            #region EngineItems
+
+            [JsonIgnore] private List<EngineItem> _validEngineItems;
+
+            [JsonIgnore]
+            private IEnumerable<EngineItem> EngineItems
+            {
+                get
+                {
+                    if (_validEngineItems == null)
+                    {
+                        _validEngineItems = new List<EngineItem>();
+                        foreach (var modularItem in engineItems)
+                        {
+                            var itemDefinition = ItemManager.FindItemDefinition(modularItem.shortName);
+                            if (itemDefinition != null)
+                            {
+                                var itemModEngineItem = itemDefinition.GetComponent<ItemModEngineItem>();
+                                if (itemModEngineItem == null)
+                                {
+                                    Instance.PrintError($"'{modularItem}' is not a valid engine item");
+                                    continue;
+                                }
+                                _validEngineItems.Add(modularItem);
+                            }
+                        }
+                    }
+                    return _validEngineItems;
+                }
+            }
+
+            public IEnumerable<Item> CreateEngineItems()
+            {
+                foreach (var engineItem in EngineItems)
+                {
+                    var item = ItemManager.CreateByName(engineItem.shortName);
+                    if (item != null)
+                    {
+                        item.condition = item.maxCondition * (engineItem.conditionPercentage / 100f);
+                        item.MarkDirty();
+                        yield return item;
+                    }
+                }
+            }
+
+            #endregion EngineItems
+        }
+
+        public struct PermissionS
+        {
+            public double spawnCooldown;
+            public double recallCooldown;
+        }
+
+        public struct ModuleItem
+        {
+            public string shortName;
+            public float healthPercentage;
+        }
+
+        public struct EngineItem
+        {
+            public string shortName;
+            public float conditionPercentage;
+        }
+
+        public struct PriceInfo
+        {
+            public int amount;
+            public string displayName;
         }
 
         protected override void LoadConfig()
@@ -1565,26 +2459,31 @@ namespace Oxide.Plugins
 
         #region DataFile
 
-        private StoredData storedData;
+        public StoredData storedData { get; private set; }
 
-        private class StoredData
+        public class StoredData
         {
-            public readonly Dictionary<ulong, Dictionary<VehicleType, Vehicle>> playerData = new Dictionary<ulong, Dictionary<VehicleType, Vehicle>>();
+            public readonly Dictionary<ulong, Dictionary<string, Vehicle>> playerData = new Dictionary<ulong, Dictionary<string, Vehicle>>();
         }
 
-        private class Vehicle
+        public class Vehicle
         {
+            public uint entityID;
             public double lastDeath;
-            [JsonIgnore] public BaseEntity entity;
             [JsonIgnore] public ulong playerID;
+            [JsonIgnore] public BaseEntity entity;
+            [JsonIgnore] public string vehicleType;
+            [JsonIgnore] public double lastRecall;
             [JsonIgnore] public double lastDismount;
-            [JsonIgnore] public VehicleType vehicleType;
 
             public void OnDismount() => lastDismount = TimeEx.currentTimestamp;
+
+            public void OnRecall() => lastRecall = TimeEx.currentTimestamp;
 
             public void OnDeath()
             {
                 entity = null;
+                entityID = 0;
                 lastDeath = TimeEx.currentTimestamp;
             }
         }
@@ -1622,6 +2521,18 @@ namespace Oxide.Plugins
             {
                 ClearData();
             }
+            else
+            {
+                foreach (var playerEntry in storedData.playerData)
+                {
+                    foreach (var entry in playerEntry.Value)
+                    {
+                        entry.Value.entityID = 0;
+                        entry.Value.lastDeath = 0;
+                    }
+                }
+                SaveData();
+            }
         }
 
         #endregion DataFile
@@ -1630,7 +2541,11 @@ namespace Oxide.Plugins
 
         private void Print(BasePlayer player, string message)
         {
-            Player.Message(player, message, string.IsNullOrEmpty(configData.chatS.prefix) ? string.Empty : $"<color={configData.chatS.prefixColor}>{configData.chatS.prefix}</color>", configData.chatS.steamIDIcon);
+            Player.Message(player, message,
+                string.IsNullOrEmpty(configData.chatS.prefix)
+                    ? string.Empty
+                    : $"<color={configData.chatS.prefixColor}>{configData.chatS.prefix}</color>",
+                configData.chatS.steamIDIcon);
         }
 
         private void Print(ConsoleSystem.Arg arg, string message)
@@ -1651,35 +2566,42 @@ namespace Oxide.Plugins
                 ["HelpLicence2"] = "<color=#4DFF4D>/{0}</color> -- To spawn a vehicle",
                 ["HelpLicence3"] = "<color=#4DFF4D>/{0}</color> -- To recall a vehicle",
                 ["HelpLicence4"] = "<color=#4DFF4D>/{0}</color> -- To kill a vehicle",
-                ["HelpLicence5"] = "<color=#4DFF4D>/{0}</color> -- To buy, spawn or recall a vehicle",
+                ["HelpLicence5"] = "<color=#4DFF4D>/{0}</color> -- To buy, spawn or recall a <color=#009EFF>{1}</color>",
 
-                ["HelpBuy"] = "<color=#4DFF4D>/{0} {1}</color> -- To buy a {2}. Price: <color=#FF1919>{3}</color>",
-                ["HelpSpawn"] = "<color=#4DFF4D>/{0} {1}</color> -- To spawn a {2}",
-                ["HelpRecall"] = "<color=#4DFF4D>/{0} {1}</color> -- To recall a {2}",
-                ["HelpKill"] = "<color=#4DFF4D>/{0} {1}</color> -- To kill a {2}",
+                ["HelpBuy"] = "<color=#4DFF4D>/{0} {1}</color> -- To buy a <color=#009EFF>{2}</color>",
+                ["HelpBuyPrice"] = "<color=#4DFF4D>/{0} {1}</color> -- To buy a <color=#009EFF>{2}</color>. Price: {3}",
+                ["HelpSpawn"] = "<color=#4DFF4D>/{0} {1}</color> -- To spawn a <color=#009EFF>{2}</color>",
+                ["HelpSpawnPrice"] = "<color=#4DFF4D>/{0} {1}</color> -- To spawn a <color=#009EFF>{2}</color>. Price: {3}",
+                ["HelpRecall"] = "<color=#4DFF4D>/{0} {1}</color> -- To recall a <color=#009EFF>{2}</color>",
+                ["HelpRecallPrice"] = "<color=#4DFF4D>/{0} {1}</color> -- To recall a <color=#009EFF>{2}</color>. Price: {3}",
+                ["HelpKill"] = "<color=#4DFF4D>/{0} {1}</color> -- To kill a <color=#009EFF>{2}</color>",
 
                 ["NotAllowed"] = "You do not have permission to use this command.",
-                ["NotEnoughCost"] = "You don't have enough resources to buy a {0}. You are missing:{1}",
                 ["RaidBlocked"] = "<color=#FF1919>You may not do that while raid blocked</color>.",
                 ["CombatBlocked"] = "<color=#FF1919>You may not do that while combat blocked</color>.",
-                ["OptionNotFound"] = "This '{0}' option doesn't exist.",
-                ["VehiclePurchased"] = "You have purchased a {0}, type <color=#4DFF4D>/{1}</color> for more information.",
-                ["VehicleAlreadyPurchased"] = "You have already purchased {0}.",
-                ["VehicleCannotBeBought"] = "{0} is unpurchasable",
-                ["VehicleNotOut"] = "{0} is not out.",
-                ["AlreadyVehicleOut"] = "You already have a {0} outside, type <color=#4DFF4D>/{1}</color> for more information.",
-                ["VehicleNotYetPurchased"] = "You have not yet purchased a {0}.",
-                ["VehicleSpawned"] = "You spawned your {0}.",
-                ["VehicleRecalled"] = "You recalled your {0}.",
-                ["VehicleKilled"] = "You killed your {0}.",
-                ["VehicleOnCooldown"] = "You must wait {0} seconds before you can spawn your {1}.",
-                ["NotLookingAtWater"] = "You must be looking at water to spawn or recall a {0}.",
-                ["BuildingBlocked"] = "You can't spawn a {0} appear if you don't have the building privileges.",
-                ["RefundedVehicleFuel"] = "Your {0} fuel was refunded to your inventory.",
-                ["PlayerMountedOnVehicle"] = "It cannot be recalled when players mounted on your {0}.",
-
-                ["MountedOrParented"] = "You cannot spawn a vehicle when mounted or parented.",
-                ["RecallTooFar"] = "You must be within {0} meters of {1} to recall.",
+                ["OptionNotFound"] = "This '<color=#009EFF>{0}</color>' option doesn't exist.",
+                ["VehiclePurchased"] = "You have purchased a <color=#009EFF>{0}</color>, type <color=#4DFF4D>/{1}</color> for more information.",
+                ["VehicleAlreadyPurchased"] = "You have already purchased <color=#009EFF>{0}</color>.",
+                ["VehicleCannotBeBought"] = "<color=#009EFF>{0}</color> is unpurchasable",
+                ["VehicleNotOut"] = "<color=#009EFF>{0}</color> is not out, type <color=#4DFF4D>/{1}</color> for more information.",
+                ["AlreadyVehicleOut"] = "You already have a <color=#009EFF>{0}</color> outside, type <color=#4DFF4D>/{1}</color> for more information.",
+                ["VehicleNotYetPurchased"] = "You have not yet purchased a <color=#009EFF>{0}</color>, type <color=#4DFF4D>/{1}</color> for more information.",
+                ["VehicleSpawned"] = "You spawned your <color=#009EFF>{0}</color>.",
+                ["VehicleRecalled"] = "You recalled your <color=#009EFF>{0}</color>.",
+                ["VehicleKilled"] = "You killed your <color=#009EFF>{0}</color>.",
+                ["VehicleOnSpawnCooldown"] = "You must wait <color=#FF1919>{0}</color> seconds before you can spawn your <color=#009EFF>{1}</color>.",
+                ["VehicleOnRecallCooldown"] = "You must wait <color=#FF1919>{0}</color> seconds before you can recall your <color=#009EFF>{1}</color>.",
+                ["NotLookingAtWater"] = "You must be looking at water to spawn or recall a <color=#009EFF>{0}</color>.",
+                ["BuildingBlocked"] = "You can't spawn a <color=#009EFF>{0}</color> appear if you don't have the building privileges.",
+                ["RefundedVehicleItems"] = "Your <color=#009EFF>{0}</color> vehicle items was refunded to your inventory.",
+                ["PlayerMountedOnVehicle"] = "It cannot be recalled when players mounted on your <color=#009EFF>{0}</color>.",
+                ["PlayerInSafeZone"] = "You cannot spawn or recall your <color=#009EFF>{0}</color> in the safe zone.",
+                ["VehicleInventoryDropped"] = "Your <color=#009EFF>{0}</color> vehicle inventory cannot be recalled, it have dropped to the ground.",
+                ["NoResourcesToPurchaseVehicle"] = "You don't have enough resources to buy a <color=#009EFF>{0}</color>. You are missing: {1}",
+                ["NoResourcesToSpawnVehicle"] = "You don't have enough resources to spawn a <color=#009EFF>{0}</color>. You are missing: {1}",
+                ["NoResourcesToRecallVehicle"] = "You don't have enough resources to recall a <color=#009EFF>{0}</color>. You are missing: {1}",
+                ["MountedOrParented"] = "You cannot spawn or recall a <color=#009EFF>{0}</color> when mounted or parented.",
+                ["RecallTooFar"] = "You must be within <color=#FF1919>{0}</color> meters of <color=#009EFF>{1}</color> to recall.",
             }, this);
             lang.RegisterMessages(new Dictionary<string, string>
             {
@@ -1688,35 +2610,42 @@ namespace Oxide.Plugins
                 ["HelpLicence2"] = "<color=#4DFF4D>/{0}</color> -- 生成一辆载具",
                 ["HelpLicence3"] = "<color=#4DFF4D>/{0}</color> -- 召回一辆载具",
                 ["HelpLicence4"] = "<color=#4DFF4D>/{0}</color> -- 删除一辆载具",
-                ["HelpLicence5"] = "<color=#4DFF4D>/{0}</color> -- 购买，生成，召回一辆载具",
+                ["HelpLicence5"] = "<color=#4DFF4D>/{0}</color> -- 购买，生成，召回一辆 <color=#009EFF>{1}</color>",
 
-                ["HelpBuy"] = "<color=#4DFF4D>/{0} {1}</color> -- 购买一辆 {2}. 价格: <color=#FF1919>{3}</color>",
-                ["HelpSpawn"] = "<color=#4DFF4D>/{0} {1}</color> -- 生成一辆 {2}",
-                ["HelpRecall"] = "<color=#4DFF4D>/{0} {1}</color> -- 召回一辆 {2}",
-                ["HelpKill"] = "<color=#4DFF4D>/{0} {1}</color> -- 删除一辆 {2}",
+                ["HelpBuy"] = "<color=#4DFF4D>/{0} {1}</color> -- 购买一辆 <color=#009EFF>{2}</color>",
+                ["HelpBuyPrice"] = "<color=#4DFF4D>/{0} {1}</color> -- 购买一辆 <color=#009EFF>{2}</color>，价格: {3}",
+                ["HelpSpawn"] = "<color=#4DFF4D>/{0} {1}</color> -- 生成一辆 <color=#009EFF>{2}</color>",
+                ["HelpSpawnPrice"] = "<color=#4DFF4D>/{0} {1}</color> -- 生成一辆 <color=#009EFF>{2}</color>，价格: {3}",
+                ["HelpRecall"] = "<color=#4DFF4D>/{0} {1}</color> -- 召回一辆 <color=#009EFF>{2}</color>",
+                ["HelpRecallPrice"] = "<color=#4DFF4D>/{0} {1}</color> -- 召回一辆 <color=#009EFF>{2}</color>，价格: {3}",
+                ["HelpKill"] = "<color=#4DFF4D>/{0} {1}</color> -- 删除一辆 <color=#009EFF>{2}</color>",
 
                 ["NotAllowed"] = "您没有权限使用该命令",
-                ["NotEnoughCost"] = "您没有足够的资源购买 {0}，还需要:{1}",
-                ["RaidBlocked"] = "<color=#FF1919>您被突袭阻止了，不能使用该命令</color>.",
-                ["CombatBlocked"] = "<color=#FF1919>您被战斗阻止了，不能使用该命令</color>.",
-                ["OptionNotFound"] = "该 '{0}' 选项不存在",
-                ["VehiclePurchased"] = "您购买了 {0}, 输入 <color=#4DFF4D>/{1}</color> 了解更多信息",
-                ["VehicleAlreadyPurchased"] = "您已经购买了 {0}",
-                ["VehicleCannotBeBought"] = "{0} 是不可购买的",
-                ["VehicleNotOut"] = "您还没有生成您的 {0}",
-                ["AlreadyVehicleOut"] = "您已经生成了您的 {0}, 输入 <color=#4DFF4D>/{1}</color> 了解更多信息",
-                ["VehicleNotYetPurchased"] = "您还没有购买 {0}.",
-                ["VehicleSpawned"] = "您生成了您的 {0}.",
-                ["VehicleRecalled"] = "您召回了您的 {0}.",
-                ["VehicleKilled"] = "您删除了您的 {0}.",
-                ["VehicleOnCooldown"] = "您必须等待 {0} 秒才能生成您的 {1}",
-                ["NotLookingAtWater"] = "您必须看着水面才能生成您的 {0}",
-                ["BuildingBlocked"] = "您没有领地柜权限，无法生成您的 {0}",
-                ["BuildingBlocked"] = "您的 {0} 燃料已经归还回您的库存",
-                ["PlayerMountedOnVehicle"] = "您的 {0} 上坐着玩家，无法被召回",
-
-                ["MountedOrParented"] = "当您坐着或者在附着在实体上时无法生成载具",
-                ["RecallTooFar"] = "您必须在 {0} 米内才能召回您的 {1}",
+                ["RaidBlocked"] = "<color=#FF1919>您被突袭阻止了，不能使用该命令</color>",
+                ["CombatBlocked"] = "<color=#FF1919>您被战斗阻止了，不能使用该命令</color>",
+                ["OptionNotFound"] = "该 '<color=#009EFF>{0}</color>' 选项不存在",
+                ["VehiclePurchased"] = "您购买了 <color=#009EFF>{0}</color>, 输入 <color=#4DFF4D>/{1}</color> 了解更多信息",
+                ["VehicleAlreadyPurchased"] = "您已经购买了 <color=#009EFF>{0}</color>",
+                ["VehicleCannotBeBought"] = "<color=#009EFF>{0}</color> 是不可购买的",
+                ["VehicleNotOut"] = "您还没有生成您的 <color=#009EFF>{0}</color>, 输入 <color=#4DFF4D>/{1}</color> 了解更多信息",
+                ["AlreadyVehicleOut"] = "您已经生成了您的 <color=#009EFF>{0}</color>, 输入 <color=#4DFF4D>/{1}</color> 了解更多信息",
+                ["VehicleNotYetPurchased"] = "您还没有购买 <color=#009EFF>{0}</color>, 输入 <color=#4DFF4D>/{1}</color> 了解更多信息",
+                ["VehicleSpawned"] = "您生成了您的 <color=#009EFF>{0}</color>",
+                ["VehicleRecalled"] = "您召回了您的 <color=#009EFF>{0}</color>",
+                ["VehicleKilled"] = "您删除了您的 <color=#009EFF>{0}</color>",
+                ["VehicleOnSpawnCooldown"] = "您必须等待 <color=#FF1919>{0}</color> 秒，才能生成您的 <color=#009EFF>{1}</color>",
+                ["VehicleOnRecallCooldown"] = "您必须等待 <color=#FF1919>{0}</color> 秒，才能召回您的 <color=#009EFF>{1}</color>",
+                ["NotLookingAtWater"] = "您必须看着水面才能生成您的 <color=#009EFF>{0}</color>",
+                ["BuildingBlocked"] = "您没有领地柜权限，无法生成您的 <color=#009EFF>{0}</color>",
+                ["RefundedVehicleItems"] = "您的 <color=#009EFF>{0}</color> 载具物品已经归还回您的库存",
+                ["PlayerMountedOnVehicle"] = "您的 <color=#009EFF>{0}</color> 上坐着玩家，无法被召回",
+                ["PlayerInSafeZone"] = "您不能在安全区域内生成或召回您的 <color=#009EFF>{0}</color>",
+                ["VehicleInventoryDropped"] = "您的 <color=#009EFF>{0}</color> 载具物品不能召回，它已经掉落在地上了",
+                ["NoResourcesToPurchaseVehicle"] = "您没有足够的资源购买 <color=#009EFF>{0}</color>，还需要: {1}",
+                ["NoResourcesToSpawnVehicle"] = "您没有足够的资源生成 <color=#009EFF>{0}</color>，还需要: {1}",
+                ["NoResourcesToRecallVehicle"] = "您没有足够的资源召回 <color=#009EFF>{0}</color>，还需要: {1}",
+                ["MountedOrParented"] = "当您坐着或者在附着在实体上时无法生成或召回 <color=#009EFF>{0}</color>",
+                ["RecallTooFar"] = "您必须在 <color=#FF1919>{0}</color> 米内才能召回您的 <color=#009EFF>{1}</color>",
             }, this, "zh-CN");
         }
 
