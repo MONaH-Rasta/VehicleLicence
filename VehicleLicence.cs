@@ -1,4 +1,4 @@
-// #define DEBUG
+﻿// #define DEBUG
 
 using System;
 using System.Collections;
@@ -22,7 +22,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.46")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.47")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -38,6 +38,7 @@ namespace Oxide.Plugins
         private const string PERMISSION_BYPASS_COST = "vehiclelicence.bypasscost";
 
         private const int ITEMID_FUEL = -946369541;
+        private const int ITEMID_HOTAIRBALLOON_ARMOR = -1989600732;
         private const string PREFAB_ITEM_DROP = "assets/prefabs/misc/item drop/item_drop.prefab";
 
         private const string PREFAB_TUGBOAT = "assets/content/vehicles/boats/tugboat/tugboat.prefab";
@@ -46,6 +47,7 @@ namespace Oxide.Plugins
         private const string PREFAB_SEDAN = "assets/content/vehicles/sedan_a/sedantest.entity.prefab";
         private const string PREFAB_HOTAIRBALLOON = "assets/prefabs/deployable/hot air balloon/hotairballoon.prefab";
         private const string PREFAB_MINICOPTER = "assets/content/vehicles/minicopter/minicopter.entity.prefab";
+        private const string PREFAB_ATTACKHELICOPTER = "assets/content/vehicles/attackhelicopter/attackhelicopter.entity.prefab";
         private const string PREFAB_TRANSPORTCOPTER = "assets/content/vehicles/scrap heli carrier/scraptransporthelicopter.prefab";
         private const string PREFAB_CHINOOK = "assets/prefabs/npc/ch47/ch47.entity.prefab";
         private const string PREFAB_RIDABLEHORSE = "assets/rust.ai/nextai/testridablehorse.prefab";
@@ -81,6 +83,7 @@ namespace Oxide.Plugins
         private readonly float HELICOPTER_LIFT = 0.25f;
         private readonly Vector3 SCRAP_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 4000.0f);
         private readonly Vector3 MINICOPTER_TORQUE = new Vector3(400.0f, 400.0f, 200.0f);
+        private readonly Vector3 ATTACK_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 5200.0f);
 
         private const int LAYER_GROUND = Layers.Solid | Layers.Mask.Water;
 
@@ -100,7 +103,9 @@ namespace Oxide.Plugins
             RHIB,
             Sedan,
             HotAirBalloon,
+            ArmoredHotAirBalloon,
             MiniCopter,
+            AttackHelicopter,
             TransportHelicopter,
             Chinook,
             RidableHorse,
@@ -250,7 +255,7 @@ namespace Oxide.Plugins
                 Subscribe(nameof(OnEntityDismounted));
                 timer.Every(configData.global.checkVehiclesInterval, CheckVehicles);
             }
-            if(configData.global.InstantMiniTakeoff)
+            if(configData.global.InstantMiniTakeoff || configData.global.InstantAttackHeliTakeoff)
             {
                 Subscribe(nameof(OnEngineStarted));
             }
@@ -293,6 +298,10 @@ namespace Oxide.Plugins
             {
                 player.PauseFlyHackDetection(configData.normalVehicles.transportHelicopter.flyHackPause);
             }
+            else if (player != null && configData.normalVehicles.attackHelicopter.flyHackPause > 0 && entity.GetParentEntity() is AttackHelicopter)
+            {
+                player.PauseFlyHackDetection(configData.normalVehicles.attackHelicopter.flyHackPause);
+            }
             var vehicleParent = entity.VehicleParent();
             if (vehicleParent == null || vehicleParent.IsDestroyed)
             {
@@ -309,9 +318,15 @@ namespace Oxide.Plugins
         private void OnEngineStarted(BaseMountable entity, BasePlayer player)
         {
             if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE)) return;
-            if (player.GetMountedVehicle() as Minicopter != null && player.GetMountedVehicle() as ScrapTransportHelicopter == null)
+            BaseVehicle mounted = player.GetMountedVehicle();
+            if (mounted is Minicopter)
             {
-                (player.GetMountedVehicle() as Minicopter).engineController.FinishStartingEngine();
+                (mounted as Minicopter).engineController.FinishStartingEngine();
+                return;
+            }
+            if (mounted is AttackHelicopter)
+            {
+                (mounted as AttackHelicopter).engineController.FinishStartingEngine();
             }
         }
 
@@ -448,6 +463,11 @@ namespace Oxide.Plugins
         private void OnEntitySpawned(Minicopter miniCopter)
         {
             TryClaimVehicle(miniCopter);
+        }
+        
+        private void OnEntitySpawned(AttackHelicopter attackHelicopter)
+        {
+            TryClaimVehicle(attackHelicopter);
         }
 
         private void OnRidableAnimalClaimed(BaseRidableAnimal ridableAnimal, BasePlayer player)
@@ -938,8 +958,12 @@ namespace Oxide.Plugins
                     return configData.normalVehicles.sedan;
                 case NormalVehicleType.HotAirBalloon:
                     return configData.normalVehicles.hotAirBalloon;
+                case NormalVehicleType.ArmoredHotAirBalloon:
+                    return configData.normalVehicles.armoredHotAirBalloon;
                 case NormalVehicleType.MiniCopter:
                     return configData.normalVehicles.miniCopter;
+                case NormalVehicleType.AttackHelicopter:
+                    return configData.normalVehicles.attackHelicopter;
                 case NormalVehicleType.TransportHelicopter:
                     return configData.normalVehicles.transportHelicopter;
                 case NormalVehicleType.Chinook:
@@ -1120,6 +1144,12 @@ namespace Oxide.Plugins
                                 vehicle.liftFraction = configData.normalVehicles.miniCopter.liftFraction;
                                 vehicle.torqueScale = MINICOPTER_TORQUE * configData.normalVehicles.miniCopter.rotationScale;
                             }
+                            else if (entry.Value.Entity is AttackHelicopter)
+                            {
+                                AttackHelicopter vehicle = entry.Value.Entity as AttackHelicopter;
+                                vehicle.liftFraction = configData.normalVehicles.attackHelicopter.liftFraction;
+                                vehicle.torqueScale = ATTACK_HELICOPTER_TORQUE * configData.normalVehicles.attackHelicopter.rotationScale;
+                            }
                         }
                     }
                     // Adjust the delay duration here if needed
@@ -1148,6 +1178,10 @@ namespace Oxide.Plugins
             if (baseVehicle is Minicopter)
             {
                 return NormalVehicleType.MiniCopter;
+            }
+            if (baseVehicle is AttackHelicopter)
+            {
+                return NormalVehicleType.AttackHelicopter;
             }
             if (baseVehicle is RHIB)
             {
@@ -1388,6 +1422,13 @@ namespace Oxide.Plugins
                 Print(player, Lang("PleaseWait", player.UserIDString));
                 return;
             }
+            // Debug.Log($"INFO: {player.AirFactor()}");
+            // if (player.metabolism.oxygen.value == 1)
+            // {
+            //     
+            //     Puts(Lang("NoSpawnInAir", player.UserIDString, vehicleType));
+            //     return;
+            // }
             Vehicle vehicle;
             
             string reason;
@@ -1760,7 +1801,13 @@ namespace Oxide.Plugins
 
         private bool CanSpawn(BasePlayer player, Vehicle vehicle, bool bypassCooldown, string command, out string reason, ref Vector3 position, ref Quaternion rotation)
         {
+            
             var settings = GetBaseVehicleSettings(vehicle.VehicleType);
+            // if (player.isInAir)
+            // {
+            //     reason = Lang("NoSpawnInAir", player.UserIDString, settings.DisplayName);
+            //     return false;
+            // }
             BaseEntity randomVehicle = null;
             if (configData.global.limitVehicles > 0)
             {
@@ -1934,6 +1981,11 @@ namespace Oxide.Plugins
         private bool CanRecall(BasePlayer player, Vehicle vehicle, bool bypassCooldown, string command, out string reason, ref Vector3 position, ref Quaternion rotation)
         {
             var settings = GetBaseVehicleSettings(vehicle.VehicleType);
+            // if (player.isInAir)
+            // {
+            //     reason = Lang("NoSpawnInAir", player.UserIDString, settings.DisplayName);
+            //     return false;
+            // }
             if (settings.RecallMaxDistance > 0 && Vector3.Distance(player.transform.position, vehicle.Entity.transform.position) > settings.RecallMaxDistance)
             {
                 reason = Lang("RecallTooFar", player.UserIDString, settings.RecallMaxDistance, settings.DisplayName);
@@ -2725,7 +2777,7 @@ namespace Oxide.Plugins
         public class GlobalSettings
         {
             [JsonProperty(PropertyName = "Kill all vehicles on recall and respawn instead of recalling (besides Tugboat)")]
-            public bool recallKill = true;
+            public bool recallKill = false;
             
             [JsonProperty(PropertyName = "Store Vehicle On Plugin Unloaded / Server Restart")]
             public bool storeVehicle = true;
@@ -2812,7 +2864,10 @@ namespace Oxide.Plugins
             public bool useCombatBlocker;
             
             [JsonProperty(PropertyName = "Allow minicopters to take off instantly")]
-            public bool InstantMiniTakeoff = true;
+            public bool InstantMiniTakeoff = false;
+            
+            [JsonProperty(PropertyName = "Allow Attack Helicopters to take off instantly")]
+            public bool InstantAttackHeliTakeoff = false;
         }
 
         public class NormalVehicleSettings
@@ -2972,6 +3027,32 @@ namespace Oxide.Plugins
                     }
                 }
             };
+            
+            [JsonProperty(PropertyName = "Armored Hot Air Balloon Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ArmoredHotAirBalloonSettings armoredHotAirBalloon = new ArmoredHotAirBalloonSettings
+            {
+                Purchasable = true,
+                DisplayName = "Armored Hot Air Balloon",
+                Distance = 10,
+                MinDistanceForPlayers = 5,
+                UsePermission = true,
+                Permission = "vehiclelicence.armoredhotairballoon",
+                Commands = new List<string> { "ahab", "armoredhotairballoon", "armoredballoon", "aballoon" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 1000,
+                RecallCooldown = 40,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 550,
+                        recallCooldown = 20
+                    }
+                }
+            };
 
             [JsonProperty(PropertyName = "Ridable Horse Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public RidableHorseSettings ridableHorse = new RidableHorseSettings
@@ -3012,6 +3093,35 @@ namespace Oxide.Plugins
                 UsePermission = true,
                 Permission = "vehiclelicence.minicopter",
                 Commands = new List<string> { "mini", "minicopter" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 1800,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 900,
+                        recallCooldown = 10
+                    }
+                }
+            };
+            
+            [JsonProperty(PropertyName = "Attack Helicopter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public AttackHelicopterSettings attackHelicopter = new AttackHelicopterSettings
+            {
+                Purchasable = true,
+                DisplayName = "Attack Helicopter",
+                Distance = 8,
+                MinDistanceForPlayers = 2,
+                rotationScale = 1.0f,
+                flyHackPause = 0,
+                liftFraction = 0.33f,
+                UsePermission = true,
+                Permission = "vehiclelicence.attackhelicopter",
+                Commands = new List<string> { "attack", "aheli", "attackheli", "attackhelicopter"},
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
                     ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
@@ -3361,9 +3471,12 @@ namespace Oxide.Plugins
                         case NormalVehicleType.Sedan:
                             return PREFAB_SEDAN;
                         case NormalVehicleType.HotAirBalloon:
+                        case NormalVehicleType.ArmoredHotAirBalloon:
                             return PREFAB_HOTAIRBALLOON;
                         case NormalVehicleType.MiniCopter:
                             return PREFAB_MINICOPTER;
+                        case NormalVehicleType.AttackHelicopter:
+                            return PREFAB_ATTACKHELICOPTER;
                         case NormalVehicleType.TransportHelicopter:
                             return PREFAB_TRANSPORTCOPTER;
                         case NormalVehicleType.Chinook:
@@ -3409,7 +3522,7 @@ namespace Oxide.Plugins
                 if (!entity.IsDestroyed)
                 {
                     Instance.CacheVehicleEntity(entity, vehicle, player);
-                    return ModifyVehicle(entity, player);
+                    return ModifyVehicle(entity, vehicle, player);
                 }
                 Instance.Print(player, Instance.Lang("NotSpawnedOrRecalled", player.UserIDString, DisplayName));
                 return null;
@@ -3453,12 +3566,12 @@ namespace Oxide.Plugins
                         }
                     }
                 }
-                if (entity is Horse)
-                {
-                    Debug.Log($"Horse Found");
-                }
-                if(entity is RidableHorse)
-                    Debug.Log($"RidableHorse Found");
+                // if (entity is Horse)
+                // {
+                //     Debug.Log($"Horse Found");
+                // }
+                // if(entity is RidableHorse)
+                //     Debug.Log($"RidableHorse Found");
                 if (!configData.global.preventShattering) return;
                 var magnetLiftable = entity.GetComponent<MagnetLiftable>();
                 if (magnetLiftable != null)
@@ -3467,7 +3580,7 @@ namespace Oxide.Plugins
                 }
             }
             
-            private BaseEntity ModifyVehicle(BaseEntity entity, BasePlayer player)
+            private BaseEntity ModifyVehicle(BaseEntity entity, Vehicle vehicle, BasePlayer player)
             {
                 if (entity is Tugboat)
                 {
@@ -3479,44 +3592,52 @@ namespace Oxide.Plugins
                     return entity;
                 }
                 
-                Minicopter mini = entity as Minicopter;
-                if (mini == null) return entity;
+                if (entity is AttackHelicopter)
+                {
+                    AttackHelicopter attackHelicopter = entity as AttackHelicopter;
+                    attackHelicopter.torqueScale *= configData.normalVehicles.attackHelicopter.rotationScale;
+                    attackHelicopter.liftFraction = configData.normalVehicles.attackHelicopter.liftFraction;
+                    return entity;
+                }
+                if (entity is HotAirBalloon && vehicle.VehicleType.Equals(NormalVehicleType.ArmoredHotAirBalloon.ToString()))
+                {
+                    HotAirBalloon HAB = entity as HotAirBalloon;
+                    Item armor = ItemManager.CreateByItemID(ITEMID_HOTAIRBALLOON_ARMOR);
+                    if (armor == null)
+                    {
+                        Debug.Log("[VehicleLicence] Please report this to the developer/maintainer. PREFAB_HOTAIRBALLOON_ARMOR's item is NULL");
+                        return entity;
+                    }
+                    ItemModHABEquipment component = armor.info.GetComponent<ItemModHABEquipment>();
+                    if (component == null) return entity;
+                    HotAirBalloonEquipment equipment = GameManager.server.CreateEntity(component.Prefab.resourcePath, HAB.transform.position, HAB.transform.rotation) as HotAirBalloonEquipment;
+                    equipment.SetParent(HAB, true);
+                    equipment.Spawn();
+                    equipment.DelayNextUpgradeOnRemoveDuration = equipment.DelayNextUpgradeOnRemoveDuration;
+                    armor.UseItem();
+                    HAB.SendNetworkUpdateImmediate();
+                    return entity;
+                }
+                
                 // TODO: Maybe increase speed of other vehicles.
-                
-                
-                // if (entity is ModularCar)
-                // {
-                //     // ModularCar car = entity as ModularCar;
-                //     // car.carSettings.
-                //     Instance.Print(player, $"In Case - Modular Car Found: {entity.PrefabName}");
-                //     player.SendConsoleCommand("chat.add", 0, player.userID,
-                //         $"Modular Car Found: '<color=red>{entity.PrefabName}</color>'");
-                //     return entity;
-                // }
-                // if (mini == null)
-                // {
-                //     Instance.Print(player, $"In Case - Vehicle Found: '{entity.PrefabName}', Vehicle Type: '{entity.GetType()}'");
-                //     player.SendConsoleCommand("chat.add", 0, player.userID,
-                //         $"Vehicle Found: '<color=red>{entity.PrefabName}</color>' - Vehicle Type: '<color=green>{entity.GetType()}</color>'");
-                //     return entity;
-                // }
-                
 
                 if (entity is ScrapTransportHelicopter)
                 {
-                    mini.torqueScale *= configData.normalVehicles.transportHelicopter.rotationScale;
-                    mini.liftFraction = configData.normalVehicles.transportHelicopter.liftFraction;
+                    ScrapTransportHelicopter scrap = entity as ScrapTransportHelicopter;
+                    scrap.torqueScale *= configData.normalVehicles.transportHelicopter.rotationScale;
+                    scrap.liftFraction = configData.normalVehicles.transportHelicopter.liftFraction;
                     return entity;
                 }
+
+                if (!(entity is Minicopter)) return entity;
+                Minicopter mini = entity as Minicopter;
                 mini.torqueScale *= configData.normalVehicles.miniCopter.rotationScale;
                 mini.liftFraction = configData.normalVehicles.miniCopter.liftFraction;
+                return entity;
                 // Debug.Log($"Default mini.liftDotMax: {mini.liftDotMax}\nDefault mini.altForceDotMin {mini.altForceDotMin}");
                 // mini.altForceDotMin = 0;
                 // mini.liftDotMax = 0.2f;
                 // Debug.Log($"Modified mini.liftDotMax: {mini.liftDotMax}");
-                
-
-                return entity;
             }
 
             #endregion Setup
@@ -4191,7 +4312,7 @@ namespace Oxide.Plugins
             {
                 return 180f;
             }
-
+            
             protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
             {
                 return (entity as HotAirBalloon)?.fuelSystem;
@@ -4201,6 +4322,10 @@ namespace Oxide.Plugins
             {
                 yield return (entity as HotAirBalloon)?.storageUnitInstance.Get(true)?.inventory;
             }
+        }
+        
+        public class ArmoredHotAirBalloonSettings : HotAirBalloonSettings
+        {
         }
 
         public class MiniCopterSettings : FuelVehicleSettings
@@ -4221,6 +4346,30 @@ namespace Oxide.Plugins
                 return (entity as Minicopter)?.GetFuelSystem();
             }
         }
+        
+        public class AttackHelicopterSettings : InvFuelVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            
+            [JsonProperty("Rotation Scale")] 
+            public float rotationScale = 1.0f;
+
+            [JsonProperty("Lift Fraction")]
+            public float liftFraction = 0.33f;
+            
+            [JsonProperty("Seconds to pause flyhack when dismount from Attack Helicopter.")]
+            public int flyHackPause;
+
+            protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
+            {
+                return (entity as AttackHelicopter)?.GetFuelSystem();
+            }
+            
+            protected override IEnumerable<ItemContainer> GetInventories(BaseEntity entity)
+            {
+                yield return (entity as AttackHelicopter)?.GetRockets().inventory;
+            }
+        }
 
         public class TransportHelicopterSettings : FuelVehicleSettings
         {
@@ -4237,7 +4386,7 @@ namespace Oxide.Plugins
             
             protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
             {
-                return (entity as Minicopter)?.GetFuelSystem();
+                return (entity as ScrapTransportHelicopter)?.GetFuelSystem();
             }
         }
 
@@ -4980,8 +5129,10 @@ namespace Oxide.Plugins
                 configData.normalVehicles.rowboat.MinDistanceForPlayers = 2f;
                 configData.normalVehicles.rhib.MinDistanceForPlayers = 3f;
                 configData.normalVehicles.hotAirBalloon.MinDistanceForPlayers = 4f;
+                configData.normalVehicles.armoredHotAirBalloon.MinDistanceForPlayers = 4f;
                 configData.normalVehicles.ridableHorse.MinDistanceForPlayers = 1f;
                 configData.normalVehicles.miniCopter.MinDistanceForPlayers = 2f;
+                configData.normalVehicles.attackHelicopter.MinDistanceForPlayers = 2f;
                 configData.normalVehicles.transportHelicopter.MinDistanceForPlayers = 4f;
                 foreach (var entry in configData.modularVehicles)
                 {
@@ -5601,6 +5752,7 @@ namespace Oxide.Plugins
                 ["RecallWasBlocked"] = "An external plugin blocked you from recalling a <color=#009EFF>{0}</color>.",
                 ["NoRecallInZone"] = "No recalling a <color=#009EFF>{0}</color> in the zone.",
                 ["NoSpawnInZone"] = "No spawning a <color=#009EFF>{0}</color> in the zone.",
+                ["NoSpawnInAir"] = "No spawning a <color=#009EFF>{0}</color> in the air.",
                 ["SpawnWasBlocked"] = "An external plugin blocked you from spawning a <color=#009EFF>{0}</color>.",
                 ["VehiclesLimit"] = "You can have up to <color=#009EFF>{0}</color> vehicles at a time.",
                 ["TooFarTrainTrack"] = "You are too far from the train track.",
@@ -5664,6 +5816,7 @@ namespace Oxide.Plugins
                 ["RecallWasBlocked"] = "有其他插件阻止您召回 <color=#009EFF>{0}</color>.",
                 ["NoRecallInZone"] = "不召回该区域中的<color=#009EFF>{0}</color>.",
                 ["NoSpawnInZone"] = "不会在该区域生成 <color=#009EFF>{0}</color>.",
+                ["NoSpawnInAir"] = "在空中时不会生成 <color=#009EFF>{0}</color>.",
                 ["SpawnWasBlocked"] = "有其他插件阻止您生成 <color=#009EFF>{0}</color>.",
                 ["VehiclesLimit"] = "您在同一时间内最多可以拥有 <color=#009EFF>{0}</color> 辆载具",
                 ["TooFarTrainTrack"] = "您距离铁路轨道太远了",
@@ -5727,6 +5880,7 @@ namespace Oxide.Plugins
                 ["RecallWasBlocked"] = "Внешний плагин заблокировал вам вызвать <color=#009EFF>{0}</color>.",
                 ["NoRecallInZone"] = "Нет отзыва <color=#009EFF>{0}</color> в зоне.",
                 ["NoSpawnInZone"] = "В зоне не создается <color=#009EFF>{0}</color>.",
+                ["NoSpawnInAir"] = "Не создавать <color=#009EFF>{0}</color> в воздухе.",
                 ["SpawnWasBlocked"] = "Внешний плагин заблокировал вам создать <color=#009EFF>{0}</color>.",
                 ["VehiclesLimit"] = "У вас может быть до <color=#009EFF>{0}</color> автомобилей одновременно",
                 ["TooFarTrainTrack"] = "Вы слишком далеко от железнодорожных путей",
