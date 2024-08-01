@@ -1,4 +1,4 @@
-﻿// #define DEBUG
+// #define DEBUG
 
 using System;
 using System.Collections.Generic;
@@ -19,7 +19,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.42")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.43")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -1197,7 +1197,7 @@ namespace Oxide.Plugins
             Vis.Colliders(position, 0.5f, colliders);
             var flag = colliders.Any(x => x.gameObject.layer == (int)Layer.Water);
             Pool.FreeList(ref colliders);
-            return flag || WaterLevel.Test(position);
+            return flag || WaterLevel.Test(position, false, false);
         }
 
         private static void MoveToPosition(BasePlayer player, Vector3 position)
