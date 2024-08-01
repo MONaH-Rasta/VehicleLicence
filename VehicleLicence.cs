@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.7")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.8")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -126,6 +126,7 @@ namespace Oxide.Plugins
             Unsubscribe(nameof(OnEntityDismounted));
             Unsubscribe(nameof(OnEntityEnter));
             Unsubscribe(nameof(CanLootEntity));
+            Unsubscribe(nameof(OnEntitySpawned));
         }
 
         private void OnServerInitialized()
@@ -168,10 +169,13 @@ namespace Oxide.Plugins
             {
                 Subscribe(nameof(OnEntityEnter));
             }
-
             if (configData.globalS.preventLooting)
             {
                 Subscribe(nameof(CanLootEntity));
+            }
+            if (configData.globalS.autoClaimFromVendor)
+            {
+                Subscribe(nameof(OnEntitySpawned));
             }
             if (configData.globalS.checkVehiclesInterval > 0 && allBaseVehicleSettings.Any(x => x.Value.wipeTime > 0))
             {
@@ -233,6 +237,26 @@ namespace Oxide.Plugins
             if (AreFriends(vehicle.playerID, friend.userID)) return null;
             if (configData.globalS.preventDriverSeat && vehicleParent.HasMountPoints() && entity != vehicleParent.mountPoints[0].mountable) return null;
             return false;
+        }
+
+        private void OnEntitySpawned(MotorRowboat motorRowboat)
+        {
+            NextTick(() =>
+            {
+                var player = motorRowboat?.creatorEntity as BasePlayer;
+                if (player == null || !player.userID.IsSteamId()) return;
+                TryClaimVehicle(player, motorRowboat, motorRowboat is RHIB ? NormalVehicleType.RHIB : NormalVehicleType.Rowboat);
+            });
+        }
+
+        private void OnEntitySpawned(MiniCopter miniCopter)
+        {
+            NextTick(() =>
+            {
+                var player = miniCopter?.creatorEntity as BasePlayer;
+                if (player == null || !player.userID.IsSteamId()) return;
+                TryClaimVehicle(player, miniCopter, miniCopter is ScrapTransportHelicopter ? NormalVehicleType.TransportHelicopter : NormalVehicleType.MiniCopter);
+            });
         }
 
         private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo)
@@ -567,7 +591,7 @@ namespace Oxide.Plugins
 
         #endregion Refund
 
-        #region Give Fuel
+        #region GiveFuel
 
         private static void TryGiveFuel(BaseEntity entity, string vehicleType, IFuelVehicle iFuelVehicle)
         {
@@ -600,18 +624,14 @@ namespace Oxide.Plugins
                     default: return;
                 }
             }
-            else
-            {
-                var modularCar = entity as ModularCar;
-                if (modularCar == null) return;
-                fuelContainer = modularCar.fuelSystem?.GetFuelContainer()?.inventory;
-            }
-            if (fuelContainer == null) return;
+            else fuelContainer = (entity as ModularCar)?.fuelSystem?.GetFuelContainer()?.inventory;
+
+            if (fuelContainer == null /*|| fuelContainer.FindItemByItemID(ITEMID_FUEL) != null*/) return;
             var fuel = ItemManager.CreateByItemID(ITEMID_FUEL, iFuelVehicle.spawnFuelAmount);
             fuel.MoveToContainer(fuelContainer);
         }
 
-        #endregion Give Fuel
+        #endregion GiveFuel
 
         #region Drop
 
@@ -958,6 +978,34 @@ namespace Oxide.Plugins
 
         #endregion GetCooldown
 
+        #region ClaimVehicle
+
+        private bool TryClaimVehicle(BasePlayer player, BaseEntity entity, NormalVehicleType normalVehicleType)
+        {
+            Dictionary<string, Vehicle> vehicles;
+            if (!storedData.playerData.TryGetValue(player.userID, out vehicles))
+            {
+                return false;
+            }
+            var vehicleType = normalVehicleType.ToString();
+            Vehicle vehicle;
+            if (!vehicles.TryGetValue(vehicleType, out vehicle))
+            {
+                return false;
+            }
+            if (vehicle.entity == null || vehicle.entity.IsDestroyed)
+            {
+                entity.OwnerID = player.userID;
+
+                var baseVehicleS = GetBaseVehicleS(normalVehicleType);
+                SetupVehicleEntity(entity, player, baseVehicleS, vehicleType, false);
+                return true;
+            }
+            return false;
+        }
+
+        #endregion ClaimVehicle
+
         #region Helpers
 
         private static bool GetDismountPosition(BaseVehicle baseVehicle, BasePlayer player, out Vector3 result)
@@ -1185,29 +1233,6 @@ namespace Oxide.Plugins
                 return vehicles.Keys.ToList();
             }
             return null;
-        }
-
-        private bool ClaimVehicle(BasePlayer player, BaseEntity entity)
-        {
-            if (entity == null || entity.OwnerID != 0 || vehiclesCache.ContainsKey(entity)) return false;
-            var normalVehicleType = GetNormalVehicleTypeFromEntity(entity);
-            if (normalVehicleType == null) return false;
-            Vehicle vehicle;
-            Dictionary<string, Vehicle> vehicles;
-            if (!storedData.playerData.TryGetValue(player.userID, out vehicles) || !vehicles.TryGetValue(normalVehicleType, out vehicle))
-            {
-                return false;
-            }
-            if (vehicle.entity == null || vehicle.entity.IsDestroyed)
-            {
-                entity.OwnerID = player.userID;
-                vehicle = new Vehicle { playerID = player.userID, vehicleType = normalVehicleType, entity = entity, entityID = entity.net.ID };
-                vehicle.lastDismount = vehicle.lastRecall = TimeEx.currentTimestamp;
-                vehiclesCache.Add(entity, vehicle);
-                storedData.playerData[player.userID][normalVehicleType] = vehicle;
-                return true;
-            }
-            return false;
         }
 
         #endregion API
@@ -1620,19 +1645,15 @@ namespace Oxide.Plugins
             entity.OwnerID = player.userID;
             entity.Spawn();
 
-            SetupVehicleEntity(entity, baseVehicleS, vehicleType);
+            SetupVehicleEntity(entity, player, baseVehicleS, vehicleType);
 
-            var vehicle = new Vehicle { playerID = player.userID, vehicleType = vehicleType, entity = entity, entityID = entity.net.ID };
-            vehicle.lastDismount = vehicle.lastRecall = TimeEx.currentTimestamp;
-            vehiclesCache.Add(entity, vehicle);
-            storedData.playerData[player.userID][vehicleType] = vehicle;
             Print(player, Lang("VehicleSpawned", player.UserIDString, baseVehicleS.displayName));
             Interface.CallHook("OnLicensedVehicleSpawned", entity, player, vehicleType);
         }
 
-        private void SetupVehicleEntity(BaseEntity entity, BaseVehicleS baseVehicleS, string vehicleType)
+        private void SetupVehicleEntity(BaseEntity entity, BasePlayer player, BaseVehicleS baseVehicleS, string vehicleType, bool giveFuel = true)
         {
-            TryGiveFuel(entity, vehicleType, baseVehicleS as IFuelVehicle);
+            if (giveFuel) TryGiveFuel(entity, vehicleType, baseVehicleS as IFuelVehicle);
             if (baseVehicleS.maxHealth > 0 && Math.Abs(baseVehicleS.maxHealth - entity.MaxHealth()) > 0f)
             {
                 (entity as BaseCombatEntity)?.InitializeHealth(baseVehicleS.maxHealth, baseVehicleS.maxHealth);
@@ -1671,6 +1692,11 @@ namespace Oxide.Plugins
                     }
                 }
             }
+
+            var vehicle = new Vehicle { playerID = player.userID, vehicleType = vehicleType, entity = entity, entityID = entity.net.ID };
+            vehicle.lastDismount = vehicle.lastRecall = TimeEx.currentTimestamp;
+            vehiclesCache.Add(entity, vehicle);
+            storedData.playerData[player.userID][vehicleType] = vehicle;
         }
 
         private void AttacheVehicleModules(ModularCar modularCar, ModularVehicleS modularVehicleS, string vehicleType)
@@ -1873,7 +1899,7 @@ namespace Oxide.Plugins
             if (entity is ModularCar)
             {
                 var modularCarGarages = Facepunch.Pool.GetList<ModularCarGarage>();
-                Vis.Entities(entity.transform.position, 3f, modularCarGarages, Rust.Layers.Mask.Deployed | Rust.Layers.Mask.Default );
+                Vis.Entities(entity.transform.position, 3f, modularCarGarages, Rust.Layers.Mask.Deployed | Rust.Layers.Mask.Default);
                 var modularCarGarage = modularCarGarages.FirstOrDefault(x => x.carOccupant == entity);
                 Facepunch.Pool.FreeList(ref modularCarGarages);
                 if (modularCarGarage != null)
@@ -1892,7 +1918,11 @@ namespace Oxide.Plugins
             entity.transform.hasChanged = true;
 
             var ridableHorse = entity as RidableHorse;
-            if (ridableHorse != null) ridableHorse.DropToGround(entity.transform.position, true);//ridableHorse.UpdateDropToGroundForDuration(2f);
+            if (ridableHorse != null)
+            {
+                ridableHorse.TryLeaveHitch();
+                ridableHorse.DropToGround(ridableHorse.transform.position, true);//ridableHorse.UpdateDropToGroundForDuration(2f);
+            }
 
             Print(player, Lang("VehicleRecalled", player.UserIDString, baseVehicleS.displayName));
         }
@@ -2331,6 +2361,8 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Check if any player mounted when recalling a vehicle")] public bool anyMountedRecall = true;
             [JsonProperty(PropertyName = "Check if any player mounted when killing a vehicle")] public bool anyMountedKill = true;
             [JsonProperty(PropertyName = "Dismount all players when a vehicle is recalled")] public bool dismountAllPlayersRecall = true;
+            [JsonProperty(PropertyName = "Automatically claim vehicles purchased from vehicle vendors")] public bool autoClaimFromVendor = false;
+
             [JsonProperty(PropertyName = "Prevent vehicles from spawning or recalling in safe zone")] public bool preventSafeZone = true;
             [JsonProperty(PropertyName = "Prevent vehicles from damaging players")] public bool preventDamagePlayer = true;
 
