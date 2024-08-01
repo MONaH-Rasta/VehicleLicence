@@ -1,4 +1,4 @@
-// #define DEBUG
+﻿// #define DEBUG
 
 using System;
 using System.Collections.Generic;
@@ -19,7 +19,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.38")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.39")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -1099,8 +1099,7 @@ namespace Oxide.Plugins
             var list = Pool.GetList<Vector3>();
             foreach (var transform in baseVehicle.dismountPositions)
             {
-                var visualCheckOrigin = transform.position + Vector3.up * 0.6f;
-                if (baseVehicle.ValidDismountPosition(player, transform.position, visualCheckOrigin))
+                if (baseVehicle.ValidDismountPosition(player, transform.position))
                 {
                     list.Add(transform.position);
                 }
