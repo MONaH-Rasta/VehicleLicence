@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.5.1")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.5.3")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -33,7 +33,7 @@ namespace Oxide.Plugins
         private const string PREFAB_ITEM_DROP = "assets/prefabs/misc/item drop/item_drop.prefab";
 
         private readonly Dictionary<BaseEntity, Vehicle> vehiclesCache = new Dictionary<BaseEntity, Vehicle>();
-        private readonly static int LAYER_GROUND = Rust.Layers.Solid | Rust.Layers.Mask.Water;//LayerMask.GetMask("Terrain", "World", "Construction", "Deployed","Water");
+        private static readonly int LAYER_GROUND = Rust.Layers.Solid | Rust.Layers.Mask.Water;//LayerMask.GetMask("Terrain", "World", "Construction", "Deployed","Water");
 
         private enum VehicleType
         {
@@ -89,7 +89,7 @@ namespace Oxide.Plugins
 
         private void Unload()
         {
-            foreach (var entry in vehiclesCache.ToList())
+            foreach (var entry in vehiclesCache)
             {
                 if (entry.Key != null && !entry.Key.IsDestroyed)
                 {
@@ -113,17 +113,18 @@ namespace Oxide.Plugins
         {
             var vehicleParent = entity?.VehicleParent();
             if (vehicleParent == null || vehicleParent.IsDestroyed) return;
-            if (!vehiclesCache.ContainsKey(vehicleParent)) return;
-            vehiclesCache[vehicleParent].OnDismount();
+            Vehicle vehicle;
+            if (!vehiclesCache.TryGetValue(vehicleParent, out vehicle)) return;
+            vehicle.OnDismount();
         }
 
         private object CanMountEntity(BasePlayer friend, BaseMountable entity)
         {
             var vehicleParent = entity?.VehicleParent();
             if (vehicleParent == null || vehicleParent.IsDestroyed) return null;
-            if (!vehiclesCache.ContainsKey(vehicleParent)) return null;
-            var ownerID = vehiclesCache[vehicleParent].playerID;
-            if (AreFriends(ownerID, friend.userID)) return null;
+            Vehicle vehicle;
+            if (!vehiclesCache.TryGetValue(vehicleParent, out vehicle)) return null;
+            if (AreFriends(vehicle.playerID, friend.userID)) return null;
             if (configData.globalS.blockDriverSeat && vehicleParent.HasMountPoints() && entity != vehicleParent.mountPoints[0].mountable) return null;
             return false;
         }
@@ -186,7 +187,7 @@ namespace Oxide.Plugins
 
         private void CheckVehicles()
         {
-            foreach (var entry in vehiclesCache.ToList())
+            foreach (var entry in vehiclesCache)
             {
                 if (entry.Key == null || entry.Key.IsDestroyed) continue;
                 if (VehicleAnyMounted(entry.Key)) continue;
@@ -271,7 +272,7 @@ namespace Oxide.Plugins
             return permission.UserHasPermission(player.UserIDString, vehicleS.permission);
         }
 
-        private string GetVehiclePrefab(VehicleType vehicleType)
+        private static string GetVehiclePrefab(VehicleType vehicleType)
         {
             switch (vehicleType)
             {
@@ -326,14 +327,13 @@ namespace Oxide.Plugins
             return (string)playerClan == (string)friendClan;
         }
 
-        private bool VehicleAnyMounted(BaseEntity entity)
+        private static bool VehicleAnyMounted(BaseEntity entity)
         {
-            if (entity is BaseVehicle) return (entity as BaseVehicle).AnyMounted();
-            List<BasePlayer> players = Facepunch.Pool.GetList<BasePlayer>();
-            Vis.Entities(entity.transform.position, 2.5f, players, Rust.Layers.Server.Players);
-            bool flag = players.Count > 0;
-            Facepunch.Pool.FreeList(ref players);
-            return flag;
+            if (entity is BaseVehicle && (entity as BaseVehicle).AnyMounted())
+            {
+                return true;
+            }
+            return entity.GetComponentsInChildren<BasePlayer>()?.Length > 0;
         }
 
         private double GetPermCooldown(BasePlayer player, VehicleType vehicleType, double defaultCooldown)
@@ -474,7 +474,7 @@ namespace Oxide.Plugins
                 bool checkWater = vehicleType == VehicleType.Rowboat || vehicleType == VehicleType.RHIB;
                 if (vehicle.entityID != 0)//recall
                 {
-                    foreach (var entry in vehiclesCache.ToList())
+                    foreach (var entry in vehiclesCache)
                     {
                         if (entry.Value.playerID == player.userID && entry.Value.vehicleType == vehicleType)
                         {
@@ -757,7 +757,7 @@ namespace Oxide.Plugins
             var vehicleS = configData.vehicleS[vehicleType];
             if (player.IsBuildingBlocked())
             {
-                reason = Lang("BuildindBlocked", player.UserIDString, vehicleS.displayName);
+                reason = Lang("BuildingBlocked", player.UserIDString, vehicleS.displayName);
                 return false;
             }
             if (player.isMounted || player.HasParent())
@@ -810,7 +810,7 @@ namespace Oxide.Plugins
             entity.enableSaving = false;
             entity.OwnerID = player.userID;
             entity.Spawn();
-            if (vehicleS.maxHealth > 0 && vehicleS.maxHealth != entity.MaxHealth())
+            if (vehicleS.maxHealth > 0 && Math.Abs(vehicleS.maxHealth - entity.MaxHealth()) > 0f)
                 entity.InitializeHealth(vehicleS.maxHealth, vehicleS.maxHealth);
             if (configData.globalS.noServerGibs && entity is BaseVehicle)
                 (entity as BaseVehicle).serverGibs.guid = string.Empty;
@@ -859,10 +859,10 @@ namespace Oxide.Plugins
                 return;
             }
             if (IsBlocked(player)) return;
-            IsReallOption(player, args[0].ToLower());
+            IsRecallOption(player, args[0].ToLower());
         }
 
-        private bool IsReallOption(BasePlayer player, string option)
+        private bool IsRecallOption(BasePlayer player, string option)
         {
             VehicleType vehicleType;
             if (IsValidOption(player, option, out vehicleType))
@@ -887,7 +887,7 @@ namespace Oxide.Plugins
             }
             if (vehicle.entityID != 0)
             {
-                foreach (var entry in vehiclesCache.ToList())
+                foreach (var entry in vehiclesCache)
                 {
                     if (entry.Value.playerID == player.userID && entry.Value.vehicleType == vehicleType)
                     {
@@ -925,7 +925,7 @@ namespace Oxide.Plugins
             }
             if (player.IsBuildingBlocked())
             {
-                reason = Lang("BuildindBlocked", player.UserIDString, vehicleS.displayName);
+                reason = Lang("BuildingBlocked", player.UserIDString, vehicleS.displayName);
                 return false;
             }
             if (player.isMounted || player.HasParent())
@@ -944,14 +944,13 @@ namespace Oxide.Plugins
 
         private void RecallVehicle(BasePlayer player, BaseEntity vehicle, VehicleType vehicleType, bool checkWater = false)
         {
-            if (vehicle is BaseVehicle) (vehicle as BaseVehicle).DismountAllPlayers();
-            else
+            if (configData.globalS.dismountAllPlayersRecall)
             {
-                List<BasePlayer> players = Facepunch.Pool.GetList<BasePlayer>();
-                Vis.Entities(vehicle.transform.position, 2.5f, players, Rust.Layers.Server.Players);
-                foreach (var p in players) if (p.HasParent()) p.SetParent(null);
-                Facepunch.Pool.FreeList(ref players);
+                (vehicle as BaseVehicle)?.DismountAllPlayers();
+                var players = vehicle.GetComponentsInChildren<BasePlayer>();
+                foreach (var p in players) p.SetParent(null);
             }
+
             var vehicleS = configData.vehicleS[vehicleType];
             Vector3 position; Quaternion rotation;
             GetVehicleSpawnPos(player, vehicleS.distance, checkWater, out position, out rotation);
@@ -1019,7 +1018,7 @@ namespace Oxide.Plugins
             }
             if (vehicle.entityID != 0)
             {
-                foreach (var entry in vehiclesCache.ToList())
+                foreach (var entry in vehiclesCache)
                 {
                     if (entry.Value.playerID == player.userID && entry.Value.vehicleType == vehicleType)
                     {
@@ -1091,6 +1090,7 @@ namespace Oxide.Plugins
                 [JsonProperty(PropertyName = "Prevent mounting on driver's seat only")] public bool blockDriverSeat = true;
                 [JsonProperty(PropertyName = "Check if any player mounted when recalling a vehicle")] public bool anyMountedRecall = true;
                 [JsonProperty(PropertyName = "Check if any player mounted when killing a vehicle")] public bool anyMountedKill = true;
+                [JsonProperty(PropertyName = "Dismount all players when a vehicle is recalled")] public bool dismountAllPlayersRecall = true;
                 [JsonProperty(PropertyName = "Spawn vehicle in the direction you are looking at")] public bool spawnLookingAt = true;
                 [JsonProperty(PropertyName = "Use Teams")] public bool useTeams = false;
                 [JsonProperty(PropertyName = "Use Clans")] public bool useClans = true;
@@ -1371,7 +1371,7 @@ namespace Oxide.Plugins
                 ["OptionNotFound"] = "This '{0}' option doesn't exist.",
                 ["VehiclePurchased"] = "You have purchased a {0}, type <color=#4DFF4D>/{1}</color> for more information.",
                 ["VehicleAlreadyPurchased"] = "You have already purchased {0}.",
-                ["VehicleCannotBeBuyed"] = "{0} is unpurchasable",
+                ["VehicleCannotBeBought"] = "{0} is unpurchasable",
                 ["VehicleNotOut"] = "{0} is not out.",
                 ["AlreadyVehicleOut"] = "You already have a {0} outside, type <color=#4DFF4D>/{1}</color> for more information.",
                 ["VehicleNotYetPurchased"] = "You have not yet purchased a {0}.",
@@ -1380,7 +1380,7 @@ namespace Oxide.Plugins
                 ["VehicleKilled"] = "You killed your {0}.",
                 ["VehicleOnCooldown"] = "You must wait {0} seconds before you can spawn your {1}.",
                 ["NotLookingAtWater"] = "You must be looking at water to spawn or recall a {0}.",
-                ["BuildindBlocked"] = "You can't spawn a {0} appear if you don't have the building privileges.",
+                ["BuildingBlocked"] = "You can't spawn a {0} appear if you don't have the building privileges.",
                 ["RefundedVehicleFuel"] = "Your {0} fuel was refunded to your inventory.",
                 ["PlayerMountedOnVehicle"] = "It cannot be recalled when players mounted on your {0}.",
 
@@ -1408,7 +1408,7 @@ namespace Oxide.Plugins
                 ["OptionNotFound"] = "该 '{0}' 选项不存在",
                 ["VehiclePurchased"] = "您购买了 {0}, 输入 <color=#4DFF4D>/{1}</color> 了解更多信息",
                 ["VehicleAlreadyPurchased"] = "您已经购买了 {0}",
-                ["VehicleCannotBeBuyed"] = "{0} 是不可购买的",
+                ["VehicleCannotBeBought"] = "{0} 是不可购买的",
                 ["VehicleNotOut"] = "您还没有生成您的 {0}",
                 ["AlreadyVehicleOut"] = "您已经生成了您的 {0}, 输入 <color=#4DFF4D>/{1}</color> 了解更多信息",
                 ["VehicleNotYetPurchased"] = "您还没有购买 {0}.",
@@ -1417,8 +1417,8 @@ namespace Oxide.Plugins
                 ["VehicleKilled"] = "您删除了您的 {0}.",
                 ["VehicleOnCooldown"] = "您必须等待 {0} 秒才能生成您的 {1}",
                 ["NotLookingAtWater"] = "您必须看着水面才能生成您的 {0}",
-                ["BuildindBlocked"] = "您没有领地柜权限，无法生成您的 {0}",
-                ["RefundedVehicleFuel"] = "您的 {0} 燃料已经归还回您的库存",
+                ["BuildingBlocked"] = "您没有领地柜权限，无法生成您的 {0}",
+                ["BuildingBlocked"] = "您的 {0} 燃料已经归还回您的库存",
                 ["PlayerMountedOnVehicle"] = "您的 {0} 上坐着玩家，无法被召回",
 
                 ["MountedOrParented"] = "当您坐着或者在附着在实体上时无法生成载具",
