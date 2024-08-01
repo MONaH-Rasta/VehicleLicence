@@ -1,4 +1,4 @@
-﻿// #define DEBUG
+// #define DEBUG
 // #define TRAIN_ADVANCED
 
 using System;
@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.31")]
+    [Info("Vehicle Licence", "Arainrr", "1.7.32")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -1209,7 +1209,7 @@ namespace Oxide.Plugins
                 trainCar.FrontWheelSplineDist = distResult;
                 Vector3 tangent;
                 Vector3 positionAndTangent = splineResult.GetPositionAndTangent(trainCar.FrontWheelSplineDist, trainCar.transform.forward, out tangent);
-                trainCar.SetTheRestFromFrontWheelData(ref splineResult, positionAndTangent, tangent, trainCar.localTrackSelection);
+                trainCar.SetTheRestFromFrontWheelData(ref splineResult, positionAndTangent, tangent, trainCar.localTrackSelection, null);
                 trainCar.FrontTrackSection = splineResult;
                 return true;
             }
