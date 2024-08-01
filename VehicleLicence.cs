@@ -17,7 +17,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.14")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.15")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -41,6 +41,7 @@ namespace Oxide.Plugins
         private const string PREFAB_CHINOOK = "assets/prefabs/npc/ch47/ch47.entity.prefab";
         private const string PREFAB_RIDABLEHORSE = "assets/rust.ai/nextai/testridablehorse.prefab";
         private const string PREFAB_WORKCART = "assets/content/vehicles/workcart/workcart.entity.prefab";
+        private const string PREFAB_MAGNET_CRANE = "assets/content/vehicles/crane_magnet/magnetcrane.entity.prefab";
 
         private const string PREFAB_CHASSIS_SMALL = "assets/content/vehicles/modularcar/car_chassis_2module.entity.prefab";
         private const string PREFAB_CHASSIS_MEDIUM = "assets/content/vehicles/modularcar/car_chassis_3module.entity.prefab";
@@ -66,6 +67,7 @@ namespace Oxide.Plugins
             Chinook,
             RidableHorse,
             WorkCart,
+            MagnetCrane,
         }
 
         public enum ChassisType
@@ -302,7 +304,7 @@ namespace Oxide.Plugins
 
         private void OnEntityKill(BaseCombatEntity entity) => CheckEntity(entity);
 
-        //ScrapTransportHelicopter / ModularCar / TrainEngine
+        //ScrapTransportHelicopter / ModularCar / TrainEngine / MagnetCrane
         private object OnEntityEnter(TriggerHurtNotChild triggerHurtNotChild, BasePlayer player)
         {
             if (triggerHurtNotChild == null || triggerHurtNotChild.SourceEntity == null || player == null) return null;
@@ -545,6 +547,16 @@ namespace Oxide.Plugins
                         }
                         break;
 
+                    case NormalVehicleType.MagnetCrane:
+                        {
+                            if (CanRefundFuel(baseVehicleS, isCrash, isUnload))
+                            {
+                                var fuelContainer = (entity as BaseCrane)?.fuelSystem?.GetFuelContainer()?.inventory;
+                                if (fuelContainer != null) collect.AddRange(fuelContainer.itemList);
+                            }
+                        }
+                        break;
+
                     default: return;
                 }
             }
@@ -676,6 +688,10 @@ namespace Oxide.Plugins
                         fuelContainer = (entity as TrainEngine)?.fuelSystem?.GetFuelContainer()?.inventory;
                         break;
 
+                    case NormalVehicleType.MagnetCrane:
+                        fuelContainer = (entity as BaseCrane)?.fuelSystem?.GetFuelContainer()?.inventory;
+                        break;
+
                     default: return;
                 }
             }
@@ -764,6 +780,7 @@ namespace Oxide.Plugins
                     case NormalVehicleType.TransportHelicopter:
                     case NormalVehicleType.Chinook:
                     case NormalVehicleType.WorkCart:
+                    case NormalVehicleType.MagnetCrane:
                         return;
 
                     case NormalVehicleType.Rowboat:
@@ -1011,6 +1028,7 @@ namespace Oxide.Plugins
                 case NormalVehicleType.Chinook: return configData.normalVehicleS.chinookS;
                 case NormalVehicleType.RidableHorse: return configData.normalVehicleS.ridableHorseS;
                 case NormalVehicleType.WorkCart: return configData.normalVehicleS.workCartS;
+                case NormalVehicleType.MagnetCrane: return configData.normalVehicleS.magnetCraneS;
                 default: return null;
             }
         }
@@ -1145,6 +1163,7 @@ namespace Oxide.Plugins
                     case NormalVehicleType.Chinook: return PREFAB_CHINOOK;
                     case NormalVehicleType.RidableHorse: return PREFAB_RIDABLEHORSE;
                     case NormalVehicleType.WorkCart: return PREFAB_WORKCART;
+                    case NormalVehicleType.MagnetCrane: return PREFAB_MAGNET_CRANE;
                 }
             }
             else
@@ -1717,6 +1736,7 @@ namespace Oxide.Plugins
             {
                 (entity as BaseCombatEntity)?.InitializeHealth(baseVehicleS.maxHealth, baseVehicleS.maxHealth);
             }
+
             var modularCar = entity as ModularCar;
             if (modularCar != null)
             {
@@ -1749,6 +1769,15 @@ namespace Oxide.Plugins
                             ch47Helicopter.mapMarkerEntityPrefab.guid = string.Empty;
                         }
                     }
+                }
+            }
+
+            if (configData.globalS.preventShattering)
+            {
+                var magnetLiftable = entity.GetComponent<MagnetLiftable>();
+                if (magnetLiftable != null)
+                {
+                    UnityEngine.Object.Destroy(magnetLiftable);
                 }
             }
 
@@ -1931,10 +1960,10 @@ namespace Oxide.Plugins
                 TrainTrackSpline splineResult;
                 if (TrainTrackSpline.TryFindTrackNearby(trainEngine.GetFrontWheelPos(), 2f, out splineResult, out distResult) && splineResult.HasClearTrackSpaceNear(trainEngine))
                 {
-                    trainEngine.FrontTrackSection = splineResult;
                     //trainEngine.FrontWheelSplineDist = distResult;
                     frontWheelSplineDistSetMethod?.Invoke(trainEngine, new object[] { distResult });
                     trainEngine.SetTheRestFromFrontWheelData(ref splineResult, trainEngine.FrontTrackSection.GetPosition(trainEngine.FrontWheelSplineDist));
+                    trainEngine.FrontTrackSection = splineResult;
                     trainEngine.Invoke(() =>
                     {
                         trainEngine.FixedUpdateMoveTrain(Time.fixedDeltaTime);
@@ -2410,9 +2439,9 @@ namespace Oxide.Plugins
                     },
                     spawnCooldown = 7200,
                     recallCooldown = 30,
-                    cooldownPermissions = new Dictionary<string, PermissionS>
+                    cooldownPermissions = new Dictionary<string, CooldownPermissionS>
                     {
-                        ["vehiclelicence.vip"] = new PermissionS
+                        ["vehiclelicence.vip"] = new CooldownPermissionS
                         {
                             spawnCooldown = 3600,
                             recallCooldown = 10,
@@ -2477,9 +2506,9 @@ namespace Oxide.Plugins
                     },
                     spawnCooldown = 9000,
                     recallCooldown = 30,
-                    cooldownPermissions = new Dictionary<string, PermissionS>
+                    cooldownPermissions = new Dictionary<string, CooldownPermissionS>
                     {
-                        ["vehiclelicence.vip"] = new PermissionS
+                        ["vehiclelicence.vip"] = new CooldownPermissionS
                         {
                             spawnCooldown = 4500,
                             recallCooldown = 10,
@@ -2548,9 +2577,9 @@ namespace Oxide.Plugins
                     },
                     spawnCooldown = 10800,
                     recallCooldown = 30,
-                    cooldownPermissions = new Dictionary<string, PermissionS>
+                    cooldownPermissions = new Dictionary<string, CooldownPermissionS>
                     {
-                        ["vehiclelicence.vip"] = new PermissionS
+                        ["vehiclelicence.vip"] = new CooldownPermissionS
                         {
                             spawnCooldown = 5400,
                             recallCooldown = 10,
@@ -2677,6 +2706,9 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Prevent vehicles from damaging players")]
             public bool preventDamagePlayer = true;
 
+            [JsonProperty(PropertyName = "Prevent vehicles from shattering")]
+            public bool preventShattering = true;
+
             [JsonProperty(PropertyName = "Prevent vehicles from spawning or recalling in safe zone")]
             public bool preventSafeZone = true;
 
@@ -2750,9 +2782,9 @@ namespace Oxide.Plugins
                 },
                 spawnCooldown = 300,
                 recallCooldown = 30,
-                cooldownPermissions = new Dictionary<string, PermissionS>
+                cooldownPermissions = new Dictionary<string, CooldownPermissionS>
                 {
-                    ["vehiclelicence.vip"] = new PermissionS
+                    ["vehiclelicence.vip"] = new CooldownPermissionS
                     {
                         spawnCooldown = 150,
                         recallCooldown = 10,
@@ -2776,9 +2808,9 @@ namespace Oxide.Plugins
                 },
                 spawnCooldown = 3000,
                 recallCooldown = 30,
-                cooldownPermissions = new Dictionary<string, PermissionS>
+                cooldownPermissions = new Dictionary<string, CooldownPermissionS>
                 {
-                    ["vehiclelicence.vip"] = new PermissionS
+                    ["vehiclelicence.vip"] = new CooldownPermissionS
                     {
                         spawnCooldown = 1500,
                         recallCooldown = 10,
@@ -2802,9 +2834,9 @@ namespace Oxide.Plugins
                 },
                 spawnCooldown = 300,
                 recallCooldown = 30,
-                cooldownPermissions = new Dictionary<string, PermissionS>
+                cooldownPermissions = new Dictionary<string, CooldownPermissionS>
                 {
-                    ["vehiclelicence.vip"] = new PermissionS
+                    ["vehiclelicence.vip"] = new CooldownPermissionS
                     {
                         spawnCooldown = 150,
                         recallCooldown = 10,
@@ -2828,9 +2860,9 @@ namespace Oxide.Plugins
                 },
                 spawnCooldown = 450,
                 recallCooldown = 30,
-                cooldownPermissions = new Dictionary<string, PermissionS>
+                cooldownPermissions = new Dictionary<string, CooldownPermissionS>
                 {
-                    ["vehiclelicence.vip"] = new PermissionS
+                    ["vehiclelicence.vip"] = new CooldownPermissionS
                     {
                         spawnCooldown = 225,
                         recallCooldown = 10,
@@ -2854,9 +2886,9 @@ namespace Oxide.Plugins
                 },
                 spawnCooldown = 900,
                 recallCooldown = 30,
-                cooldownPermissions = new Dictionary<string, PermissionS>
+                cooldownPermissions = new Dictionary<string, CooldownPermissionS>
                 {
-                    ["vehiclelicence.vip"] = new PermissionS
+                    ["vehiclelicence.vip"] = new CooldownPermissionS
                     {
                         spawnCooldown = 450,
                         recallCooldown = 10,
@@ -2880,9 +2912,9 @@ namespace Oxide.Plugins
                 },
                 spawnCooldown = 3000,
                 recallCooldown = 30,
-                cooldownPermissions = new Dictionary<string, PermissionS>
+                cooldownPermissions = new Dictionary<string, CooldownPermissionS>
                 {
-                    ["vehiclelicence.vip"] = new PermissionS
+                    ["vehiclelicence.vip"] = new CooldownPermissionS
                     {
                         spawnCooldown = 1500,
                         recallCooldown = 10,
@@ -2906,9 +2938,9 @@ namespace Oxide.Plugins
                 },
                 spawnCooldown = 1800,
                 recallCooldown = 30,
-                cooldownPermissions = new Dictionary<string, PermissionS>
+                cooldownPermissions = new Dictionary<string, CooldownPermissionS>
                 {
-                    ["vehiclelicence.vip"] = new PermissionS
+                    ["vehiclelicence.vip"] = new CooldownPermissionS
                     {
                         spawnCooldown = 900,
                         recallCooldown = 10,
@@ -2935,9 +2967,9 @@ namespace Oxide.Plugins
                 },
                 spawnCooldown = 2400,
                 recallCooldown = 30,
-                cooldownPermissions = new Dictionary<string, PermissionS>
+                cooldownPermissions = new Dictionary<string, CooldownPermissionS>
                 {
-                    ["vehiclelicence.vip"] = new PermissionS
+                    ["vehiclelicence.vip"] = new CooldownPermissionS
                     {
                         spawnCooldown = 1200,
                         recallCooldown = 10,
@@ -2960,15 +2992,44 @@ namespace Oxide.Plugins
                 },
                 purchasePrices = new Dictionary<string, PriceInfo>
                 {
-                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                    ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
                 },
                 spawnCooldown = 1800,
                 recallCooldown = 30,
-                cooldownPermissions = new Dictionary<string, PermissionS>
+                cooldownPermissions = new Dictionary<string, CooldownPermissionS>
                 {
-                    ["vehiclelicence.vip"] = new PermissionS
+                    ["vehiclelicence.vip"] = new CooldownPermissionS
                     {
                         spawnCooldown = 900,
+                        recallCooldown = 10,
+                    }
+                },
+            };
+
+            [JsonProperty(PropertyName = "Magnet Crane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FuelVehicleS magnetCraneS = new FuelVehicleS
+            {
+                purchasable = true,
+                displayName = "Magnet Crane",
+                distance = 16,
+                minDistanceForPlayers = 8,
+                usePermission = true,
+                permission = "vehiclelicence.magnetcrane",
+                commands = new List<string>
+                {
+                    "crane", "magnetcrane"
+                },
+                purchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
+                },
+                spawnCooldown = 600,
+                recallCooldown = 30,
+                cooldownPermissions = new Dictionary<string, CooldownPermissionS>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermissionS
+                    {
+                        spawnCooldown = 300,
                         recallCooldown = 10,
                     }
                 },
@@ -3035,7 +3096,7 @@ namespace Oxide.Plugins
             public double recallCooldown;
 
             [JsonProperty(PropertyName = "Cooldown Permissions")]
-            public Dictionary<string, PermissionS> cooldownPermissions = new Dictionary<string, PermissionS>();
+            public Dictionary<string, CooldownPermissionS> cooldownPermissions = new Dictionary<string, CooldownPermissionS>();
         }
 
         public class FuelVehicleS : BaseVehicleS, IFuelVehicle
@@ -3202,7 +3263,7 @@ namespace Oxide.Plugins
 
         #region Structs
 
-        public struct PermissionS
+        public struct CooldownPermissionS
         {
             public double spawnCooldown;
             public double recallCooldown;
