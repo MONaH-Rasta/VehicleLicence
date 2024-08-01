@@ -22,7 +22,7 @@ namespace Oxide.Plugins
     // TODO Convert WorkCartAboveGround/WorkCartCovered data and permission
 #endif
 
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.33")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.34")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -1158,7 +1158,7 @@ namespace Oxide.Plugins
         private static bool TryMoveToTrainTrackNearby(TrainCar trainCar)
         {
             float distResult; TrainTrackSpline splineResult;
-            if (TrainTrackSpline.TryFindTrackNearby(trainCar.GetFrontWheelPos(), 2f, out splineResult, out distResult) && splineResult.HasClearTrackSpaceNear(trainCar))
+            if (TrainTrackSpline.TryFindTrackNear(trainCar.GetFrontWheelPos(), 2f, out splineResult, out distResult))
             {
                 foreach (var connectedTrainCar in trainCar.completeTrain.trainCars)
                 {
@@ -1174,9 +1174,12 @@ namespace Oxide.Plugins
                 trainCar.FrontWheelSplineDist = distResult;
                 Vector3 tangent;
                 Vector3 positionAndTangent = splineResult.GetPositionAndTangent(trainCar.FrontWheelSplineDist, trainCar.transform.forward, out tangent);
-                trainCar.SetTheRestFromFrontWheelData(ref splineResult, positionAndTangent, tangent, trainCar.localTrackSelection, null);
+                trainCar.SetTheRestFromFrontWheelData(ref splineResult, positionAndTangent, tangent, trainCar.localTrackSelection, null, true);
                 trainCar.FrontTrackSection = splineResult;
-                return true;
+                if (trainCar.SpaceIsClear())
+                {
+                    return true;
+                }
             }
 
             return false;
@@ -3877,7 +3880,7 @@ namespace Oxide.Plugins
                 {
                     float distResult;
                     TrainTrackSpline splineResult;
-                    if (!TrainTrackSpline.TryFindTrackNearby(original, Distance, out splineResult, out distResult))
+                    if (!TrainTrackSpline.TryFindTrackNear(original, Distance, out splineResult, out distResult))
                     {
                         reason = Instance.Lang("TooFarTrainTrack", player.UserIDString);
                         return false;
@@ -4382,7 +4385,7 @@ namespace Oxide.Plugins
                             position += prevTrainCar.transform.rotation * (newTrainCar.bounds.center - Vector3.forward * (newTrainCar.bounds.extents.z + prevTrainCar.bounds.extents.z + 1f));
 
                             float distResult; TrainTrackSpline splineResult;
-                            if (TrainTrackSpline.TryFindTrackNearby(position, 20f, out splineResult, out distResult))
+                            if (TrainTrackSpline.TryFindTrackNear(position, 20f, out splineResult, out distResult))
                             {
                                 var boxCollider = prevTrainCar.rearCoupling.GetComponent<BoxCollider>();
                                 var tempBoxSize = boxCollider.size;
@@ -4491,7 +4494,7 @@ namespace Oxide.Plugins
                 {
                     float distResult;
                     TrainTrackSpline splineResult;
-                    if (!TrainTrackSpline.TryFindTrackNearby(original, Distance, out splineResult, out distResult))
+                    if (!TrainTrackSpline.TryFindTrackNear(original, Distance, out splineResult, out distResult))
                     {
                         reason = Instance.Lang("TooFarTrainTrack", player.UserIDString);
                         return false;
