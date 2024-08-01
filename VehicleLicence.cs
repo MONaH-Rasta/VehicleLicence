@@ -22,7 +22,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.45")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.46")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -285,7 +285,7 @@ namespace Oxide.Plugins
             {
                 return;
             }
-            if (player != null && configData.normalVehicles.miniCopter.flyHackPause > 0 && entity.GetParentEntity() is MiniCopter)
+            if (player != null && configData.normalVehicles.miniCopter.flyHackPause > 0 && entity.GetParentEntity() is Minicopter)
             {
                 player.PauseFlyHackDetection(configData.normalVehicles.miniCopter.flyHackPause);
             }
@@ -309,9 +309,9 @@ namespace Oxide.Plugins
         private void OnEngineStarted(BaseMountable entity, BasePlayer player)
         {
             if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE)) return;
-            if (player.GetMountedVehicle() as MiniCopter != null && player.GetMountedVehicle() as ScrapTransportHelicopter == null)
+            if (player.GetMountedVehicle() as Minicopter != null && player.GetMountedVehicle() as ScrapTransportHelicopter == null)
             {
-                (player.GetMountedVehicle() as MiniCopter).engineController.FinishStartingEngine();
+                (player.GetMountedVehicle() as Minicopter).engineController.FinishStartingEngine();
             }
         }
 
@@ -445,7 +445,7 @@ namespace Oxide.Plugins
             TryClaimVehicle(motorRowboat);
         }
 
-        private void OnEntitySpawned(MiniCopter miniCopter)
+        private void OnEntitySpawned(Minicopter miniCopter)
         {
             TryClaimVehicle(miniCopter);
         }
@@ -1114,9 +1114,9 @@ namespace Oxide.Plugins
                                 vehicle.liftFraction = configData.normalVehicles.transportHelicopter.liftFraction;
                                 vehicle.torqueScale = SCRAP_HELICOPTER_TORQUE * configData.normalVehicles.transportHelicopter.rotationScale;
                             }
-                            else if (entry.Value.Entity is MiniCopter)
+                            else if (entry.Value.Entity is Minicopter)
                             {
-                                MiniCopter vehicle = entry.Value.Entity as MiniCopter;
+                                Minicopter vehicle = entry.Value.Entity as Minicopter;
                                 vehicle.liftFraction = configData.normalVehicles.miniCopter.liftFraction;
                                 vehicle.torqueScale = MINICOPTER_TORQUE * configData.normalVehicles.miniCopter.rotationScale;
                             }
@@ -1145,7 +1145,7 @@ namespace Oxide.Plugins
             {
                 return NormalVehicleType.TransportHelicopter;
             }
-            if (baseVehicle is MiniCopter)
+            if (baseVehicle is Minicopter)
             {
                 return NormalVehicleType.MiniCopter;
             }
@@ -2725,7 +2725,7 @@ namespace Oxide.Plugins
         public class GlobalSettings
         {
             [JsonProperty(PropertyName = "Kill all vehicles on recall and respawn instead of recalling (besides Tugboat)")]
-            public bool recallKill = false;
+            public bool recallKill = true;
             
             [JsonProperty(PropertyName = "Store Vehicle On Plugin Unloaded / Server Restart")]
             public bool storeVehicle = true;
@@ -2812,7 +2812,7 @@ namespace Oxide.Plugins
             public bool useCombatBlocker;
             
             [JsonProperty(PropertyName = "Allow minicopters to take off instantly")]
-            public bool InstantMiniTakeoff = false;
+            public bool InstantMiniTakeoff = true;
         }
 
         public class NormalVehicleSettings
@@ -3429,7 +3429,7 @@ namespace Oxide.Plugins
                 {
                     (entity as BaseCombatEntity)?.InitializeHealth(MaxHealth, MaxHealth);
                 }
-                var helicopterVehicle = entity as BaseHelicopterVehicle;
+                var helicopterVehicle = entity as BaseHelicopter;
                 if (helicopterVehicle != null)
                 {
                     if (configData.global.noServerGibs)
@@ -3479,7 +3479,7 @@ namespace Oxide.Plugins
                     return entity;
                 }
                 
-                MiniCopter mini = entity as MiniCopter;
+                Minicopter mini = entity as Minicopter;
                 if (mini == null) return entity;
                 // TODO: Maybe increase speed of other vehicles.
                 
@@ -3511,8 +3511,8 @@ namespace Oxide.Plugins
                 mini.torqueScale *= configData.normalVehicles.miniCopter.rotationScale;
                 mini.liftFraction = configData.normalVehicles.miniCopter.liftFraction;
                 // Debug.Log($"Default mini.liftDotMax: {mini.liftDotMax}\nDefault mini.altForceDotMin {mini.altForceDotMin}");
-                mini.altForceDotMin = 0.9f;
-                mini.liftDotMax = 0.2f;
+                // mini.altForceDotMin = 0;
+                // mini.liftDotMax = 0.2f;
                 // Debug.Log($"Modified mini.liftDotMax: {mini.liftDotMax}");
                 
 
@@ -4218,7 +4218,7 @@ namespace Oxide.Plugins
 
             protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
             {
-                return (entity as MiniCopter)?.GetFuelSystem();
+                return (entity as Minicopter)?.GetFuelSystem();
             }
         }
 
@@ -4237,7 +4237,7 @@ namespace Oxide.Plugins
             
             protected override EntityFuelSystem GetFuelSystem(BaseEntity entity)
             {
-                return (entity as MiniCopter)?.GetFuelSystem();
+                return (entity as Minicopter)?.GetFuelSystem();
             }
         }
 
