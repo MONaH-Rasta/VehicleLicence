@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.5")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.6")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -259,20 +259,19 @@ namespace Oxide.Plugins
         //ScrapTransportHelicopter And ModularCar
         private object OnEntityEnter(TriggerHurtNotChild triggerHurtNotChild, BasePlayer player)
         {
-            if (triggerHurtNotChild?.SourceEntity == null || player == null || !player.userID.IsSteamId()) return null;
+            if (triggerHurtNotChild?.SourceEntity == null || player == null) return null;
             var sourceEntity = triggerHurtNotChild.SourceEntity;
             if (vehiclesCache.ContainsKey(sourceEntity))
             {
                 var baseVehicle = sourceEntity as BaseVehicle;
-                if (baseVehicle != null)
+                if (baseVehicle != null && player.userID.IsSteamId())
                 {
-                    /*
-                    var dismountPositions = baseVehicle.dismountPositions;
-                    var position = dismountPositions.Select(x => x.position)
-                        .OrderBy(x => Vector3.Distance(x, player.transform.position)).FirstOrDefault();
-                    MoveToPosition(player, position);
-                    */
-                    MoveToPosition(player, triggerHurtNotChild.transform.position + triggerHurtNotChild.transform.right * 3f);
+                    Vector3 pos;
+                    if (GetDismountPosition(baseVehicle, player, out pos))
+                    {
+                        MoveToPosition(player, pos);
+                    }
+                    //MoveToPosition(player, triggerHurtNotChild.transform.position + triggerHurtNotChild.transform.right * 3f);
                 }
                 //triggerHurtNotChild.enabled = false;
                 return false;
@@ -283,12 +282,16 @@ namespace Oxide.Plugins
         //HotAirBalloon
         private object OnEntityEnter(TriggerHurt triggerHurt, BasePlayer player)
         {
-            if (triggerHurt == null || player == null || !player.userID.IsSteamId()) return null;
+            if (triggerHurt == null || player == null) return null;
             var sourceEntity = triggerHurt.gameObject?.ToBaseEntity();
             if (sourceEntity == null) return null;
             if (vehiclesCache.ContainsKey(sourceEntity))
             {
-                MoveToPosition(player, triggerHurt.transform.position + triggerHurt.transform.forward * 2f);
+                if (player.userID.IsSteamId())
+                {
+                    MoveToPosition(player, sourceEntity.CenterPoint() + Vector3.down * 1f);
+                    //MoveToPosition(player, triggerHurt.transform.position + triggerHurt.transform.forward * 2f);
+                }
                 //triggerHurt.enabled = false;
                 return false;
             }
@@ -956,6 +959,35 @@ namespace Oxide.Plugins
 
         #region Helpers
 
+        private static bool GetDismountPosition(BaseVehicle baseVehicle, BasePlayer player, out Vector3 result)
+        {
+            var parentVehicle = baseVehicle.VehicleParent();
+            if (parentVehicle != null)
+            {
+                return GetDismountPosition(parentVehicle, player, out result);
+            }
+            var list = Facepunch.Pool.GetList<Vector3>();
+            foreach (var transform in baseVehicle.dismountPositions)
+            {
+                var visualCheckOrigin = transform.position + Vector3.up * 0.6f;
+                if (baseVehicle.ValidDismountPosition(transform.transform.position, visualCheckOrigin))
+                {
+                    list.Add(transform.transform.position);
+                }
+            }
+            if (list.Count <= 0)
+            {
+                result = Vector3.zero;
+                Facepunch.Pool.FreeList(ref list);
+                return false;
+            }
+            Vector3 pos = player.transform.position;
+            list.Sort((a, b) => Vector3.Distance(a, pos).CompareTo(Vector3.Distance(b, pos)));
+            result = list[0];
+            Facepunch.Pool.FreeList(ref list);
+            return true;
+        }
+
         private static string GetNormalVehicleTypeFromEntity(BaseEntity entity)
         {
             if (entity is BasicCar) return NormalVehicleType.Sedan.ToString();
@@ -1154,7 +1186,6 @@ namespace Oxide.Plugins
             return null;
         }
 
-        //TODO Claim Vehicle?
         private bool ClaimVehicle(BasePlayer player, BaseEntity entity)
         {
             if (entity == null || entity.OwnerID != 0 || vehiclesCache.ContainsKey(entity)) return false;
@@ -2072,7 +2103,8 @@ namespace Oxide.Plugins
 
             var normalized = (spawnPos - player.transform.position).normalized;
             var angle = normalized != Vector3.zero ? Quaternion.LookRotation(normalized).eulerAngles.y : UnityEngine.Random.Range(0f, 360f);
-            spawnRot = Quaternion.Euler(Vector3.up * (angle + 90f));
+            var rot = vehicleType == nameof(NormalVehicleType.HotAirBalloon) ? 180f : 90f;
+            spawnRot = Quaternion.Euler(Vector3.up * (angle + rot));
             if (vehicleType != nameof(NormalVehicleType.RidableHorse)) spawnPos += Vector3.up * 0.3f;
         }
 
