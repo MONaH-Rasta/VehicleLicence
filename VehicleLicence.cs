@@ -15,7 +15,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.8")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.7.9")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -176,6 +176,7 @@ namespace Oxide.Plugins
             if (configData.globalS.autoClaimFromVendor)
             {
                 Subscribe(nameof(OnEntitySpawned));
+                Subscribe(nameof(OnRidableAnimalClaimed));
             }
             if (configData.globalS.checkVehiclesInterval > 0 && allBaseVehicleSettings.Any(x => x.Value.wipeTime > 0))
             {
@@ -244,7 +245,7 @@ namespace Oxide.Plugins
             NextTick(() =>
             {
                 var player = motorRowboat?.creatorEntity as BasePlayer;
-                if (player == null || !player.userID.IsSteamId()) return;
+                if (player == null || !player.userID.IsSteamId() || !motorRowboat.OnlyOwnerAccessible()) return;
                 TryClaimVehicle(player, motorRowboat, motorRowboat is RHIB ? NormalVehicleType.RHIB : NormalVehicleType.Rowboat);
             });
         }
@@ -254,9 +255,15 @@ namespace Oxide.Plugins
             NextTick(() =>
             {
                 var player = miniCopter?.creatorEntity as BasePlayer;
-                if (player == null || !player.userID.IsSteamId()) return;
+                if (player == null || !player.userID.IsSteamId() || !miniCopter.OnlyOwnerAccessible()) return;
                 TryClaimVehicle(player, miniCopter, miniCopter is ScrapTransportHelicopter ? NormalVehicleType.TransportHelicopter : NormalVehicleType.MiniCopter);
             });
+        }
+
+        private void OnRidableAnimalClaimed(BaseRidableAnimal baseRidableAnimal, BasePlayer player)
+        {
+            if (player == null || !player.userID.IsSteamId()) return;
+            TryClaimVehicle(player, baseRidableAnimal, NormalVehicleType.RidableHorse);
         }
 
         private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo)
@@ -2242,6 +2249,77 @@ namespace Oxide.Plugins
                         new EngineItem
                         {
                             shortName = "valve1",conditionPercentage = 20f
+                        }
+                    }
+                },
+                ["MediumCar"] = new ModularVehicleS
+                {
+                    purchasable = true,
+                    displayName = "Medium Modular Car",
+                    distance = 5,
+                    minDistanceForPlayers = 3,
+                    usePermission = true,
+                    permission = "vehiclelicence.mediumodularcar",
+                    commands = new List<string> { "medium", "mediumcar" },
+                    purchasePrices = new Dictionary<string, PriceInfo>
+                    {
+                        ["scrap"] = new PriceInfo { amount = 2400, displayName = "Scrap" }
+                    },
+                    spawnPrices = new Dictionary<string, PriceInfo>
+                    {
+                        ["metal.refined"] = new PriceInfo { amount = 50, displayName = "High Quality Metal" }
+                    },
+                    recallPrices = new Dictionary<string, PriceInfo>
+                    {
+                        ["scrap"] = new PriceInfo { amount = 8, displayName = "Scrap" }
+                    },
+                    spawnCooldown = 9000,
+                    recallCooldown = 30,
+                    cooldownPermissions = new Dictionary<string, PermissionS>
+                    {
+                        ["vehiclelicence.vip"] = new PermissionS
+                        {
+                            spawnCooldown = 4500,
+                            recallCooldown = 10,
+                        }
+                    },
+                    chassisType = ChassisType.Medium,
+                    moduleItems = new List<ModuleItem>
+                    {
+                        new ModuleItem
+                        {
+                            shortName = "vehicle.1mod.cockpit.with.engine" ,healthPercentage = 50f
+                        },
+                        new ModuleItem
+                        {
+                            shortName = "vehicle.1mod.rear.seats" ,healthPercentage = 50f
+                        },
+                        new ModuleItem
+                        {
+                            shortName = "vehicle.1mod.flatbed" ,healthPercentage = 50f
+                        },
+                    },
+                    engineItems = new List<EngineItem>
+                    {
+                        new EngineItem
+                        {
+                            shortName = "carburetor2",conditionPercentage = 20f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "crankshaft2",conditionPercentage = 20f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "piston2",conditionPercentage = 20f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "sparkplug2",conditionPercentage = 20f
+                        },
+                        new EngineItem
+                        {
+                            shortName = "valve2",conditionPercentage = 20f
                         }
                     }
                 },
