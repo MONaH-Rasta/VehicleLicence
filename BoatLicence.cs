@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Boat Licence", "Sorrow", "0.4.0")]
+    [Info("Boat Licence", "Sorrow", "0.4.1")]
     [Description("Allows players to buy a boat and then spawn or store it")]
 
     class BoatLicence : RustPlugin
@@ -93,7 +93,7 @@ namespace Oxide.Plugins
 
         private void OnEntityKill(BaseNetworkable entity)
         {
-            if (entity == null) return;
+            if (entity == null || entity.net?.ID == null) return;
             LisencedPlayer lisencedPlayer;
             if (!_boatsCache.TryGetValue(entity.net.ID, out lisencedPlayer)) return;
             lisencedPlayer.ResetBoat(entity.net.ID);
@@ -141,7 +141,7 @@ namespace Oxide.Plugins
                             lisencedPlayer = new LisencedPlayer(player.userID);
                             _lisencedPlayer.Add(player.userID, lisencedPlayer);
                             if (Economics != null && _useEconomics && Economics.Call<bool>("Withdraw", player.userID, _rowBoatCost)
-                                || Withdraw(player, _rowBoatCost))
+                                || !_useEconomics && Withdraw(player, _rowBoatCost))
                             {
                                 lisencedPlayer.rowBoat.Buyed = true;
                                 SendReply(player, Msg("boatPurchased", player.UserIDString));
@@ -154,7 +154,7 @@ namespace Oxide.Plugins
                         else if (!lisencedPlayer.rowBoat.Buyed)
                         {
                             if (Economics != null && _useEconomics && Economics.Call<bool>("Withdraw", player.userID, _rowBoatCost)
-                                || Withdraw(player, _rowBoatCost))
+                                || !_useEconomics && Withdraw(player, _rowBoatCost))
                             {
                                 lisencedPlayer.rowBoat.Buyed = true;
                                 SendReply(player, Msg("boatPurchased", player.UserIDString));
@@ -180,7 +180,7 @@ namespace Oxide.Plugins
                             lisencedPlayer = new LisencedPlayer(player.userID);
                             _lisencedPlayer.Add(player.userID, lisencedPlayer);
                             if (Economics != null && _useEconomics && Economics.Call<bool>("Withdraw", player.userID, _rhibBoatCost)
-                                || Withdraw(player, _rhibBoatCost))
+                                || !_useEconomics && Withdraw(player, _rhibBoatCost))
                             {
                                 lisencedPlayer.rhibBoat.Buyed = true;
                                 SendReply(player, Msg("boatPurchased", player.UserIDString));
@@ -193,7 +193,7 @@ namespace Oxide.Plugins
                         else if (!lisencedPlayer.rhibBoat.Buyed)
                         {
                             if (Economics != null && _useEconomics && Economics.Call<bool>("Withdraw", player.userID, _rhibBoatCost)
-                                || Withdraw(player, _rhibBoatCost))
+                                || !_useEconomics && Withdraw(player, _rhibBoatCost))
                             {
                                 lisencedPlayer.rhibBoat.Buyed = true;
                                 SendReply(player, Msg("boatPurchased", player.UserIDString));
