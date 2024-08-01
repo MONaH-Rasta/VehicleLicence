@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow", "1.1.0")]
+    [Info("Vehicle Licence", "Sorrow", "1.1.1")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
     class VehicleLicence : RustPlugin
@@ -254,7 +254,8 @@ namespace Oxide.Plugins
                     {
                         SendReply(player, Msg("helpOptionNotFound", player.UserIDString));
                     }
-                } else
+                }
+                else
                 {
                     SendReply(player, Msg("didntBuyVehicle", player.UserIDString));
                 }
@@ -275,7 +276,8 @@ namespace Oxide.Plugins
             if (args.Length == 0) SendReply(player, Msg("helpRecall", player.UserIDString));
             if (args.Length >= 1)
             {
-                if (_licencedPlayer.TryGetValue(player.userID, out licencedPlayer)) {
+                if (_licencedPlayer.TryGetValue(player.userID, out licencedPlayer))
+                {
                     var arg = args[0].ToLower();
                     if (!PlayerHasPermission(player, arg))
                     {
@@ -389,7 +391,8 @@ namespace Oxide.Plugins
             if (player != null && vehicle == null)
             {
                 SendReply(player, string.Format(Msg("vehicleNotYetPurchased", player.UserIDString), vehicleSettings.name));
-            } else
+            }
+            else
             {
                 var vehicleId = vehicle.Id;
                 _vehiclesCache.Remove(vehicle.Id);
@@ -473,7 +476,7 @@ namespace Oxide.Plugins
             }
             else if (ServerRewards != null && _useServerRewards)
             {
-                result = ServerRewards.Call<bool>("TakePoints", player.userID, Convert.ToDouble(vehicleSettings.price));
+                result = ServerRewards.Call<bool>("TakePoints", player.userID, vehicleSettings.price);
             }
             else if (item != null && player.inventory.GetAmount(item.itemid) >= vehicleSettings.price)
             {
@@ -529,7 +532,8 @@ namespace Oxide.Plugins
                     Convert.ToInt32((vehicle.Spawned - (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0)).Subtract(TimeSpan.FromSeconds(vehicleSettings.cooldownToSpawn))).TotalSeconds),
                     vehicleSettings.name));
                 return false;
-            } else
+            }
+            else
             {
                 return true;
             }
@@ -824,7 +828,7 @@ namespace Oxide.Plugins
                 public int TimeBeforeVehicleWipe { get; set; }
                 [JsonProperty(PropertyName = "Use Economics to buy vehicles")]
                 public bool UseEconomics { get; set; }
-                [JsonProperty(PropertyName = "Use ServerRewars to buy vehicles")]
+                [JsonProperty(PropertyName = "Use ServerRewards to buy vehicles")]
                 public bool UseServerRewards { get; set; }
                 [JsonProperty(PropertyName = "Shortname of item needed to buy vehicles")]
                 public string ItemsNeededToBuyVehicles { get; set; }
@@ -917,7 +921,7 @@ namespace Oxide.Plugins
         {
             public ulong Userid { get; }
             public string Prefab { get; }
-            public uint Id { get; set;  }
+            public uint Id { get; set; }
             public TimeSpan Spawned { get; set; }
             public DateTime LastDismount { get; set; }
 
