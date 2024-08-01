@@ -9,14 +9,14 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle License", "Sorrow|TheDoc", "1.2.7")]
+    [Info("Vehicle License", "Sorrow|TheDoc", "1.2.8")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
     class VehicleLicence : RustPlugin
     {
         #region Fields
         [PluginReference]
-        Plugin Economics, ServerRewards;
+        Plugin Economics, ServerRewards, NoEscape;
 
         private ConfigData _configData;
 
@@ -28,8 +28,11 @@ namespace Oxide.Plugins
 
         private bool _useEconomics;
         private bool _useServerRewards;
+		private bool _useRaidBlocker;
+		private bool _useCombatBlocker;
         private bool _usePermissions;
         private string _itemsNeededToBuyVehicles;
+		private bool _removeVehicleOnCrash;
 
         private const string Prefix = "<color=#B366FF>[Vehicle License]</color> ";
         private const string RowBoatPrefab = "assets/content/vehicles/boats/rowboat/rowboat.prefab";
@@ -49,6 +52,9 @@ namespace Oxide.Plugins
             _useServerRewards = _configData.Settings.UseServerRewards;
             _itemsNeededToBuyVehicles = _configData.Settings.ItemsNeededToBuyVehicles;
             _usePermissions = _configData.Settings.UsePermissions;
+			_useRaidBlocker = _configData.Settings.UseRaidBlocker;
+			_useCombatBlocker = _configData.Settings.UseCombatBlocker;
+			_removeVehicleOnCrash = _configData.Settings.RemoveVehicleOnCrash;
 
             if (Economics == null && _useEconomics)
             {
@@ -112,13 +118,47 @@ namespace Oxide.Plugins
             vehicle.LastDismount = DateTime.UtcNow;
         }
 
+		private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo)
+        {
+			// TODO check for boats (row or rhib) and check their Health.
+			
+			//PrintWarning("entity.name = " + entity.name);
+			//PrintWarning("hitInfo = " + hitInfo.damageTypes.Total());
+			
+			// if ((entity.name.Contains("foundation")) & (!entity.name.Contains("triangle")) & (!entity.name.Contains("steps")))
+			// {
+				// if ((ProtectFoundation == true) & (entity is BuildingBlock))
+				// {
+						// return false;
+				// }
+			// }
+		}
+
         private void OnEntityKill(BaseNetworkable entity)
         {
             if (entity == null || entity.net?.ID == null) return;
             Vehicle vehicle;
+			
             if (!_vehiclesCache.TryGetValue(entity.net.ID, out vehicle)) return;
             _vehiclesCache.Remove(entity.net.ID);
+			
+			//PrintWarning("vehicle =" + vehicle.Prefab);
+			
+			LicencedPlayer licencedPlayer = GetLicencedPlayer(vehicle);
+			
             vehicle.Id = 0;
+
+            var player = licencedPlayer.Player;
+            if (player == null) return;
+			
+			//PrintWarning("player =" + player.userID);
+			//PrintWarning("removing vehicle");
+			//PrintWarning("_removeVehicleOnCrash = " + _removeVehicleOnCrash);
+
+			if (licencedPlayer != null && _removeVehicleOnCrash) {
+				licencedPlayer.Vehicles.Remove(vehicle.Prefab);
+				//PrintWarning("removal Complete");
+			}
         }
         #endregion
 
@@ -132,6 +172,15 @@ namespace Oxide.Plugins
         [ChatCommand("license")]
         void CmdLicenceHelp(BasePlayer player, string command, string[] args)
         {
+			if (IsRaidBlocked(player.UserIDString)) {
+				Msg("raidblocked", player);
+				return;
+			}
+			if (IsCombatBlocked(player.UserIDString)) {
+				Msg("comatblocked", player);
+				return;
+			}
+			
             Msg("helpLicence", player);
             LicencedPlayer licencedPlayer;
             if (_licencedPlayer.TryGetValue(player.userID, out licencedPlayer)) return;
@@ -148,6 +197,15 @@ namespace Oxide.Plugins
         [ChatCommand("buy")]
         void CmdBuyVehicle(BasePlayer player, string command, IReadOnlyList<string> args)
         {
+			if (IsRaidBlocked(player.UserIDString)) {
+				Msg("raidblocked", player);
+				return;
+			}
+			if (IsCombatBlocked(player.UserIDString)) {
+				Msg("comatblocked", player);
+				return;
+			}
+
             if (args.Count < 1) Msg("helpBuy", player, new object[] {
                 _itemsNeededToBuyVehicles, GetVehicleSettings(RowBoatPrefab).price.ToString(), GetVehicleSettings(RhibPrefab).price.ToString(),
                 GetVehicleSettings(SedanPrefab).price.ToString(), GetVehicleSettings(HotAirBalloonPrefab).price.ToString(), GetVehicleSettings(MiniCopterPrefab).price.ToString(),
@@ -199,6 +257,7 @@ namespace Oxide.Plugins
             }
         }
 
+
         /// <summary>
         /// Commands the spawn vehicle.
         /// </summary>
@@ -208,6 +267,15 @@ namespace Oxide.Plugins
         [ChatCommand("spawn")]
         void CmdSpawnVehicle(BasePlayer player, string command, string[] args)
         {
+			if (IsRaidBlocked(player.UserIDString)) {
+				Msg("raidblocked", player);
+				return;
+			}
+			if (IsCombatBlocked(player.UserIDString)) {
+				Msg("comatblocked", player);
+				return;
+			}
+
             if (args.Length == 0) Msg("helpSpawn", player);
             if (args.Length >= 1)
             {
@@ -279,6 +347,15 @@ namespace Oxide.Plugins
         [ChatCommand("recall")]
         void CmdRecallVehicle(BasePlayer player, string command, string[] args)
         {
+			if (IsRaidBlocked(player.UserIDString)) {
+				Msg("raidblocked", player);
+				return;
+			}
+			if (IsCombatBlocked(player.UserIDString)) {
+				Msg("comatblocked", player);
+				return;
+			}
+
             LicencedPlayer licencedPlayer;
 
             if (args.Length < 1)
@@ -324,7 +401,6 @@ namespace Oxide.Plugins
                 }
             }
         }
-
 
         #endregion
 
@@ -697,6 +773,8 @@ namespace Oxide.Plugins
             lang.RegisterMessages(new Dictionary<string, string>
             {
                 ["announcement"] = "Type <color=#4DFF4D>/license</color> to get help.",
+				["raidblocked"] = "<color=#FF1919>You may not do that while raid blocked</color>.",
+				["comatblocked"] = "<color=#FF1919>You may not do that while combat blocked</color>.",
                 ["helpLicence"] = "These are the available commands: \n" +
                     "<color=#4DFF4D>/buy</color> -- To buy a vehicle \n" +
                     "<color=#4DFF4D>/spawn</color> -- To spawn a vehicle \n" +
@@ -743,6 +821,8 @@ namespace Oxide.Plugins
             lang.RegisterMessages(new Dictionary<string, string>
             {
                 ["announcement"] = "Tapez <color=#4DFF4D>/license</color> pour obtenir de l'aide.",
+				["raidblocked"] = "<color=#FF1919>You may not do that while raid blocked</color>.",
+				["comatblocked"] = "<color=#FF1919>You may not do that while combat blocked</color>.",
                 ["helpLicence"] = "Voici les commandes disponibles : \n" +
                     "<color=#4DFF4D>/buy</color> -- Pour acheter un véhicule \n" +
                     "<color=#4DFF4D>/spawn</color> -- Pour faire apparaître un véhicule \n" +
@@ -810,6 +890,9 @@ namespace Oxide.Plugins
         /// </summary>
         protected override void SaveConfig() => Config.WriteObject(_configData, true);
 
+		bool IsRaidBlocked(string targetId) => _useRaidBlocker && (bool)(NoEscape?.Call("IsRaidBlocked", targetId) ?? false);
+		bool IsCombatBlocked(string targetId) => _useCombatBlocker && (bool)(NoEscape?.Call("IsCombatBlocked", targetId) ?? false);
+
         /// <summary>
         /// Loads the data.
         /// </summary>
@@ -876,6 +959,12 @@ namespace Oxide.Plugins
                 public string ItemsNeededToBuyVehicles { get; set; }
                 [JsonProperty(PropertyName = "Use permissions for chat commands")]
                 public bool UsePermissions { get; set; }
+                [JsonProperty(PropertyName = "Use Raid Blocker")]
+                public bool UseRaidBlocker { get; set; }
+                [JsonProperty(PropertyName = "Use Combat Blocker")]
+                public bool UseCombatBlocker { get; set; }
+                [JsonProperty(PropertyName = "Remove Vehicles On Crash")]
+                public bool RemoveVehicleOnCrash { get; set; }
             }
 
             [JsonProperty(PropertyName = "Define your vehicles options")]
@@ -901,7 +990,7 @@ namespace Oxide.Plugins
         class LicencedPlayer
         {
             public readonly ulong Userid;
-            public readonly Dictionary<string, Vehicle> Vehicles;
+            public Dictionary<string, Vehicle> Vehicles;
 
             [JsonConstructor]
             public LicencedPlayer(ulong userid, Dictionary<string, Vehicle> vehicles)
