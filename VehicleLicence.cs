@@ -9,7 +9,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle License", "Sorrow|TheDoc", "1.2.8")]
+    [Info("Vehicle License", "Sorrow|TheDoc", "1.2.9")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
     class VehicleLicence : RustPlugin
@@ -40,6 +40,7 @@ namespace Oxide.Plugins
         private const string SedanPrefab = "assets/content/vehicles/sedan_a/sedantest.entity.prefab";
         private const string HotAirBalloonPrefab = "assets/prefabs/deployable/hot air balloon/hotairballoon.prefab";
         private const string MiniCopterPrefab = "assets/content/vehicles/minicopter/minicopter.entity.prefab";
+		private const string TransportCopterPrefab = "assets/content/vehicles/scrap heli carrier/scraptransporthelicopter.prefab";
         private const string ChinookPrefab = "assets/prefabs/npc/ch47/ch47.entity.prefab";
         #endregion
 
@@ -86,6 +87,7 @@ namespace Oxide.Plugins
             permission.RegisterPermission("vehiclelicence.sedan", this);
             permission.RegisterPermission("vehiclelicence.hotairballoon", this);
             permission.RegisterPermission("vehiclelicence.minicopter", this);
+			permission.RegisterPermission("vehiclelicence.transportcopter", this);
             permission.RegisterPermission("vehiclelicence.chinook", this);
         }
 
@@ -246,6 +248,10 @@ namespace Oxide.Plugins
                 {
                     BuyVehicle(player, licencedPlayer, MiniCopterPrefab);
                 }
+				else if (IsCase(arg, TransportCopterPrefab))
+                {
+                    BuyVehicle(player, licencedPlayer, TransportCopterPrefab);
+                }
                 else if (IsCase(arg, ChinookPrefab))
                 {
                     BuyVehicle(player, licencedPlayer, ChinookPrefab);
@@ -321,6 +327,11 @@ namespace Oxide.Plugins
                         prefab = MiniCopterPrefab;
                         if (IsSpawning(licencedPlayer, prefab)) SpawnVehicle(licencedPlayer, prefab);
                     }
+					else if (IsCase(arg, TransportCopterPrefab))
+                    {
+                        prefab = TransportCopterPrefab;
+                        if (IsSpawning(licencedPlayer, prefab)) SpawnVehicle(licencedPlayer, prefab);
+                    }
                     else if (IsCase(arg, ChinookPrefab))
                     {
                         prefab = ChinookPrefab;
@@ -390,6 +401,10 @@ namespace Oxide.Plugins
                 else if (IsCase(arg, MiniCopterPrefab))
                 {
                     RemoveVehicle(licencedPlayer, GetVehicleSettings(MiniCopterPrefab));
+                }
+				else if (IsCase(arg, TransportCopterPrefab))
+                {
+                    RemoveVehicle(licencedPlayer, GetVehicleSettings(TransportCopterPrefab));
                 }
                 else if (IsCase(arg, ChinookPrefab))
                 {
@@ -691,6 +706,11 @@ namespace Oxide.Plugins
             {
                 return permission.UserHasPermission(player.UserIDString, "vehiclelicence.minicopter");
             }
+			
+			if (IsCase(arg, TransportCopterPrefab))
+            {
+                return permission.UserHasPermission(player.UserIDString, "vehiclelicence.transportcopter");
+            }
 
             if (IsCase(arg, ChinookPrefab))
             {
@@ -718,6 +738,8 @@ namespace Oxide.Plugins
                     return _configData.Vehicles.HotAirBalloon;
                 case MiniCopterPrefab:
                     return _configData.Vehicles.MiniCopter;
+				case TransportCopterPrefab:
+                    return _configData.Vehicles.TransportCopter;
                 case ChinookPrefab:
                     return _configData.Vehicles.Chinook;
                 default:
@@ -786,6 +808,7 @@ namespace Oxide.Plugins
                     "<color=#4DFF4D>/buy sedan</color> -- <color=#FF1919>{3}</color> to buy a sedan \n" +
                     "<color=#4DFF4D>/buy hab</color> -- <color=#FF1919>{4}</color> to buy an hot air balloon \n" +
                     "<color=#4DFF4D>/buy copter</color> -- <color=#FF1919>{5}</color> to buy a mini copter \n" +
+					"<color=#4DFF4D>/buy transport</color> -- <color=#FF1919>{5}</color> to buy a transport copter \n" +
                     "<color=#4DFF4D>/buy ch47</color> -- <color=#FF1919>{6}</color> to buy a chinook \n",
                 ["helpSpawn"] = "These are the available commands: \n" +
                     "<color=#4DFF4D>/spawn row</color> -- To spawn a rowing boat \n" +
@@ -793,6 +816,7 @@ namespace Oxide.Plugins
                     "<color=#4DFF4D>/spawn sedan</color> -- To spawn a sedan \n" +
                     "<color=#4DFF4D>/spawn hab</color> -- To spawn an hot air balloon \n" +
                     "<color=#4DFF4D>/spawn copter</color> -- To spawn a mini copter \n" +
+					"<color=#4DFF4D>/spawn transport</color> -- To spawn a transport copter \n" +
                     "<color=#4DFF4D>/spawn ch47</color> -- To spawn a chinook \n",
                 ["helpRecall"] = "These are the available commands: \n" +
                     "<color=#4DFF4D>/recall row</color> -- To recall a rowing boat \n" +
@@ -800,6 +824,7 @@ namespace Oxide.Plugins
                     "<color=#4DFF4D>/recall sedan</color> -- To recall a sedan \n" +
                     "<color=#4DFF4D>/recall hab</color> -- To recall an hot air balloon \n" +
                     "<color=#4DFF4D>/recall copter</color> -- To recall a mini copter \n" +
+					"<color=#4DFF4D>/recall transport</color> -- To recall a transport copter \n" +
                     "<color=#4DFF4D>/recall ch47</color> -- To recall a Chinook \n",
                 ["helpOptionNotFound"] = "This option doesn't exist.",
                 ["vehiclePurchased"] = "You have purchased a {0}, type <color=#4DFF4D>/spawn</color> for more information.",
@@ -834,6 +859,7 @@ namespace Oxide.Plugins
                     "<color=#4DFF4D>/buy sedan</color> -- <color=#FF1919>{3}</color> pour acheter une voiture \n" +
                     "<color=#4DFF4D>/buy hab</color> -- <color=#FF1919>{4}</color> pour acheter une montgolfière \n" +
                     "<color=#4DFF4D>/buy copter</color> -- <color=#FF1919>{5}</color> pour acheter un mini hélicoptère \n" +
+					"<color=#4DFF4D>/buy transport</color> -- <color=#FF1919>{5}</color> pour acheter un hélicoptère de transport \n" +
                     "<color=#4DFF4D>/buy ch47</color> -- <color=#FF1919>{6}</color> pour acheter un Chinook \n",
                 ["helpSpawn"] = "Voici les commandes disponibles : \n" +
                     "<color=#4DFF4D>/spawn row</color> -- Pour faire apparaître un bateau à rames \n" +
@@ -841,6 +867,7 @@ namespace Oxide.Plugins
                     "<color=#4DFF4D>/spawn sedan</color> -- Pour faire apparaître une voiture \n" +
                     "<color=#4DFF4D>/spawn hab</color> -- Pour faire apparaître une montgolfière \n" +
                     "<color=#4DFF4D>/spawn copter</color> -- Pour faire apparaître un mini hélicoptère \n" +
+					"<color=#4DFF4D>/spawn transport</color> -- Pour faire apparaître un hélicoptère de transport \n" +
                     "<color=#4DFF4D>/spawn ch47</color> -- Pour faire apparaître un Chinook \n",
                 ["helpRecall"] = "Voici les commandes disponibles : \n" +
                     "<color=#4DFF4D>/recall row</color> -- Pour ranger un bateau à rames \n" +
@@ -848,6 +875,7 @@ namespace Oxide.Plugins
                     "<color=#4DFF4D>/recall sedan</color> -- Pour ranger une voiture \n" +
                     "<color=#4DFF4D>/recall hab</color> -- Pour ranger une montgolfière \n" +
                     "<color=#4DFF4D>/recall copter</color> -- Pour ranger un mini hélicoptère \n" +
+					"<color=#4DFF4D>/recall transport</color> -- Pour ranger un hélicoptère de transport \n" +
                     "<color=#4DFF4D>/recall ch47</color> -- Pour ranger un Chinook \n",
                 ["helpOptionNotFound"] = "Cette option n'existe pas.",
                 ["vehiclePurchased"] = "Vous avez acheté un {0}, tapez <color=#4DFF4D>/spawn</color> pour plus d'informations.",
@@ -865,6 +893,57 @@ namespace Oxide.Plugins
                 ["buildindBlocked"] = "Vous ne pouvez pas faire apparaître un {0} si vous n'avez pas les privilèges de construction.",
                 ["noPermission"] = "Vous n'avez pas la permission de faire ceci."
             }, this, "fr");
+			
+			lang.RegisterMessages(new Dictionary<string, string>
+            {
+                ["announcement"] = "Tippe <color=#4DFF4D>/license</color> um Hilfe zu bekommen.",
+				["raidblocked"] = "<color=#FF1919>Dies geht nicht während eines Raids</color>.",
+				["comatblocked"] = "<color=#FF1919>Dies geht nicht während eines Kampfes</color>.",
+                ["helpLicence"] = "Verfügbare Kommandos: \n" +
+                    "<color=#4DFF4D>/buy</color> -- Fahrzeug kaufen \n" +
+                    "<color=#4DFF4D>/spawn</color> -- Fahrzeug ausparken \n" +
+                    "<color=#4DFF4D>/recall</color> -- Fahrzeug einparken",
+                ["helpBuy"] = "Verfügbare Kommandos: \n" +
+                    "Item needed: <color=#FF1919>{0}</color> \n" +
+                    "<color=#4DFF4D>/buy row</color> -- <color=#FF1919>{1}</color> Boot kaufen \n" +
+                    "<color=#4DFF4D>/buy rhib</color> -- <color=#FF1919>{2}</color> Motorboot kaufen \n" +
+                    "<color=#4DFF4D>/buy sedan</color> -- <color=#FF1919>{3}</color> Auto kaufen \n" +
+                    "<color=#4DFF4D>/buy hab</color> -- <color=#FF1919>{4}</color> Heißluftballon kaufen \n" +
+                    "<color=#4DFF4D>/buy copter</color> -- <color=#FF1919>{5}</color> Helikopter kaufen \n" +
+					"<color=#4DFF4D>/buy transport</color> -- <color=#FF1919>{5}</color> Transporthelikopter kaufen \n" +
+                    "<color=#4DFF4D>/buy ch47</color> -- <color=#FF1919>{6}</color> Tandemhubschrauber kaufen \n",
+                ["helpSpawn"] = "Verfügbare Kommandos: \n" +
+                    "<color=#4DFF4D>/spawn row</color> -- Boot ausparken \n" +
+                    "<color=#4DFF4D>/spawn rhib</color> -- Motorboot ausparken \n" +
+                    "<color=#4DFF4D>/spawn sedan</color> -- Auto ausparken \n" +
+                    "<color=#4DFF4D>/spawn hab</color> -- Heißluftballon ausparken \n" +
+                    "<color=#4DFF4D>/spawn copter</color> -- Helikopter ausparken \n" +
+					"<color=#4DFF4D>/spawn transport</color> -- Transporthelikopter ausparken \n" +
+                    "<color=#4DFF4D>/spawn ch47</color> -- Tandemhubschrauber ausparken \n",
+                ["helpRecall"] = "Verfügbare Kommandos: \n" +
+                    "<color=#4DFF4D>/recall row</color> -- Boot einparken \n" +
+                    "<color=#4DFF4D>/recall rhib</color> -- Motorboot einparken \n" +
+                    "<color=#4DFF4D>/recall sedan</color> -- Auto einparken \n" +
+                    "<color=#4DFF4D>/recall hab</color> -- Heißluftballon einparken \n" +
+                    "<color=#4DFF4D>/recall copter</color> -- Helikopter einparken \n" +
+					"<color=#4DFF4D>/recall transport</color> -- Transporthelikopter einparken \n" +
+                    "<color=#4DFF4D>/recall ch47</color> -- Tandemhubschrauber einparken \n",
+                ["helpOptionNotFound"] = "Diese Option existiert nicht.",
+                ["vehiclePurchased"] = "Du hast ein {0} gekauft, tippe <color=#4DFF4D>/spawn</color> für mehr Informationen.",
+                ["vehicleAlreadyPurchased"] = "Du hast bereits ein {0} gekauft.",
+                ["vehicleCannotBeBuyed"] = "Du kannst kein {0} kaufen.",
+                ["vehicleNotOut"] = "{0} ist nicht ausgeparkt.",
+                ["noMoney"] = "Du hast nicht genügend Geld.",
+                ["didntBuyVehicle"] = "Du hast kein Fahrzeug gekauft.",
+                ["alreadyVehicleOut"] = "Du hast bereits ein {0} ausgeparkt, tippe <color=#4DFF4D>/spawn</color> für mehr Informationen.",
+                ["vehicleNotYetPurchased"] = "Du hast noch kein {0} gekauft.",
+                ["vehicleSpawned"] = "Du hast dein {0} ausgeparkt.",
+                ["vehicleRecalled"] = "Du hast dein {0} eingeparkt.",
+                ["vehicleOnCooldown"] = "Du musst {0} Sekunden warten bevor du dein {1} ausparken kannst.",
+                ["notInWater"] = "Du musst dich hierfür im Wasser befinden.",
+                ["buildindBlocked"] = "Du kannst hier nichts ausparken, da dir hier die Bauberechtigung fehlt.",
+                ["noPermission"] = "Dir fehlt hierfür die Berechtigung."
+            }, this, "de");
         }
         #endregion
 
@@ -933,6 +1012,7 @@ namespace Oxide.Plugins
                     Sedan = new VehicleSettings("Sedan", SedanPrefab, true, 300, 180, 5, new List<string> { "sedan", "car" }),
                     HotAirBalloon = new VehicleSettings("Hot Air Balloon", HotAirBalloonPrefab, true, 5000, 900, 20, new List<string> { "hotairballoon", "hab" }),
                     MiniCopter = new VehicleSettings("MiniCopter", MiniCopterPrefab, true, 10000, 1800, 8, new List<string> { "minicopter", "copter" }),
+					TransportCopter = new VehicleSettings("TransportCopter", TransportCopterPrefab, true, 20000, 2400, 10, new List<string> { "transportcopter", "transport" }),
                     Chinook = new VehicleSettings("Chinook", ChinookPrefab, true, 30000, 3000, 25, new List<string> { "chinook", "ch47" })
                 }
             };
@@ -982,6 +1062,8 @@ namespace Oxide.Plugins
                 public VehicleSettings HotAirBalloon { get; set; }
                 [JsonProperty(PropertyName = "MiniCopter")]
                 public VehicleSettings MiniCopter { get; set; }
+				[JsonProperty(PropertyName = "TransportCopter")]
+                public VehicleSettings TransportCopter { get; set; }
                 [JsonProperty(PropertyName = "Chinook")]
                 public VehicleSettings Chinook { get; set; }
             }
