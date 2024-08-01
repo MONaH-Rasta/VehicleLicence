@@ -9,7 +9,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle License", "Sorrow|TheDoc", "1.2.5")]
+    [Info("Vehicle License", "Sorrow|TheDoc", "1.2.7")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
 
     class VehicleLicence : RustPlugin
@@ -485,11 +485,30 @@ namespace Oxide.Plugins
 
             if (Economics != null && _useEconomics)
             {
+				var playerCoins = (double)Economics.CallHook("Balance", player.UserIDString);
+//				PrintWarning("playerCoins = " + playerCoins);
+//				PrintWarning("vehicleSettings.price = " + vehicleSettings.price);
+				
+				if (playerCoins < vehicleSettings.price) {
+					Msg("noMoney", player);
+					return false;
+				}
+
                 result = Economics.Call<bool>("Withdraw", player.userID, Convert.ToDouble(vehicleSettings.price));
+//				PrintWarning("result = " + result);
             }
             else if (ServerRewards != null && _useServerRewards)
             {
-                result = ServerRewards.Call<bool>("TakePoints", player.userID, vehicleSettings.price);
+				int RPs = (int)ServerRewards?.Call("CheckPoints", player.userID);
+				//PrintWarning("RPs = " + RPs);
+				
+				if (RPs < vehicleSettings.price) {
+					Msg("noMoney", player);
+					return false;
+				}
+				
+				result = (bool)ServerRewards?.Call("TakePoints", player.userID, vehicleSettings.price);
+				//PrintWarning("ServerRewards result = " + result);
             }
             else if (item != null && player.inventory.GetAmount(item.itemid) >= vehicleSettings.price)
             {
