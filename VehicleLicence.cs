@@ -761,7 +761,7 @@ namespace Oxide.Plugins
                 return false;
             }
 
-            var collect = Pool.GetList<Item>();
+            var collect = Pool.Get<List<Item>>();
             foreach (var entry in prices)
             {
                 if (entry.Value.amount <= 0)
@@ -791,7 +791,7 @@ namespace Oxide.Plugins
             {
                 item.Remove();
             }
-            Pool.FreeList(ref collect);
+            Pool.FreeUnmanaged(ref collect);
             resources = null;
             return true;
         }
@@ -1392,7 +1392,7 @@ namespace Oxide.Plugins
             {
                 return GetDismountPosition(parentVehicle, player, out result);
             }
-            var list = Pool.GetList<Vector3>();
+            var list = Pool.Get<List<Vector3>>();
             foreach (var transform in baseVehicle.dismountPositions)
             {
                 if (baseVehicle.ValidDismountPosition(player, transform.position))
@@ -1407,13 +1407,13 @@ namespace Oxide.Plugins
             if (list.Count == 0)
             {
                 result = Vector3.zero;
-                Pool.FreeList(ref list);
+                Pool.FreeUnmanaged(ref list);
                 return false;
             }
             var pos = player.transform.position;
             list.Sort((a, b) => Vector3.Distance(a, pos).CompareTo(Vector3.Distance(b, pos)));
             result = list[0];
-            Pool.FreeList(ref list);
+            Pool.FreeUnmanaged(ref list);
             return true;
         }
 
@@ -1474,10 +1474,10 @@ namespace Oxide.Plugins
 
         private static bool IsInWater(Vector3 position)
         {
-            var colliders = Pool.GetList<Collider>();
+            var colliders = Pool.Get<List<Collider>>();
             Vis.Colliders(position, 0.5f, colliders);
             var flag = colliders.Any(x => x.gameObject.layer == (int)Layer.Water);
-            Pool.FreeList(ref colliders);
+            Pool.FreeUnmanaged(ref colliders);
             return flag || WaterLevel.Test(position, false, false);
         }
 
@@ -4170,7 +4170,7 @@ namespace Oxide.Plugins
 
             protected bool SpaceIsClearForTrainTrack(Vehicle vehicle, Vector3 position, Quaternion rotation)
             {
-                var colliders = Pool.GetList<Collider>();
+                var colliders = Pool.Get<List<Collider>>();
                 if (vehicle.Entity == null)
                 {
                     var prefab = GetVehiclePrefab(vehicle.VehicleType);
@@ -4198,7 +4198,7 @@ namespace Oxide.Plugins
                     free = false;
                     break;
                 }
-                Pool.FreeList(ref colliders);
+                Pool.FreeUnmanaged(ref colliders);
                 return free;
             }
 
@@ -4244,7 +4244,7 @@ namespace Oxide.Plugins
 
             public void RefundVehicleItems(Vehicle vehicle, bool isCrash, bool isUnload)
             {
-                var collect = Pool.GetList<Item>();
+                var collect = Pool.Get<List<Item>>();
 
                 CollectVehicleItems(collect, vehicle, isCrash, isUnload);
 
@@ -4269,7 +4269,7 @@ namespace Oxide.Plugins
                         }
                     }
                 }
-                Pool.FreeList(ref collect);
+                Pool.FreeUnmanaged(ref collect);
             }
 
             #endregion Refund
@@ -4353,10 +4353,10 @@ namespace Oxide.Plugins
                 rotation = Quaternion.identity;
                 if (MinDistanceForPlayers > 0)
                 {
-                    var nearbyPlayers = Pool.GetList<BasePlayer>();
+                    var nearbyPlayers = Pool.Get<List<BasePlayer>>();
                     Vis.Entities(original, MinDistanceForPlayers, nearbyPlayers, Layers.Mask.Player_Server);
                     var flag = nearbyPlayers.Any(x => x.userID.IsSteamId() && x != player);
-                    Pool.FreeList(ref nearbyPlayers);
+                    Pool.FreeUnmanaged(ref nearbyPlayers);
                     if (flag)
                     {
                         reason = Instance.Lang("PlayersOnNearby", player.UserIDString, DisplayName);
@@ -4376,15 +4376,15 @@ namespace Oxide.Plugins
                         reason = Instance.Lang("NotLookingAtWater", player.UserIDString, DisplayName);
                         return false;
                     }
-                    List<BaseEntity> pools = Pool.GetList<BaseEntity>();
+                    List<BaseEntity> pools = Pool.Get<List<BaseEntity>>();
                     Vis.Entities(original, 0.5f, pools, Layers.Mask.Deployed);
                     if (pools.Any(x => x is PaddlingPool))
                     {
                         reason = Instance.Lang("NotLookingAtWater", player.UserIDString, DisplayName);
-                        Pool.FreeList(ref pools);
+                        Pool.FreeUnmanaged(ref pools);
                         return false;
                     }
-                    Pool.FreeList(ref pools);
+                    Pool.FreeUnmanaged(ref pools);
                 }
                 reason = null;
                 return true;
@@ -4500,7 +4500,7 @@ namespace Oxide.Plugins
 
             private bool TryGetCenterOfFloorNearby(ref Vector3 spawnPos)
             {
-                var buildingBlocks = Pool.GetList<BuildingBlock>();
+                var buildingBlocks = Pool.Get<List<BuildingBlock>>();
                 Vis.Entities(spawnPos, 2f, buildingBlocks, Layers.Mask.Construction);
                 if (buildingBlocks.Count > 0)
                 {
@@ -4513,11 +4513,11 @@ namespace Oxide.Plugins
                         var worldSpaceBounds = closestBuildingBlock.WorldSpaceBounds();
                         spawnPos = worldSpaceBounds.position;
                         spawnPos.y += worldSpaceBounds.extents.y;
-                        Pool.FreeList(ref buildingBlocks);
+                        Pool.FreeUnmanaged(ref buildingBlocks);
                         return true;
                     }
                 }
-                Pool.FreeList(ref buildingBlocks);
+                Pool.FreeUnmanaged(ref buildingBlocks);
                 return false;
             }
 
@@ -5217,10 +5217,10 @@ namespace Oxide.Plugins
 
                 if (vehicle.Entity is ModularCar)
                 {
-                    var modularCarGarages = Pool.GetList<ModularCarGarage>();
+                    var modularCarGarages = Pool.Get<List<ModularCarGarage>>();
                     Vis.Entities(vehicle.Entity.transform.position, 3f, modularCarGarages, Layers.Mask.Deployed | Layers.Mask.Default);
                     var modularCarGarage = modularCarGarages.FirstOrDefault(x => x.carOccupant == vehicle.Entity);
-                    Pool.FreeList(ref modularCarGarages);
+                    Pool.FreeUnmanaged(ref modularCarGarages);
                     if (modularCarGarage != null)
                     {
                         modularCarGarage.enabled = false;
