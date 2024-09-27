@@ -137,9 +137,9 @@ namespace Oxide.Plugins
         // Defaults for Vehicle Modifications
         private readonly float TUGBOAT_ENGINETHRUST = 200000f;
         private readonly float HELICOPTER_LIFT = 0.25f;
-        private readonly Vector3 SCRAP_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 4000.0f);
-        private readonly Vector3 MINICOPTER_TORQUE = new Vector3(400.0f, 400.0f, 200.0f);
-        private readonly Vector3 ATTACK_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 5200.0f);
+        private readonly Vector3 SCRAP_HELICOPTER_TORQUE = new(8000.0f, 8000.0f, 4000.0f);
+        private readonly Vector3 MINICOPTER_TORQUE = new(400.0f, 400.0f, 200.0f);
+        private readonly Vector3 ATTACK_HELICOPTER_TORQUE = new(8000.0f, 8000.0f, 5200.0f);
 
         private const int LAYER_GROUND = Layers.Solid | Layers.Mask.Water;
 
@@ -148,9 +148,9 @@ namespace Oxide.Plugins
 
         public static VehicleLicence Instance { get; private set; }
 
-        public readonly Dictionary<BaseEntity, Vehicle> vehiclesCache = new Dictionary<BaseEntity, Vehicle>();
-        public readonly Dictionary<string, BaseVehicleSettings> allVehicleSettings = new Dictionary<string, BaseVehicleSettings>();
-        public readonly Dictionary<string, string> commandToVehicleType = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        public readonly Dictionary<BaseEntity, Vehicle> vehiclesCache = new();
+        public readonly Dictionary<string, BaseVehicleSettings> allVehicleSettings = new();
+        public readonly Dictionary<string, string> commandToVehicleType = new(StringComparer.OrdinalIgnoreCase);
         
         public enum NormalVehicleType
         {
@@ -1736,7 +1736,7 @@ namespace Oxide.Plugins
                         {
                             continue;
                         }
-                        NetworkableId id = new NetworkableId(entry.Value.EntityId);
+                        NetworkableId id = new(entry.Value.EntityId);
                         entry.Value.Entity = BaseNetworkable.serverEntities.Find(id) as BaseEntity;
                         if (entry.Value.Entity == null || entry.Value.Entity.IsDestroyed)
                         {
@@ -2975,22 +2975,22 @@ namespace Oxide.Plugins
         public class ConfigData
         {
             [JsonProperty(PropertyName = "Settings")]
-            public GlobalSettings global = new GlobalSettings();
+            public GlobalSettings global = new();
 
             [JsonProperty(PropertyName = "Chat Settings")]
-            public ChatSettings chat = new ChatSettings();
+            public ChatSettings chat = new();
 
             [JsonProperty("Allow vehicles to be spawned/recalled in zones listed in prevent spawning zones")]
             public bool CanSpawnInZones = false;
 
             [JsonProperty(PropertyName = "Zones to prevent users from spawning/recalled vehicles within.", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public List<string> AntiSpawnZones = new List<string> { "KeepVehiclesOut" };
+            public List<string> AntiSpawnZones = new() { "KeepVehiclesOut" };
 
             [JsonProperty(PropertyName = "Normal Vehicle Settings")]
-            public NormalVehicleSettings normalVehicles = new NormalVehicleSettings();
+            public NormalVehicleSettings normalVehicles = new();
 
             [JsonProperty(PropertyName = "Modular Vehicle Settings", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public Dictionary<string, ModularVehicleSettings> modularVehicles = new Dictionary<string, ModularVehicleSettings>
+            public Dictionary<string, ModularVehicleSettings> modularVehicles = new()
             {
                 ["SmallCar"] = new ModularVehicleSettings
                 {
@@ -3029,35 +3029,28 @@ namespace Oxide.Plugins
                     ChassisType = ChassisType.Small,
                     ModuleItems = new List<ModuleItem>
                     {
-                        new ModuleItem
-                        {
+                        new() {
                             shortName = "vehicle.1mod.cockpit.with.engine", healthPercentage = 50f
                         },
-                        new ModuleItem
-                        {
+                        new() {
                             shortName = "vehicle.1mod.storage", healthPercentage = 50f
                         }
                     },
                     EngineItems = new List<EngineItem>
                     {
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "carburetor1", conditionPercentage = 20f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "crankshaft1", conditionPercentage = 20f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "piston1", conditionPercentage = 20f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "sparkplug1", conditionPercentage = 20f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "valve1", conditionPercentage = 20f
                         }
                     }
@@ -3099,39 +3092,31 @@ namespace Oxide.Plugins
                     ChassisType = ChassisType.Medium,
                     ModuleItems = new List<ModuleItem>
                     {
-                        new ModuleItem
-                        {
+                        new() {
                             shortName = "vehicle.1mod.cockpit.with.engine", healthPercentage = 50f
                         },
-                        new ModuleItem
-                        {
+                        new() {
                             shortName = "vehicle.1mod.rear.seats", healthPercentage = 50f
                         },
-                        new ModuleItem
-                        {
+                        new() {
                             shortName = "vehicle.1mod.flatbed", healthPercentage = 50f
                         }
                     },
                     EngineItems = new List<EngineItem>
                     {
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "carburetor2", conditionPercentage = 20f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "crankshaft2", conditionPercentage = 20f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "piston2", conditionPercentage = 20f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "sparkplug2", conditionPercentage = 20f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "valve2", conditionPercentage = 20f
                         }
                     }
@@ -3173,55 +3158,43 @@ namespace Oxide.Plugins
                     ChassisType = ChassisType.Large,
                     ModuleItems = new List<ModuleItem>
                     {
-                        new ModuleItem
-                        {
+                        new() {
                             shortName = "vehicle.1mod.engine", healthPercentage = 50f
                         },
-                        new ModuleItem
-                        {
+                        new() {
                             shortName = "vehicle.1mod.cockpit.armored", healthPercentage = 50f
                         },
-                        new ModuleItem
-                        {
+                        new() {
                             shortName = "vehicle.1mod.passengers.armored", healthPercentage = 50f
                         },
-                        new ModuleItem
-                        {
+                        new() {
                             shortName = "vehicle.1mod.storage", healthPercentage = 50f
                         }
                     },
                     EngineItems = new List<EngineItem>
                     {
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "carburetor3", conditionPercentage = 10f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "crankshaft3", conditionPercentage = 10f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "piston3", conditionPercentage = 10f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "piston3", conditionPercentage = 10f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "sparkplug3", conditionPercentage = 10f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "sparkplug3", conditionPercentage = 10f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "valve3", conditionPercentage = 10f
                         },
-                        new EngineItem
-                        {
+                        new() {
                             shortName = "valve3", conditionPercentage = 10f
                         }
                     }
@@ -3229,7 +3202,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Train Vehicle Settings", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public Dictionary<string, TrainVehicleSettings> trainVehicles = new Dictionary<string, TrainVehicleSettings>
+            public Dictionary<string, TrainVehicleSettings> trainVehicles = new()
             {
                 ["WorkCartAboveGround"] = new TrainVehicleSettings
                 {
@@ -3262,7 +3235,7 @@ namespace Oxide.Plugins
                     },
                     TrainComponents = new List<TrainComponent>
                     {
-                        new TrainComponent { type = TrainComponentType.Engine }
+                        new() { type = TrainComponentType.Engine }
                     }
                 },
                 ["WorkCartCovered"] = new TrainVehicleSettings
@@ -3296,7 +3269,7 @@ namespace Oxide.Plugins
                     },
                     TrainComponents = new List<TrainComponent>
                     {
-                        new TrainComponent { type = TrainComponentType.CoveredEngine }
+                        new() { type = TrainComponentType.CoveredEngine }
                     }
                 },
                 ["CompleteTrain"] = new TrainVehicleSettings
@@ -3330,28 +3303,22 @@ namespace Oxide.Plugins
                     },
                     TrainComponents = new List<TrainComponent>
                     {
-                        new TrainComponent
-                        {
+                        new() {
                             type = TrainComponentType.Engine
                         },
-                        new TrainComponent
-                        {
+                        new() {
                             type = TrainComponentType.WagonA
                         },
-                        new TrainComponent
-                        {
+                        new() {
                             type = TrainComponentType.WagonB
                         },
-                        new TrainComponent
-                        {
+                        new() {
                             type = TrainComponentType.WagonC
                         },
-                        new TrainComponent
-                        {
+                        new() {
                             type = TrainComponentType.Unloadable
                         },
-                        new TrainComponent
-                        {
+                        new() {
                             type = TrainComponentType.UnloadableLoot
                         }
                     }
@@ -3387,7 +3354,7 @@ namespace Oxide.Plugins
                     },
                     TrainComponents = new List<TrainComponent>
                     {
-                        new TrainComponent { type = TrainComponentType.Locomotive }
+                        new() { type = TrainComponentType.Locomotive }
                     }
                 }
             };
@@ -3535,7 +3502,7 @@ namespace Oxide.Plugins
         public class NormalVehicleSettings
         {
             [JsonProperty(PropertyName = "Tugboat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public TugboatSettings tugboat = new TugboatSettings
+            public TugboatSettings tugboat = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3569,7 +3536,7 @@ namespace Oxide.Plugins
                 }
             };
             [JsonProperty(PropertyName = "Sedan Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public SedanSettings sedan = new SedanSettings
+            public SedanSettings sedan = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3598,7 +3565,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Chinook Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public ChinookSettings chinook = new ChinookSettings
+            public ChinookSettings chinook = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3627,7 +3594,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Rowboat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public RowboatSettings rowboat = new RowboatSettings
+            public RowboatSettings rowboat = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3656,7 +3623,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "RHIB Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public RhibSettings rhib = new RhibSettings
+            public RhibSettings rhib = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3685,7 +3652,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Hot Air Balloon Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public HotAirBalloonSettings hotAirBalloon = new HotAirBalloonSettings
+            public HotAirBalloonSettings hotAirBalloon = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3714,7 +3681,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Armored Hot Air Balloon Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public ArmoredHotAirBalloonSettings armoredHotAirBalloon = new ArmoredHotAirBalloonSettings
+            public ArmoredHotAirBalloonSettings armoredHotAirBalloon = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3743,7 +3710,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Ridable Horse Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public RidableHorseSettings ridableHorse = new RidableHorseSettings
+            public RidableHorseSettings ridableHorse = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3777,7 +3744,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Mini Copter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public MiniCopterSettings miniCopter = new MiniCopterSettings
+            public MiniCopterSettings miniCopter = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3810,7 +3777,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Attack Helicopter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public AttackHelicopterSettings attackHelicopter = new AttackHelicopterSettings
+            public AttackHelicopterSettings attackHelicopter = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3846,7 +3813,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Transport Helicopter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public TransportHelicopterSettings transportHelicopter = new TransportHelicopterSettings
+            public TransportHelicopterSettings transportHelicopter = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3882,7 +3849,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Work Cart Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public WorkCartSettings workCart = new WorkCartSettings
+            public WorkCartSettings workCart = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3914,7 +3881,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Sedan Rail Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public WorkCartSettings sedanRail = new WorkCartSettings
+            public WorkCartSettings sedanRail = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3946,7 +3913,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Magnet Crane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public MagnetCraneSettings magnetCrane = new MagnetCraneSettings
+            public MagnetCraneSettings magnetCrane = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -3978,7 +3945,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Submarine Solo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public SubmarineSoloSettings submarineSolo = new SubmarineSoloSettings
+            public SubmarineSoloSettings submarineSolo = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4007,7 +3974,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Submarine Duo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public SubmarineDuoSettings submarineDuo = new SubmarineDuoSettings
+            public SubmarineDuoSettings submarineDuo = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4036,7 +4003,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Snowmobile Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public SnowmobileSettings snowmobile = new SnowmobileSettings
+            public SnowmobileSettings snowmobile = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4065,7 +4032,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Tomaha Snowmobile Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public SnowmobileSettings tomahaSnowmobile = new SnowmobileSettings
+            public SnowmobileSettings tomahaSnowmobile = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4094,7 +4061,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Pedal Bike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public PedalBikeSettings pedalBike = new PedalBikeSettings
+            public PedalBikeSettings pedalBike = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4123,7 +4090,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Pedal Trike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public PedalTrikeSettings pedalTrike = new PedalTrikeSettings
+            public PedalTrikeSettings pedalTrike = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4152,7 +4119,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Motorbike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public MotorBikeSettings motorBike = new MotorBikeSettings
+            public MotorBikeSettings motorBike = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4181,7 +4148,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Motorbike Sidecar Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public MotorBikeSidecarSettings motorBikeSidecar = new MotorBikeSidecarSettings
+            public MotorBikeSidecarSettings motorBikeSidecar = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4210,7 +4177,7 @@ namespace Oxide.Plugins
             };
             
             [JsonProperty(PropertyName = "Kayak Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public KayakSettings Kayak = new KayakSettings
+            public KayakSettings Kayak = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4242,7 +4209,7 @@ namespace Oxide.Plugins
         public class CustomVehicleSettings
         {
             [JsonProperty(PropertyName = "ATV Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public AtvSettings atv = new AtvSettings
+            public AtvSettings atv = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4271,7 +4238,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Race Sofa Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public RaceSofaSettings raceSofa = new RaceSofaSettings
+            public RaceSofaSettings raceSofa = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4300,7 +4267,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Water Bird Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public WaterBirdSettings waterBird = new WaterBirdSettings
+            public WaterBirdSettings waterBird = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4329,7 +4296,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "War Bird Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public WarBirdSettings warBird = new WarBirdSettings
+            public WarBirdSettings warBird = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4358,7 +4325,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Little Bird Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public LittleBirdSettings littleBird = new LittleBirdSettings
+            public LittleBirdSettings littleBird = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4387,7 +4354,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Fighter Plane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public FighterSettings fighter = new FighterSettings
+            public FighterSettings fighter = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4416,7 +4383,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Old Fighter Plane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public OldFighterSettings oldFighter = new OldFighterSettings
+            public OldFighterSettings oldFighter = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4445,7 +4412,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Fighter Bus Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public FighterBusSettings fighterBus = new FighterBusSettings
+            public FighterBusSettings fighterBus = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4474,7 +4441,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "War Bus Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public WarBusSettings warBus = new WarBusSettings
+            public WarBusSettings warBus = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4503,7 +4470,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Air Bus Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public AirBusSettings airBus = new AirBusSettings
+            public AirBusSettings airBus = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4532,7 +4499,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Patrol Helicopter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public PatrolHelicopterSettings patrolHeli = new PatrolHelicopterSettings
+            public PatrolHelicopterSettings patrolHeli = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4561,7 +4528,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Rust Wing Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public RustWingSettings rustWing = new RustWingSettings
+            public RustWingSettings rustWing = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4590,7 +4557,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Rust Wing Detailed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public RustWingDetailedSettings rustWingDetailed = new RustWingDetailedSettings
+            public RustWingDetailedSettings rustWingDetailed = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4619,7 +4586,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Rust Wing Detailed Old Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public RustWingDetailedOldSettings rustWingDetailedOld = new RustWingDetailedOldSettings
+            public RustWingDetailedOldSettings rustWingDetailedOld = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4648,7 +4615,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Tin Fighter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public TinFighterSettings tinFighter = new TinFighterSettings
+            public TinFighterSettings tinFighter = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4677,7 +4644,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Tin Fighter Detailed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public TinFighterDetailedSettings tinFighterDetailed = new TinFighterDetailedSettings
+            public TinFighterDetailedSettings tinFighterDetailed = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4706,7 +4673,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Tin Fighter Detailed Old Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public TinFighterDetailedOldSettings tinFighterDetailedOld = new TinFighterDetailedOldSettings
+            public TinFighterDetailedOldSettings tinFighterDetailedOld = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4735,7 +4702,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Mars Fighter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public MarsFighterSettings marsFighter = new MarsFighterSettings
+            public MarsFighterSettings marsFighter = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4764,7 +4731,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Mars Fighter Detailed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public MarsFighterDetailedSettings marsFighterDetailed = new MarsFighterDetailedSettings
+            public MarsFighterDetailedSettings marsFighterDetailed = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4793,7 +4760,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Sky Plane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public SkyPlaneSettings skyPlane = new SkyPlaneSettings
+            public SkyPlaneSettings skyPlane = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4822,7 +4789,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Sky Boat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public SkyBoatSettings skyBoat = new SkyBoatSettings
+            public SkyBoatSettings skyBoat = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4851,7 +4818,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Twisted Truck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public TwistedTruckSettings twistedTruck = new TwistedTruckSettings
+            public TwistedTruckSettings twistedTruck = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4880,7 +4847,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Train Wreck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public TrainWreckSettings trainWreck = new TrainWreckSettings
+            public TrainWreckSettings trainWreck = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4909,7 +4876,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Train Wrecker Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public TrainWreckerSettings trainWrecker = new TrainWreckerSettings
+            public TrainWreckerSettings trainWrecker = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4938,7 +4905,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Santa Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public SantaSettings santa = new SantaSettings
+            public SantaSettings santa = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4967,7 +4934,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "War Santa Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public WarSantaSettings warSanta = new WarSantaSettings
+            public WarSantaSettings warSanta = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -4996,7 +4963,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Witch Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public WitchSettings witch = new WitchSettings
+            public WitchSettings witch = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5025,7 +4992,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Magic Carpet Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public MagicCarpetSettings magicCarpet = new MagicCarpetSettings
+            public MagicCarpetSettings magicCarpet = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5054,7 +5021,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Ah69t Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public Ah69tSettings ah69t = new Ah69tSettings
+            public Ah69tSettings ah69t = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5083,7 +5050,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Ah69r Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public Ah69rSettings ah69r = new Ah69rSettings
+            public Ah69rSettings ah69r = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5112,7 +5079,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Ah69a Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public Ah69aSettings ah69a = new Ah69aSettings
+            public Ah69aSettings ah69a = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5141,7 +5108,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Mavik Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public MavikSettings mavik = new MavikSettings
+            public MavikSettings mavik = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5170,7 +5137,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Heavy Fighter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public HeavyFighterSettings heavyFighter = new HeavyFighterSettings
+            public HeavyFighterSettings heavyFighter = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5199,7 +5166,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Porcelain Commander Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public PorcelainCommanderSettings porcelainCommander = new PorcelainCommanderSettings
+            public PorcelainCommanderSettings porcelainCommander = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5228,7 +5195,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Dune Buggie Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public DuneBuggieSettings duneBuggie = new DuneBuggieSettings
+            public DuneBuggieSettings duneBuggie = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5257,7 +5224,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Dune Truck Armed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public DuneTruckArmedSettings duneTruckArmed = new DuneTruckArmedSettings
+            public DuneTruckArmedSettings duneTruckArmed = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5286,7 +5253,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Dune Truck UnArmed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public DuneTruckUnArmedSettings duneTruckUnArmed = new DuneTruckUnArmedSettings
+            public DuneTruckUnArmedSettings duneTruckUnArmed = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5315,7 +5282,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Dooms Day Disco Van Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public DoomsDayDiscoVanSettings doomsDayDiscoVan = new DoomsDayDiscoVanSettings
+            public DoomsDayDiscoVanSettings doomsDayDiscoVan = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5344,7 +5311,7 @@ namespace Oxide.Plugins
             }; 
             
             [JsonProperty(PropertyName = "Lawn Mower Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public LawnMowerSettings lawnMower = new LawnMowerSettings
+            public LawnMowerSettings lawnMower = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5373,7 +5340,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Fork Lift Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public ForkLiftSettings forkLift = new ForkLiftSettings
+            public ForkLiftSettings forkLift = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5402,7 +5369,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Chariot Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public ChariotSettings chariot = new ChariotSettings
+            public ChariotSettings chariot = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -5431,7 +5398,7 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Soul Harvester Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public SoulHarvesterSettings soulHarvester = new SoulHarvesterSettings
+            public SoulHarvesterSettings soulHarvester = new()
             {
                 Purchasable = true,
                 NoDamage = false,
@@ -7002,7 +6969,7 @@ namespace Oxide.Plugins
             public List<string> Breeds { get; set; }
 
             [JsonIgnore]
-            public Dictionary<string, int> BreedsRef = new Dictionary<string, int>()
+            public Dictionary<string, int> BreedsRef = new()
             {
                 ["Appalosa"] = 0,
                 ["Bay"] = 1,
@@ -7897,8 +7864,7 @@ namespace Oxide.Plugins
                         var settings = workCartAboveGround.ToObject<TrainVehicleSettings>();
                         settings.TrainComponents = new List<TrainComponent>
                         {
-                            new TrainComponent
-                            {
+                            new() {
                                 type = TrainComponentType.Engine
                             }
                         };
@@ -7910,8 +7876,7 @@ namespace Oxide.Plugins
                         var settings = coveredWorkCart.ToObject<TrainVehicleSettings>();
                         settings.TrainComponents = new List<TrainComponent>
                         {
-                            new TrainComponent
-                            {
+                            new() {
                                 type = TrainComponentType.CoveredEngine
                             }
                         };
@@ -7959,8 +7924,7 @@ namespace Oxide.Plugins
                             },
                             TrainComponents = new List<TrainComponent>
                             {
-                                new TrainComponent
-                                {
+                                new() {
                                     type = TrainComponentType.Locomotive
                                 }
                             }
@@ -8118,7 +8082,7 @@ namespace Oxide.Plugins
 
         public class StoredData
         {
-            public readonly Dictionary<ulong, Dictionary<string, Vehicle>> playerData = new Dictionary<ulong, Dictionary<string, Vehicle>>();
+            public readonly Dictionary<ulong, Dictionary<string, Vehicle>> playerData = new();
 
             public IEnumerable<BaseEntity> ActiveVehicles(ulong playerId)
             {
