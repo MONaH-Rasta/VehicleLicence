@@ -24,7 +24,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.6")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.7")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -106,7 +106,7 @@ namespace Oxide.Plugins
         private const string PREFAB_ATTACKHELICOPTER = "assets/content/vehicles/attackhelicopter/attackhelicopter.entity.prefab";
         private const string PREFAB_TRANSPORTCOPTER = "assets/content/vehicles/scrap heli carrier/scraptransporthelicopter.prefab";
         private const string PREFAB_CHINOOK = "assets/prefabs/npc/ch47/ch47.entity.prefab";
-        private const string PREFAB_RIDABLEHORSE = "assets/rust.ai/nextai/testridablehorse.prefab";
+        private const string PREFAB_RIDABLEHORSE = "assets/content/vehicles/horse/ridablehorse2.prefab";
         private const string PREFAB_WORKCART = "assets/content/vehicles/trains/workcart/workcart.entity.prefab";
         private const string PREFAB_SEDANRAIL = "assets/content/vehicles/sedan_a/sedanrail.entity.prefab";
         private const string PREFAB_MAGNET_CRANE = "assets/content/vehicles/crane_magnet/magnetcrane.entity.prefab";
@@ -462,7 +462,8 @@ namespace Oxide.Plugins
             {
                 return;
             }
-            if (!vehiclesCache.TryGetValue(vehicleParent, out Vehicle vehicle))
+            Vehicle vehicle;
+            if (!vehiclesCache.TryGetValue(vehicleParent, out vehicle))
             {
                 return;
             }
@@ -530,7 +531,8 @@ namespace Oxide.Plugins
             {
                 return null;
             }
-            if (!vehiclesCache.TryGetValue(vehicleParent, out Vehicle vehicle))
+            Vehicle vehicle;
+            if (!vehiclesCache.TryGetValue(vehicleParent, out vehicle))
             {
                 return null;
             }
@@ -584,7 +586,8 @@ namespace Oxide.Plugins
 
         private object CanLootEntityInternal(BasePlayer friend, BaseEntity parentEntity)
         {
-            if (!TryGetVehicle(parentEntity, out Vehicle vehicle))
+            Vehicle vehicle;
+            if (!TryGetVehicle(parentEntity, out vehicle))
             {
                 return null;
             }
@@ -607,7 +610,8 @@ namespace Oxide.Plugins
             {
                 return;
             }
-            if (!TryGetVehicle(entity, out Vehicle vehicle))
+            Vehicle vehicle;
+            if (!TryGetVehicle(entity, out vehicle))
             {
                 return;
             }
@@ -654,7 +658,7 @@ namespace Oxide.Plugins
             TryClaimVehicle(attackHelicopter);
         }
 
-        private void OnRidableAnimalClaimed(RidableHorse2 ridableAnimal, BasePlayer player)
+        private void OnRidableAnimalClaimed(BaseRidableAnimal ridableAnimal, BasePlayer player)
         {
             TryClaimVehicle(ridableAnimal, player);
         }
@@ -694,7 +698,8 @@ namespace Oxide.Plugins
 
             if (!configData.global.preventDamagePlayer) return null;
 
-            if (GetDismountPosition(baseVehicle, player, out Vector3 pos))
+            Vector3 pos;
+            if (GetDismountPosition(baseVehicle, player, out pos))
             {
                 MoveToPosition(player, pos);
             }
@@ -746,7 +751,8 @@ namespace Oxide.Plugins
             {
                 return null;
             }
-            if (TryGetVehicle(entity, out Vehicle vehicle))
+            Vehicle vehicle;
+            if (TryGetVehicle(entity, out vehicle))
             {
                 return _false;
             }
@@ -792,7 +798,8 @@ namespace Oxide.Plugins
             {
                 return;
             }
-            if (!vehiclesCache.TryGetValue(entity, out Vehicle vehicle))
+            Vehicle vehicle;
+            if (!vehiclesCache.TryGetValue(entity, out vehicle))
             {
                 return;
             }
@@ -1136,93 +1143,162 @@ namespace Oxide.Plugins
 
         private BaseVehicleSettings GetBaseVehicleSettings(string vehicleType)
         {
-            return allVehicleSettings.TryGetValue(vehicleType, out BaseVehicleSettings settings) ? settings : null;
+            BaseVehicleSettings settings;
+            return allVehicleSettings.TryGetValue(vehicleType, out settings) ? settings : null;
         }
 
         private BaseVehicleSettings GetBaseVehicleSettings(NormalVehicleType normalVehicleType)
         {
-            return normalVehicleType switch
+            switch (normalVehicleType)
             {
-                NormalVehicleType.Tugboat => configData.normalVehicles.tugboat,
-                NormalVehicleType.Rowboat => configData.normalVehicles.rowboat,
-                NormalVehicleType.RHIB => configData.normalVehicles.rhib,
-                NormalVehicleType.Sedan => configData.normalVehicles.sedan,
-                NormalVehicleType.HotAirBalloon => configData.normalVehicles.hotAirBalloon,
-                NormalVehicleType.ArmoredHotAirBalloon => configData.normalVehicles.armoredHotAirBalloon,
-                NormalVehicleType.MiniCopter => configData.normalVehicles.miniCopter,
-                NormalVehicleType.AttackHelicopter => configData.normalVehicles.attackHelicopter,
-                NormalVehicleType.TransportHelicopter => configData.normalVehicles.transportHelicopter,
-                NormalVehicleType.Chinook => configData.normalVehicles.chinook,
-                NormalVehicleType.RidableHorse => configData.normalVehicles.ridableHorse,
-                NormalVehicleType.WorkCart => configData.normalVehicles.workCart,
-                NormalVehicleType.SedanRail => configData.normalVehicles.sedanRail,
-                NormalVehicleType.MagnetCrane => configData.normalVehicles.magnetCrane,
-                NormalVehicleType.SubmarineSolo => configData.normalVehicles.submarineSolo,
-                NormalVehicleType.SubmarineDuo => configData.normalVehicles.submarineDuo,
-                NormalVehicleType.Snowmobile => configData.normalVehicles.snowmobile,
-                NormalVehicleType.TomahaSnowmobile => configData.normalVehicles.tomahaSnowmobile,
-                NormalVehicleType.PedalBike => configData.normalVehicles.pedalBike,
-                NormalVehicleType.PedalTrike => configData.normalVehicles.pedalTrike,
-                NormalVehicleType.MotorBike => configData.normalVehicles.motorBike,
-                NormalVehicleType.MotorBike_SideCar => configData.normalVehicles.motorBikeSidecar,
-                NormalVehicleType.Kayak => configData.normalVehicles.Kayak,
-                _ => null,
-            };
+                case NormalVehicleType.Tugboat:
+                    return configData.normalVehicles.tugboat;
+                case NormalVehicleType.Rowboat:
+                    return configData.normalVehicles.rowboat;
+                case NormalVehicleType.RHIB:
+                    return configData.normalVehicles.rhib;
+                case NormalVehicleType.Sedan:
+                    return configData.normalVehicles.sedan;
+                case NormalVehicleType.HotAirBalloon:
+                    return configData.normalVehicles.hotAirBalloon;
+                case NormalVehicleType.ArmoredHotAirBalloon:
+                    return configData.normalVehicles.armoredHotAirBalloon;
+                case NormalVehicleType.MiniCopter:
+                    return configData.normalVehicles.miniCopter;
+                case NormalVehicleType.AttackHelicopter:
+                    return configData.normalVehicles.attackHelicopter;
+                case NormalVehicleType.TransportHelicopter:
+                    return configData.normalVehicles.transportHelicopter;
+                case NormalVehicleType.Chinook:
+                    return configData.normalVehicles.chinook;
+                case NormalVehicleType.RidableHorse:
+                    return configData.normalVehicles.ridableHorse;
+                case NormalVehicleType.WorkCart:
+                    return configData.normalVehicles.workCart;
+                case NormalVehicleType.SedanRail:
+                    return configData.normalVehicles.sedanRail;
+                case NormalVehicleType.MagnetCrane:
+                    return configData.normalVehicles.magnetCrane;
+                case NormalVehicleType.SubmarineSolo:
+                    return configData.normalVehicles.submarineSolo;
+                case NormalVehicleType.SubmarineDuo:
+                    return configData.normalVehicles.submarineDuo;
+                case NormalVehicleType.Snowmobile:
+                    return configData.normalVehicles.snowmobile;
+                case NormalVehicleType.TomahaSnowmobile:
+                    return configData.normalVehicles.tomahaSnowmobile;
+                case NormalVehicleType.PedalBike:
+                    return configData.normalVehicles.pedalBike;
+                case NormalVehicleType.PedalTrike:
+                    return configData.normalVehicles.pedalTrike;
+                case NormalVehicleType.MotorBike:
+                    return configData.normalVehicles.motorBike;
+                case NormalVehicleType.MotorBike_SideCar:
+                    return configData.normalVehicles.motorBikeSidecar;
+                case NormalVehicleType.Kayak:
+                    return configData.normalVehicles.Kayak;
+                default:
+                    return null;
+            }
         }
 
         private BaseVehicleSettings GetCustomVehicleSettings(CustomVehicleType normalVehicleType)
         {
-            return normalVehicleType switch
+            switch (normalVehicleType)
             {
-                CustomVehicleType.ATV => configData.customVehicles.atv,
-                CustomVehicleType.RaceSofa => configData.customVehicles.raceSofa,
-                CustomVehicleType.WaterBird => configData.customVehicles.waterBird,
-                CustomVehicleType.WarBird => configData.customVehicles.warBird,
-                CustomVehicleType.LittleBird => configData.customVehicles.littleBird,
-                CustomVehicleType.Fighter => configData.customVehicles.fighter,
-                CustomVehicleType.OldFighter => configData.customVehicles.oldFighter,
-                CustomVehicleType.FighterBus => configData.customVehicles.fighterBus,
-                CustomVehicleType.WarBus => configData.customVehicles.warBus,
-                CustomVehicleType.AirBus => configData.customVehicles.airBus,
-                CustomVehicleType.PatrolHeli => configData.customVehicles.patrolHeli,
-                CustomVehicleType.RustWing => configData.customVehicles.rustWing,
-                CustomVehicleType.RustWingDetailed => configData.customVehicles.rustWingDetailed,
-                CustomVehicleType.RustWingDetailedOld => configData.customVehicles.rustWingDetailedOld,
-                CustomVehicleType.TinFighter => configData.customVehicles.tinFighter,
-                CustomVehicleType.TinFighterDetailed => configData.customVehicles.tinFighterDetailed,
-                CustomVehicleType.TinFighterDetailedOld => configData.customVehicles.tinFighterDetailedOld,
-                CustomVehicleType.MarsFighter => configData.customVehicles.marsFighter,
-                CustomVehicleType.MarsFighterDetailed => configData.customVehicles.marsFighterDetailed,
-                CustomVehicleType.SkyPlane => configData.customVehicles.skyPlane,
-                CustomVehicleType.SkyBoat => configData.customVehicles.skyBoat,
-                CustomVehicleType.TwistedTruck => configData.customVehicles.twistedTruck,
-                CustomVehicleType.TrainWreck => configData.customVehicles.trainWreck,
-                CustomVehicleType.TrainWrecker => configData.customVehicles.trainWrecker,
-                CustomVehicleType.Santa => configData.customVehicles.santa,
-                CustomVehicleType.WarSanta => configData.customVehicles.warSanta,
-                CustomVehicleType.Witch => configData.customVehicles.witch,
-                CustomVehicleType.MagicCarpet => configData.customVehicles.magicCarpet,
-                CustomVehicleType.Ah69t => configData.customVehicles.ah69t,
-                CustomVehicleType.Ah69r => configData.customVehicles.ah69r,
-                CustomVehicleType.Ah69a => configData.customVehicles.ah69a,
-                CustomVehicleType.Mavik => configData.customVehicles.mavik,
-                CustomVehicleType.HeavyFighter => configData.customVehicles.heavyFighter,
-                CustomVehicleType.PorcelainCommander => configData.customVehicles.porcelainCommander,
-                CustomVehicleType.DuneBuggie => configData.customVehicles.duneBuggie,
-                CustomVehicleType.DuneTruckArmed => configData.customVehicles.duneTruckArmed,
-                CustomVehicleType.DuneTruckUnArmed => configData.customVehicles.duneTruckUnArmed,
-                CustomVehicleType.DoomsDayDiscoVan => configData.customVehicles.doomsDayDiscoVan,
-                CustomVehicleType.ForkLift => configData.customVehicles.forkLift,
-                CustomVehicleType.LawnMower => configData.customVehicles.lawnMower,
-                CustomVehicleType.Chariot => configData.customVehicles.chariot,
-                CustomVehicleType.SoulHarvester => configData.customVehicles.soulHarvester,
-                _ => null,
-            };
+                case CustomVehicleType.ATV:
+                    return configData.customVehicles.atv;
+                case CustomVehicleType.RaceSofa:
+                    return configData.customVehicles.raceSofa;
+                case CustomVehicleType.WaterBird:
+                    return configData.customVehicles.waterBird;
+                case CustomVehicleType.WarBird:
+                    return configData.customVehicles.warBird;
+                case CustomVehicleType.LittleBird:
+                    return configData.customVehicles.littleBird;
+                case CustomVehicleType.Fighter:
+                    return configData.customVehicles.fighter;
+                case CustomVehicleType.OldFighter:
+                    return configData.customVehicles.oldFighter;
+                case CustomVehicleType.FighterBus:
+                    return configData.customVehicles.fighterBus;
+                case CustomVehicleType.WarBus:
+                    return configData.customVehicles.warBus;
+                case CustomVehicleType.AirBus:
+                    return configData.customVehicles.airBus;
+                case CustomVehicleType.PatrolHeli:
+                    return configData.customVehicles.patrolHeli;
+                case CustomVehicleType.RustWing:
+                    return configData.customVehicles.rustWing;
+                case CustomVehicleType.RustWingDetailed:
+                    return configData.customVehicles.rustWingDetailed;
+                case CustomVehicleType.RustWingDetailedOld:
+                    return configData.customVehicles.rustWingDetailedOld;
+                case CustomVehicleType.TinFighter:
+                    return configData.customVehicles.tinFighter;
+                case CustomVehicleType.TinFighterDetailed:
+                    return configData.customVehicles.tinFighterDetailed;
+                case CustomVehicleType.TinFighterDetailedOld:
+                    return configData.customVehicles.tinFighterDetailedOld;
+                case CustomVehicleType.MarsFighter:
+                    return configData.customVehicles.marsFighter;
+                case CustomVehicleType.MarsFighterDetailed:
+                    return configData.customVehicles.marsFighterDetailed;
+                case CustomVehicleType.SkyPlane:
+                    return configData.customVehicles.skyPlane;
+                case CustomVehicleType.SkyBoat:
+                    return configData.customVehicles.skyBoat;
+                case CustomVehicleType.TwistedTruck:
+                    return configData.customVehicles.twistedTruck;
+                case CustomVehicleType.TrainWreck:
+                    return configData.customVehicles.trainWreck;
+                case CustomVehicleType.TrainWrecker:
+                    return configData.customVehicles.trainWrecker;
+                case CustomVehicleType.Santa:
+                    return configData.customVehicles.santa;
+                case CustomVehicleType.WarSanta:
+                    return configData.customVehicles.warSanta;
+                case CustomVehicleType.Witch:
+                    return configData.customVehicles.witch;
+                case CustomVehicleType.MagicCarpet:
+                    return configData.customVehicles.magicCarpet;
+                case CustomVehicleType.Ah69t:
+                    return configData.customVehicles.ah69t;
+                case CustomVehicleType.Ah69r:
+                    return configData.customVehicles.ah69r;
+                case CustomVehicleType.Ah69a:
+                    return configData.customVehicles.ah69a;
+                case CustomVehicleType.Mavik:
+                    return configData.customVehicles.mavik;
+                case CustomVehicleType.HeavyFighter:
+                    return configData.customVehicles.heavyFighter;
+                case CustomVehicleType.PorcelainCommander:
+                    return configData.customVehicles.porcelainCommander;
+                case CustomVehicleType.DuneBuggie:
+                    return configData.customVehicles.duneBuggie;
+                case CustomVehicleType.DuneTruckArmed:
+                    return configData.customVehicles.duneTruckArmed;
+                case CustomVehicleType.DuneTruckUnArmed:
+                    return configData.customVehicles.duneTruckUnArmed;
+                case CustomVehicleType.DoomsDayDiscoVan:
+                    return configData.customVehicles.doomsDayDiscoVan;
+                case CustomVehicleType.ForkLift:
+                    return configData.customVehicles.forkLift;
+                case CustomVehicleType.LawnMower:
+                    return configData.customVehicles.lawnMower;
+                case CustomVehicleType.Chariot:
+                    return configData.customVehicles.chariot;
+                case CustomVehicleType.SoulHarvester:
+                    return configData.customVehicles.soulHarvester;
+                default:
+                    return null;
+            }
         }
 
         private bool GetBaseVehicleCollisionDamage(string vehicleType)
         {
-            return allVehicleSettings.TryGetValue(vehicleType, out BaseVehicleSettings settings) && settings.NoCollisionDamage;
+            BaseVehicleSettings settings;
+            return allVehicleSettings.TryGetValue(vehicleType, out settings) && settings.NoCollisionDamage;
         }
 
         // private bool GetBaseVehicleCollisionDamage(string vehicleType)
@@ -1233,168 +1309,302 @@ namespace Oxide.Plugins
 
         private bool GetBaseVehicleCollisionDamage(NormalVehicleType normalVehicleType)
         {
-            return normalVehicleType switch
+            switch (normalVehicleType)
             {
-                NormalVehicleType.Tugboat => configData.normalVehicles.tugboat.NoCollisionDamage,
-                NormalVehicleType.Rowboat => configData.normalVehicles.rowboat.NoCollisionDamage,
-                NormalVehicleType.RHIB => configData.normalVehicles.rhib.NoCollisionDamage,
-                NormalVehicleType.Sedan => configData.normalVehicles.sedan.NoCollisionDamage,
-                NormalVehicleType.HotAirBalloon => configData.normalVehicles.hotAirBalloon.NoCollisionDamage,
-                NormalVehicleType.ArmoredHotAirBalloon => configData.normalVehicles.armoredHotAirBalloon.NoCollisionDamage,
-                NormalVehicleType.MiniCopter => configData.normalVehicles.miniCopter.NoCollisionDamage,
-                NormalVehicleType.AttackHelicopter => configData.normalVehicles.attackHelicopter.NoCollisionDamage,
-                NormalVehicleType.TransportHelicopter => configData.normalVehicles.transportHelicopter.NoCollisionDamage,
-                NormalVehicleType.Chinook => configData.normalVehicles.chinook.NoCollisionDamage,
-                NormalVehicleType.RidableHorse => configData.normalVehicles.ridableHorse.NoCollisionDamage,
-                NormalVehicleType.WorkCart => configData.normalVehicles.workCart.NoCollisionDamage,
-                NormalVehicleType.SedanRail => configData.normalVehicles.sedanRail.NoCollisionDamage,
-                NormalVehicleType.MagnetCrane => configData.normalVehicles.magnetCrane.NoCollisionDamage,
-                NormalVehicleType.SubmarineSolo => configData.normalVehicles.submarineSolo.NoCollisionDamage,
-                NormalVehicleType.SubmarineDuo => configData.normalVehicles.submarineDuo.NoCollisionDamage,
-                NormalVehicleType.Snowmobile => configData.normalVehicles.snowmobile.NoCollisionDamage,
-                NormalVehicleType.TomahaSnowmobile => configData.normalVehicles.tomahaSnowmobile.NoCollisionDamage,
-                NormalVehicleType.PedalBike => configData.normalVehicles.pedalBike.NoCollisionDamage,
-                NormalVehicleType.PedalTrike => configData.normalVehicles.pedalTrike.NoCollisionDamage,
-                NormalVehicleType.MotorBike => configData.normalVehicles.motorBike.NoCollisionDamage,
-                NormalVehicleType.MotorBike_SideCar => configData.normalVehicles.motorBikeSidecar.NoCollisionDamage,
-                NormalVehicleType.Kayak => configData.normalVehicles.Kayak.NoCollisionDamage,
-                _ => false,
-            };
+                case NormalVehicleType.Tugboat:
+                    return configData.normalVehicles.tugboat.NoCollisionDamage;
+                case NormalVehicleType.Rowboat:
+                    return configData.normalVehicles.rowboat.NoCollisionDamage;
+                case NormalVehicleType.RHIB:
+                    return configData.normalVehicles.rhib.NoCollisionDamage;
+                case NormalVehicleType.Sedan:
+                    return configData.normalVehicles.sedan.NoCollisionDamage;
+                case NormalVehicleType.HotAirBalloon:
+                    return configData.normalVehicles.hotAirBalloon.NoCollisionDamage;
+                case NormalVehicleType.ArmoredHotAirBalloon:
+                    return configData.normalVehicles.armoredHotAirBalloon.NoCollisionDamage;
+                case NormalVehicleType.MiniCopter:
+                    return configData.normalVehicles.miniCopter.NoCollisionDamage;
+                case NormalVehicleType.AttackHelicopter:
+                    return configData.normalVehicles.attackHelicopter.NoCollisionDamage;
+                case NormalVehicleType.TransportHelicopter:
+                    return configData.normalVehicles.transportHelicopter.NoCollisionDamage;
+                case NormalVehicleType.Chinook:
+                    return configData.normalVehicles.chinook.NoCollisionDamage;
+                case NormalVehicleType.RidableHorse:
+                    return configData.normalVehicles.ridableHorse.NoCollisionDamage;
+                case NormalVehicleType.WorkCart:
+                    return configData.normalVehicles.workCart.NoCollisionDamage;
+                case NormalVehicleType.SedanRail:
+                    return configData.normalVehicles.sedanRail.NoCollisionDamage;
+                case NormalVehicleType.MagnetCrane:
+                    return configData.normalVehicles.magnetCrane.NoCollisionDamage;
+                case NormalVehicleType.SubmarineSolo:
+                    return configData.normalVehicles.submarineSolo.NoCollisionDamage;
+                case NormalVehicleType.SubmarineDuo:
+                    return configData.normalVehicles.submarineDuo.NoCollisionDamage;
+                case NormalVehicleType.Snowmobile:
+                    return configData.normalVehicles.snowmobile.NoCollisionDamage;
+                case NormalVehicleType.TomahaSnowmobile:
+                    return configData.normalVehicles.tomahaSnowmobile.NoCollisionDamage;
+                case NormalVehicleType.PedalBike:
+                    return configData.normalVehicles.pedalBike.NoCollisionDamage;
+                case NormalVehicleType.PedalTrike:
+                    return configData.normalVehicles.pedalTrike.NoCollisionDamage;
+                case NormalVehicleType.MotorBike:
+                    return configData.normalVehicles.motorBike.NoCollisionDamage;
+                case NormalVehicleType.MotorBike_SideCar:
+                    return configData.normalVehicles.motorBikeSidecar.NoCollisionDamage;
+                case NormalVehicleType.Kayak:
+                    return configData.normalVehicles.Kayak.NoCollisionDamage;
+                default:
+                    return false;
+            }
         }
 
         private bool GetBaseVehicleCollisionDamage(CustomVehicleType normalVehicleType)
         {
-            return normalVehicleType switch
+            switch (normalVehicleType)
             {
-                CustomVehicleType.ATV => configData.customVehicles.atv.NoCollisionDamage,
-                CustomVehicleType.RaceSofa => configData.customVehicles.raceSofa.NoCollisionDamage,
-                CustomVehicleType.WaterBird => configData.customVehicles.waterBird.NoCollisionDamage,
-                CustomVehicleType.WarBird => configData.customVehicles.warBird.NoCollisionDamage,
-                CustomVehicleType.LittleBird => configData.customVehicles.littleBird.NoCollisionDamage,
-                CustomVehicleType.Fighter => configData.customVehicles.fighter.NoCollisionDamage,
-                CustomVehicleType.OldFighter => configData.customVehicles.oldFighter.NoCollisionDamage,
-                CustomVehicleType.FighterBus => configData.customVehicles.fighterBus.NoCollisionDamage,
-                CustomVehicleType.WarBus => configData.customVehicles.warBus.NoCollisionDamage,
-                CustomVehicleType.AirBus => configData.customVehicles.airBus.NoCollisionDamage,
-                CustomVehicleType.PatrolHeli => configData.customVehicles.patrolHeli.NoCollisionDamage,
-                CustomVehicleType.RustWing => configData.customVehicles.rustWing.NoCollisionDamage,
-                CustomVehicleType.RustWingDetailed => configData.customVehicles.rustWingDetailed.NoCollisionDamage,
-                CustomVehicleType.RustWingDetailedOld => configData.customVehicles.rustWingDetailedOld.NoCollisionDamage,
-                CustomVehicleType.TinFighter => configData.customVehicles.tinFighter.NoCollisionDamage,
-                CustomVehicleType.TinFighterDetailed => configData.customVehicles.tinFighterDetailed.NoCollisionDamage,
-                CustomVehicleType.TinFighterDetailedOld => configData.customVehicles.tinFighterDetailedOld.NoCollisionDamage,
-                CustomVehicleType.MarsFighter => configData.customVehicles.marsFighter.NoCollisionDamage,
-                CustomVehicleType.MarsFighterDetailed => configData.customVehicles.marsFighterDetailed.NoCollisionDamage,
-                CustomVehicleType.SkyPlane => configData.customVehicles.skyPlane.NoCollisionDamage,
-                CustomVehicleType.SkyBoat => configData.customVehicles.skyBoat.NoCollisionDamage,
-                CustomVehicleType.TwistedTruck => configData.customVehicles.twistedTruck.NoCollisionDamage,
-                CustomVehicleType.TrainWreck => configData.customVehicles.trainWreck.NoCollisionDamage,
-                CustomVehicleType.TrainWrecker => configData.customVehicles.trainWrecker.NoCollisionDamage,
-                CustomVehicleType.Santa => configData.customVehicles.santa.NoCollisionDamage,
-                CustomVehicleType.WarSanta => configData.customVehicles.warSanta.NoCollisionDamage,
-                CustomVehicleType.Witch => configData.customVehicles.witch.NoCollisionDamage,
-                CustomVehicleType.MagicCarpet => configData.customVehicles.magicCarpet.NoCollisionDamage,
-                CustomVehicleType.Ah69t => configData.customVehicles.ah69t.NoCollisionDamage,
-                CustomVehicleType.Ah69r => configData.customVehicles.ah69r.NoCollisionDamage,
-                CustomVehicleType.Ah69a => configData.customVehicles.ah69a.NoCollisionDamage,
-                CustomVehicleType.Mavik => configData.customVehicles.mavik.NoCollisionDamage,
-                CustomVehicleType.HeavyFighter => configData.customVehicles.heavyFighter.NoCollisionDamage,
-                CustomVehicleType.PorcelainCommander => configData.customVehicles.porcelainCommander.NoCollisionDamage,
-                CustomVehicleType.DuneBuggie => configData.customVehicles.duneBuggie.NoCollisionDamage,
-                CustomVehicleType.DuneTruckArmed => configData.customVehicles.duneTruckArmed.NoCollisionDamage,
-                CustomVehicleType.DuneTruckUnArmed => configData.customVehicles.duneTruckUnArmed.NoCollisionDamage,
-                CustomVehicleType.DoomsDayDiscoVan => configData.customVehicles.doomsDayDiscoVan.NoCollisionDamage,
-                CustomVehicleType.ForkLift => configData.customVehicles.forkLift.NoCollisionDamage,
-                CustomVehicleType.LawnMower => configData.customVehicles.lawnMower.NoCollisionDamage,
-                CustomVehicleType.Chariot => configData.customVehicles.chariot.NoCollisionDamage,
-                CustomVehicleType.SoulHarvester => configData.customVehicles.soulHarvester.NoCollisionDamage,
-                _ => false,
-            };
+                case CustomVehicleType.ATV:
+                    return configData.customVehicles.atv.NoCollisionDamage;
+                case CustomVehicleType.RaceSofa:
+                    return configData.customVehicles.raceSofa.NoCollisionDamage;
+                case CustomVehicleType.WaterBird:
+                    return configData.customVehicles.waterBird.NoCollisionDamage;
+                case CustomVehicleType.WarBird:
+                    return configData.customVehicles.warBird.NoCollisionDamage;
+                case CustomVehicleType.LittleBird:
+                    return configData.customVehicles.littleBird.NoCollisionDamage;
+                case CustomVehicleType.Fighter:
+                    return configData.customVehicles.fighter.NoCollisionDamage;
+                case CustomVehicleType.OldFighter:
+                    return configData.customVehicles.oldFighter.NoCollisionDamage;
+                case CustomVehicleType.FighterBus:
+                    return configData.customVehicles.fighterBus.NoCollisionDamage;
+                case CustomVehicleType.WarBus:
+                    return configData.customVehicles.warBus.NoCollisionDamage;
+                case CustomVehicleType.AirBus:
+                    return configData.customVehicles.airBus.NoCollisionDamage;
+                case CustomVehicleType.PatrolHeli:
+                    return configData.customVehicles.patrolHeli.NoCollisionDamage;
+                case CustomVehicleType.RustWing:
+                    return configData.customVehicles.rustWing.NoCollisionDamage;
+                case CustomVehicleType.RustWingDetailed:
+                    return configData.customVehicles.rustWingDetailed.NoCollisionDamage;
+                case CustomVehicleType.RustWingDetailedOld:
+                    return configData.customVehicles.rustWingDetailedOld.NoCollisionDamage;
+                case CustomVehicleType.TinFighter:
+                    return configData.customVehicles.tinFighter.NoCollisionDamage;
+                case CustomVehicleType.TinFighterDetailed:
+                    return configData.customVehicles.tinFighterDetailed.NoCollisionDamage;
+                case CustomVehicleType.TinFighterDetailedOld:
+                    return configData.customVehicles.tinFighterDetailedOld.NoCollisionDamage;
+                case CustomVehicleType.MarsFighter:
+                    return configData.customVehicles.marsFighter.NoCollisionDamage;
+                case CustomVehicleType.MarsFighterDetailed:
+                    return configData.customVehicles.marsFighterDetailed.NoCollisionDamage;
+                case CustomVehicleType.SkyPlane:
+                    return configData.customVehicles.skyPlane.NoCollisionDamage;
+                case CustomVehicleType.SkyBoat:
+                    return configData.customVehicles.skyBoat.NoCollisionDamage;
+                case CustomVehicleType.TwistedTruck:
+                    return configData.customVehicles.twistedTruck.NoCollisionDamage;
+                case CustomVehicleType.TrainWreck:
+                    return configData.customVehicles.trainWreck.NoCollisionDamage;
+                case CustomVehicleType.TrainWrecker:
+                    return configData.customVehicles.trainWrecker.NoCollisionDamage;
+                case CustomVehicleType.Santa:
+                    return configData.customVehicles.santa.NoCollisionDamage;
+                case CustomVehicleType.WarSanta:
+                    return configData.customVehicles.warSanta.NoCollisionDamage;
+                case CustomVehicleType.Witch:
+                    return configData.customVehicles.witch.NoCollisionDamage;
+                case CustomVehicleType.MagicCarpet:
+                    return configData.customVehicles.magicCarpet.NoCollisionDamage;
+                case CustomVehicleType.Ah69t:
+                    return configData.customVehicles.ah69t.NoCollisionDamage;
+                case CustomVehicleType.Ah69r:
+                    return configData.customVehicles.ah69r.NoCollisionDamage;
+                case CustomVehicleType.Ah69a:
+                    return configData.customVehicles.ah69a.NoCollisionDamage;
+                case CustomVehicleType.Mavik:
+                    return configData.customVehicles.mavik.NoCollisionDamage;
+                case CustomVehicleType.HeavyFighter:
+                    return configData.customVehicles.heavyFighter.NoCollisionDamage;
+                case CustomVehicleType.PorcelainCommander:
+                    return configData.customVehicles.porcelainCommander.NoCollisionDamage;
+                case CustomVehicleType.DuneBuggie:
+                    return configData.customVehicles.duneBuggie.NoCollisionDamage;
+                case CustomVehicleType.DuneTruckArmed:
+                    return configData.customVehicles.duneTruckArmed.NoCollisionDamage;
+                case CustomVehicleType.DuneTruckUnArmed:
+                    return configData.customVehicles.duneTruckUnArmed.NoCollisionDamage;
+                case CustomVehicleType.DoomsDayDiscoVan:
+                    return configData.customVehicles.doomsDayDiscoVan.NoCollisionDamage;
+                case CustomVehicleType.ForkLift:
+                    return configData.customVehicles.forkLift.NoCollisionDamage;
+                case CustomVehicleType.LawnMower:
+                    return configData.customVehicles.lawnMower.NoCollisionDamage;
+                case CustomVehicleType.Chariot:
+                    return configData.customVehicles.chariot.NoCollisionDamage;
+                case CustomVehicleType.SoulHarvester:
+                    return configData.customVehicles.soulHarvester.NoCollisionDamage;
+                default:
+                    return false;
+            }
         }
 
         private bool GetBaseVehicleDamage(string vehicleType)
         {
-            return allVehicleSettings.TryGetValue(vehicleType, out BaseVehicleSettings settings) && settings.NoDamage;
+            BaseVehicleSettings settings;
+            return allVehicleSettings.TryGetValue(vehicleType, out settings) && settings.NoDamage;
         }
 
         private bool GetBaseVehicleDamage(NormalVehicleType normalVehicleType)
         {
-            return normalVehicleType switch
+            switch (normalVehicleType)
             {
-                NormalVehicleType.Tugboat => configData.normalVehicles.tugboat.NoDamage,
-                NormalVehicleType.Rowboat => configData.normalVehicles.rowboat.NoDamage,
-                NormalVehicleType.RHIB => configData.normalVehicles.rhib.NoDamage,
-                NormalVehicleType.Sedan => configData.normalVehicles.sedan.NoDamage,
-                NormalVehicleType.HotAirBalloon => configData.normalVehicles.hotAirBalloon.NoDamage,
-                NormalVehicleType.ArmoredHotAirBalloon => configData.normalVehicles.armoredHotAirBalloon.NoDamage,
-                NormalVehicleType.MiniCopter => configData.normalVehicles.miniCopter.NoDamage,
-                NormalVehicleType.AttackHelicopter => configData.normalVehicles.attackHelicopter.NoDamage,
-                NormalVehicleType.TransportHelicopter => configData.normalVehicles.transportHelicopter.NoDamage,
-                NormalVehicleType.Chinook => configData.normalVehicles.chinook.NoDamage,
-                NormalVehicleType.RidableHorse => configData.normalVehicles.ridableHorse.NoDamage,
-                NormalVehicleType.WorkCart => configData.normalVehicles.workCart.NoDamage,
-                NormalVehicleType.SedanRail => configData.normalVehicles.sedanRail.NoDamage,
-                NormalVehicleType.MagnetCrane => configData.normalVehicles.magnetCrane.NoDamage,
-                NormalVehicleType.SubmarineSolo => configData.normalVehicles.submarineSolo.NoDamage,
-                NormalVehicleType.SubmarineDuo => configData.normalVehicles.submarineDuo.NoDamage,
-                NormalVehicleType.Snowmobile => configData.normalVehicles.snowmobile.NoDamage,
-                NormalVehicleType.TomahaSnowmobile => configData.normalVehicles.tomahaSnowmobile.NoDamage,
-                NormalVehicleType.PedalBike => configData.normalVehicles.pedalBike.NoDamage,
-                NormalVehicleType.PedalTrike => configData.normalVehicles.pedalTrike.NoDamage,
-                NormalVehicleType.MotorBike => configData.normalVehicles.motorBike.NoDamage,
-                NormalVehicleType.MotorBike_SideCar => configData.normalVehicles.motorBikeSidecar.NoDamage,
-                NormalVehicleType.Kayak => configData.normalVehicles.Kayak.NoDamage,
-                _ => false,
-            };
+                case NormalVehicleType.Tugboat:
+                    return configData.normalVehicles.tugboat.NoDamage;
+                case NormalVehicleType.Rowboat:
+                    return configData.normalVehicles.rowboat.NoDamage;
+                case NormalVehicleType.RHIB:
+                    return configData.normalVehicles.rhib.NoDamage;
+                case NormalVehicleType.Sedan:
+                    return configData.normalVehicles.sedan.NoDamage;
+                case NormalVehicleType.HotAirBalloon:
+                    return configData.normalVehicles.hotAirBalloon.NoDamage;
+                case NormalVehicleType.ArmoredHotAirBalloon:
+                    return configData.normalVehicles.armoredHotAirBalloon.NoDamage;
+                case NormalVehicleType.MiniCopter:
+                    return configData.normalVehicles.miniCopter.NoDamage;
+                case NormalVehicleType.AttackHelicopter:
+                    return configData.normalVehicles.attackHelicopter.NoDamage;
+                case NormalVehicleType.TransportHelicopter:
+                    return configData.normalVehicles.transportHelicopter.NoDamage;
+                case NormalVehicleType.Chinook:
+                    return configData.normalVehicles.chinook.NoDamage;
+                case NormalVehicleType.RidableHorse:
+                    return configData.normalVehicles.ridableHorse.NoDamage;
+                case NormalVehicleType.WorkCart:
+                    return configData.normalVehicles.workCart.NoDamage;
+                case NormalVehicleType.SedanRail:
+                    return configData.normalVehicles.sedanRail.NoDamage;
+                case NormalVehicleType.MagnetCrane:
+                    return configData.normalVehicles.magnetCrane.NoDamage;
+                case NormalVehicleType.SubmarineSolo:
+                    return configData.normalVehicles.submarineSolo.NoDamage;
+                case NormalVehicleType.SubmarineDuo:
+                    return configData.normalVehicles.submarineDuo.NoDamage;
+                case NormalVehicleType.Snowmobile:
+                    return configData.normalVehicles.snowmobile.NoDamage;
+                case NormalVehicleType.TomahaSnowmobile:
+                    return configData.normalVehicles.tomahaSnowmobile.NoDamage;
+                case NormalVehicleType.PedalBike:
+                    return configData.normalVehicles.pedalBike.NoDamage;
+                case NormalVehicleType.PedalTrike:
+                    return configData.normalVehicles.pedalTrike.NoDamage;
+                case NormalVehicleType.MotorBike:
+                    return configData.normalVehicles.motorBike.NoDamage;
+                case NormalVehicleType.MotorBike_SideCar:
+                    return configData.normalVehicles.motorBikeSidecar.NoDamage;
+                case NormalVehicleType.Kayak:
+                    return configData.normalVehicles.Kayak.NoDamage;
+                default:
+                    return false;
+            }
         }
 
         private bool GetBaseVehicleDamage(CustomVehicleType normalVehicleType)
         {
-            return normalVehicleType switch
+            switch (normalVehicleType)
             {
-                CustomVehicleType.ATV => configData.customVehicles.atv.NoDamage,
-                CustomVehicleType.RaceSofa => configData.customVehicles.raceSofa.NoDamage,
-                CustomVehicleType.WaterBird => configData.customVehicles.waterBird.NoDamage,
-                CustomVehicleType.WarBird => configData.customVehicles.warBird.NoDamage,
-                CustomVehicleType.LittleBird => configData.customVehicles.littleBird.NoDamage,
-                CustomVehicleType.Fighter => configData.customVehicles.fighter.NoDamage,
-                CustomVehicleType.OldFighter => configData.customVehicles.oldFighter.NoDamage,
-                CustomVehicleType.FighterBus => configData.customVehicles.fighterBus.NoDamage,
-                CustomVehicleType.WarBus => configData.customVehicles.warBus.NoDamage,
-                CustomVehicleType.AirBus => configData.customVehicles.airBus.NoDamage,
-                CustomVehicleType.PatrolHeli => configData.customVehicles.patrolHeli.NoDamage,
-                CustomVehicleType.RustWing => configData.customVehicles.rustWing.NoDamage,
-                CustomVehicleType.RustWingDetailed => configData.customVehicles.rustWingDetailed.NoDamage,
-                CustomVehicleType.RustWingDetailedOld => configData.customVehicles.rustWingDetailedOld.NoDamage,
-                CustomVehicleType.TinFighter => configData.customVehicles.tinFighter.NoDamage,
-                CustomVehicleType.TinFighterDetailed => configData.customVehicles.tinFighterDetailed.NoDamage,
-                CustomVehicleType.TinFighterDetailedOld => configData.customVehicles.tinFighterDetailedOld.NoDamage,
-                CustomVehicleType.MarsFighter => configData.customVehicles.marsFighter.NoDamage,
-                CustomVehicleType.MarsFighterDetailed => configData.customVehicles.marsFighterDetailed.NoDamage,
-                CustomVehicleType.SkyPlane => configData.customVehicles.skyPlane.NoDamage,
-                CustomVehicleType.SkyBoat => configData.customVehicles.skyBoat.NoDamage,
-                CustomVehicleType.TwistedTruck => configData.customVehicles.twistedTruck.NoDamage,
-                CustomVehicleType.TrainWreck => configData.customVehicles.trainWrecker.NoDamage,
-                CustomVehicleType.Santa => configData.customVehicles.santa.NoDamage,
-                CustomVehicleType.WarSanta => configData.customVehicles.warSanta.NoDamage,
-                CustomVehicleType.Witch => configData.customVehicles.witch.NoDamage,
-                CustomVehicleType.MagicCarpet => configData.customVehicles.magicCarpet.NoDamage,
-                CustomVehicleType.Ah69t => configData.customVehicles.ah69t.NoDamage,
-                CustomVehicleType.Ah69r => configData.customVehicles.ah69r.NoDamage,
-                CustomVehicleType.Ah69a => configData.customVehicles.ah69a.NoDamage,
-                CustomVehicleType.Mavik => configData.customVehicles.mavik.NoDamage,
-                CustomVehicleType.HeavyFighter => configData.customVehicles.heavyFighter.NoDamage,
-                CustomVehicleType.PorcelainCommander => configData.customVehicles.porcelainCommander.NoDamage,
-                CustomVehicleType.DuneBuggie => configData.customVehicles.duneBuggie.NoDamage,
-                CustomVehicleType.DuneTruckArmed => configData.customVehicles.duneTruckArmed.NoDamage,
-                CustomVehicleType.DuneTruckUnArmed => configData.customVehicles.duneTruckUnArmed.NoDamage,
-                CustomVehicleType.DoomsDayDiscoVan => configData.customVehicles.doomsDayDiscoVan.NoDamage,
-                CustomVehicleType.ForkLift => configData.customVehicles.forkLift.NoDamage,
-                CustomVehicleType.LawnMower => configData.customVehicles.lawnMower.NoDamage,
-                CustomVehicleType.Chariot => configData.customVehicles.chariot.NoDamage,
-                CustomVehicleType.SoulHarvester => configData.customVehicles.soulHarvester.NoDamage,
-                _ => false,
-            };
+                case CustomVehicleType.ATV:
+                    return configData.customVehicles.atv.NoDamage;
+                case CustomVehicleType.RaceSofa:
+                    return configData.customVehicles.raceSofa.NoDamage;
+                case CustomVehicleType.WaterBird:
+                    return configData.customVehicles.waterBird.NoDamage;
+                case CustomVehicleType.WarBird:
+                    return configData.customVehicles.warBird.NoDamage;
+                case CustomVehicleType.LittleBird:
+                    return configData.customVehicles.littleBird.NoDamage;
+                case CustomVehicleType.Fighter:
+                    return configData.customVehicles.fighter.NoDamage;
+                case CustomVehicleType.OldFighter:
+                    return configData.customVehicles.oldFighter.NoDamage;
+                case CustomVehicleType.FighterBus:
+                    return configData.customVehicles.fighterBus.NoDamage;
+                case CustomVehicleType.WarBus:
+                    return configData.customVehicles.warBus.NoDamage;
+                case CustomVehicleType.AirBus:
+                    return configData.customVehicles.airBus.NoDamage;
+                case CustomVehicleType.PatrolHeli:
+                    return configData.customVehicles.patrolHeli.NoDamage;
+                case CustomVehicleType.RustWing:
+                    return configData.customVehicles.rustWing.NoDamage;
+                case CustomVehicleType.RustWingDetailed:
+                    return configData.customVehicles.rustWingDetailed.NoDamage;
+                case CustomVehicleType.RustWingDetailedOld:
+                    return configData.customVehicles.rustWingDetailedOld.NoDamage;
+                case CustomVehicleType.TinFighter:
+                    return configData.customVehicles.tinFighter.NoDamage;
+                case CustomVehicleType.TinFighterDetailed:
+                    return configData.customVehicles.tinFighterDetailed.NoDamage;
+                case CustomVehicleType.TinFighterDetailedOld:
+                    return configData.customVehicles.tinFighterDetailedOld.NoDamage;
+                case CustomVehicleType.MarsFighter:
+                    return configData.customVehicles.marsFighter.NoDamage;
+                case CustomVehicleType.MarsFighterDetailed:
+                    return configData.customVehicles.marsFighterDetailed.NoDamage;
+                case CustomVehicleType.SkyPlane:
+                    return configData.customVehicles.skyPlane.NoDamage;
+                case CustomVehicleType.SkyBoat:
+                    return configData.customVehicles.skyBoat.NoDamage;
+                case CustomVehicleType.TwistedTruck:
+                    return configData.customVehicles.twistedTruck.NoDamage;
+                case CustomVehicleType.TrainWreck:
+                    return configData.customVehicles.trainWrecker.NoDamage;
+                case CustomVehicleType.Santa:
+                    return configData.customVehicles.santa.NoDamage;
+                case CustomVehicleType.WarSanta:
+                    return configData.customVehicles.warSanta.NoDamage;
+                case CustomVehicleType.Witch:
+                    return configData.customVehicles.witch.NoDamage;
+                case CustomVehicleType.MagicCarpet:
+                    return configData.customVehicles.magicCarpet.NoDamage;
+                case CustomVehicleType.Ah69t:
+                    return configData.customVehicles.ah69t.NoDamage;
+                case CustomVehicleType.Ah69r:
+                    return configData.customVehicles.ah69r.NoDamage;
+                case CustomVehicleType.Ah69a:
+                    return configData.customVehicles.ah69a.NoDamage;
+                case CustomVehicleType.Mavik:
+                    return configData.customVehicles.mavik.NoDamage;
+                case CustomVehicleType.HeavyFighter:
+                    return configData.customVehicles.heavyFighter.NoDamage;
+                case CustomVehicleType.PorcelainCommander:
+                    return configData.customVehicles.porcelainCommander.NoDamage;
+                case CustomVehicleType.DuneBuggie:
+                    return configData.customVehicles.duneBuggie.NoDamage;
+                case CustomVehicleType.DuneTruckArmed:
+                    return configData.customVehicles.duneTruckArmed.NoDamage;
+                case CustomVehicleType.DuneTruckUnArmed:
+                    return configData.customVehicles.duneTruckUnArmed.NoDamage;
+                case CustomVehicleType.DoomsDayDiscoVan:
+                    return configData.customVehicles.doomsDayDiscoVan.NoDamage;
+                case CustomVehicleType.ForkLift:
+                    return configData.customVehicles.forkLift.NoDamage;
+                case CustomVehicleType.LawnMower:
+                    return configData.customVehicles.lawnMower.NoDamage;
+                case CustomVehicleType.Chariot:
+                    return configData.customVehicles.chariot.NoDamage;
+                case CustomVehicleType.SoulHarvester:
+                    return configData.customVehicles.soulHarvester.NoDamage;
+                default:
+                    return false;
+            }
         }
 
         #endregion GetSettings
@@ -1466,7 +1676,8 @@ namespace Oxide.Plugins
 
         private bool TryClaimVehicle(BasePlayer player, BaseEntity entity, string vehicleType)
         {
-            if (!storedData.IsVehiclePurchased(player.userID, vehicleType, out Vehicle vehicle))
+            Vehicle vehicle;
+            if (!storedData.IsVehiclePurchased(player.userID, vehicleType, out vehicle))
             {
                 if (!configData.global.autoUnlockFromVendor)
                 {
@@ -1682,8 +1893,9 @@ namespace Oxide.Plugins
 
         private static Vector3 GetGroundPositionLookingAt(BasePlayer player, float distance, bool needUp = true)
         {
+            RaycastHit hitInfo;
             var headRay = player.eyes.HeadRay();
-            if (Physics.Raycast(headRay, out RaycastHit hitInfo, distance, LAYER_GROUND))
+            if (Physics.Raycast(headRay, out hitInfo, distance, LAYER_GROUND))
             {
                 return hitInfo.point;
             }
@@ -1692,7 +1904,8 @@ namespace Oxide.Plugins
 
         private static Vector3 GetGroundPosition(Vector3 position, bool needUp = true)
         {
-            position.y = Physics.Raycast(needUp ? position + Vector3.up * 250 : position, Vector3.down, out RaycastHit hitInfo, needUp ? 400f : 50f, LAYER_GROUND)
+            RaycastHit hitInfo;
+            position.y = Physics.Raycast(needUp ? position + Vector3.up * 250 : position, Vector3.down, out hitInfo, needUp ? 400f : 50f, LAYER_GROUND)
                     ? hitInfo.point.y
                     : TerrainMeta.HeightMap.GetHeight(position);
             return position;
@@ -1816,7 +2029,8 @@ namespace Oxide.Plugins
                 return;
             }
 
-            if (IsValidOption(player, command, out string vehicleType))
+            string vehicleType;
+            if (IsValidOption(player, command, out vehicleType))
             {
                 var bypassCooldown = args.Length > 0 && IsValidBypassCooldownOption(args[0]);
                 HandleUniversalCmd(player, vehicleType, bypassCooldown, command);
@@ -1841,11 +2055,12 @@ namespace Oxide.Plugins
             //     Puts(Lang("NoSpawnInAir", player.UserIDString, vehicleType));
             //     return;
             // }
+            Vehicle vehicle;
 
             string reason;
             var position = Vector3.zero;
             var rotation = Quaternion.identity;
-            if (storedData.IsVehiclePurchased(player.userID, vehicleType, out Vehicle vehicle))
+            if (storedData.IsVehiclePurchased(player.userID, vehicleType, out vehicle))
             {
                 if (vehicle.Entity != null && !vehicle.Entity.IsDestroyed)
                 {
@@ -1944,7 +2159,8 @@ namespace Oxide.Plugins
             if (arg.IsAdmin && arg.Args != null && arg.Args.Length == 2)
             {
                 var option = arg.Args[0];
-                if (!IsValidVehicleType(option, out string vehicleType))
+                string vehicleType;
+                if (!IsValidVehicleType(option, out vehicleType))
                 {
                     Print(arg, $"{option} is not a valid vehicle type");
                     return;
@@ -2008,7 +2224,8 @@ namespace Oxide.Plugins
             if (arg.IsAdmin && arg.Args != null && arg.Args.Length == 2)
             {
                 var option = arg.Args[0];
-                if (!IsValidVehicleType(option, out string vehicleType))
+                string vehicleType;
+                if (!IsValidVehicleType(option, out vehicleType))
                 {
                     Print(arg, $"{option} is not a valid vehicle type");
                     return;
@@ -2086,7 +2303,8 @@ namespace Oxide.Plugins
                 Print(player, stringBuilder.ToString());
                 return;
             }
-            if (IsValidOption(player, args[0], out string vehicleType))
+            string vehicleType;
+            if (IsValidOption(player, args[0], out vehicleType))
             {
                 BuyVehicle(player, vehicleType);
             }
@@ -2106,7 +2324,8 @@ namespace Oxide.Plugins
                 Print(player, Lang("VehicleAlreadyPurchased", player.UserIDString, settings.DisplayName));
                 return false;
             }
-            if (settings.PurchasePrices.Count > 0 && !TryPay(player, settings, settings.PurchasePrices, out string resources))
+            string resources;
+            if (settings.PurchasePrices.Count > 0 && !TryPay(player, settings, settings.PurchasePrices, out resources))
             {
                 Print(player, Lang("NoResourcesToPurchaseVehicle", player.UserIDString, settings.DisplayName, resources));
                 return false;
@@ -2165,7 +2384,8 @@ namespace Oxide.Plugins
                 Print(player, stringBuilder.ToString());
                 return;
             }
-            if (IsValidOption(player, args[0], out string vehicleType))
+            string vehicleType;
+            if (IsValidOption(player, args[0], out vehicleType))
             {
                 var bypassCooldown = args.Length > 1 && IsValidBypassCooldownOption(args[1]);
                 SpawnVehicle(player, vehicleType, bypassCooldown, command + " " + args[0]);
@@ -2175,7 +2395,8 @@ namespace Oxide.Plugins
         private bool SpawnVehicle(BasePlayer player, string vehicleType, bool bypassCooldown, string command)
         {
             var settings = GetBaseVehicleSettings(vehicleType);
-            if (!storedData.IsVehiclePurchased(player.userID, vehicleType, out Vehicle vehicle))
+            Vehicle vehicle;
+            if (!storedData.IsVehiclePurchased(player.userID, vehicleType, out vehicle))
             {
                 if (!permission.UserHasPermission(player.UserIDString, PERMISSION_BYPASS_COST))
                 {
@@ -2190,9 +2411,10 @@ namespace Oxide.Plugins
                 Print(player, Lang("AlreadyVehicleOut", player.UserIDString, settings.DisplayName, configData.chat.recallCommand));
                 return false;
             }
+            string reason;
             var position = Vector3.zero;
             var rotation = Quaternion.identity;
-            if (CanSpawn(player, vehicle, bypassCooldown, command, out string reason, ref position, ref rotation))
+            if (CanSpawn(player, vehicle, bypassCooldown, command, out reason, ref position, ref rotation))
             {
                 SpawnVehicle(player, vehicle, position, rotation);
                 return false;
@@ -2252,7 +2474,8 @@ namespace Oxide.Plugins
                 return false;
             }
 
-            if (settings.SpawnPrices.Count > 0 && !TryPay(player, settings, settings.SpawnPrices, out string resources))
+            string resources;
+            if (settings.SpawnPrices.Count > 0 && !TryPay(player, settings, settings.SpawnPrices, out resources))
             {
                 reason = Lang("NoResourcesToSpawnVehicle", player.UserIDString, settings.DisplayName, resources);
                 return false;
@@ -2345,7 +2568,8 @@ namespace Oxide.Plugins
                 Print(player, stringBuilder.ToString());
                 return;
             }
-            if (IsValidOption(player, args[0], out string vehicleType))
+            string vehicleType;
+            if (IsValidOption(player, args[0], out vehicleType))
             {
                 var bypassCooldown = args.Length > 1 && IsValidBypassCooldownOption(args[1]);
                 RecallVehicle(player, vehicleType, bypassCooldown, command + " " + args[0]);
@@ -2355,16 +2579,18 @@ namespace Oxide.Plugins
         private bool RecallVehicle(BasePlayer player, string vehicleType, bool bypassCooldown, string command)
         {
             var settings = GetBaseVehicleSettings(vehicleType);
-            if (!storedData.IsVehiclePurchased(player.userID, vehicleType, out Vehicle vehicle))
+            Vehicle vehicle;
+            if (!storedData.IsVehiclePurchased(player.userID, vehicleType, out vehicle))
             {
                 Print(player, Lang("VehicleNotYetPurchased", player.UserIDString, settings.DisplayName, configData.chat.buyCommand));
                 return false;
             }
             if (vehicle.Entity != null && !vehicle.Entity.IsDestroyed)
             {
+                string reason;
                 var position = Vector3.zero;
                 var rotation = Quaternion.identity;
-                if (CanRecall(player, vehicle, bypassCooldown, command, out string reason, ref position, ref rotation))
+                if (CanRecall(player, vehicle, bypassCooldown, command, out reason, ref position, ref rotation))
                 {
                     RecallVehicle(player, vehicle, position, rotation);
                     return true;
@@ -2417,7 +2643,8 @@ namespace Oxide.Plugins
             {
                 return false;
             }
-            if (settings.RecallPrices.Count > 0 && !TryPay(player, settings, settings.RecallPrices, out string resources))
+            string resources;
+            if (settings.RecallPrices.Count > 0 && !TryPay(player, settings, settings.RecallPrices, out resources))
             {
                 reason = Lang("NoResourcesToRecallVehicle", player.UserIDString, settings.DisplayName, resources);
                 return false;
@@ -2522,7 +2749,8 @@ namespace Oxide.Plugins
 
         private void HandleKillCmd(BasePlayer player, string option)
         {
-            if (IsValidOption(player, option, out string vehicleType))
+            string vehicleType;
+            if (IsValidOption(player, option, out vehicleType))
             {
                 KillVehicle(player, vehicleType);
             }
@@ -2531,7 +2759,8 @@ namespace Oxide.Plugins
         private bool KillVehicle(BasePlayer player, string vehicleType, bool response = true)
         {
             var settings = GetBaseVehicleSettings(vehicleType);
-            if (!storedData.IsVehiclePurchased(player.userID, vehicleType, out Vehicle vehicle))
+            Vehicle vehicle;
+            if (!storedData.IsVehiclePurchased(player.userID, vehicleType, out vehicle))
             {
                 Print(player, Lang("VehicleNotYetPurchased", player.UserIDString, settings.DisplayName, configData.chat.buyCommand));
                 return false;
@@ -2677,7 +2906,8 @@ namespace Oxide.Plugins
                     var bypassPrices = isSpawnCooldown ? settings.BypassSpawnCooldownPrices : settings.BypassRecallCooldownPrices;
                     if (bypassCooldown && bypassPrices.Count > 0)
                     {
-                        if (!TryPay(player, settings, bypassPrices, out string resources))
+                        string resources;
+                        if (!TryPay(player, settings, bypassPrices, out resources))
                         {
                             reason = Lang(isSpawnCooldown ? "NoResourcesToSpawnVehicleBypass" : "NoResourcesToRecallVehicleBypass", player.UserIDString, settings.DisplayName, resources);
                             return false;
@@ -5338,34 +5568,59 @@ namespace Oxide.Plugins
 
             protected virtual string GetVehiclePrefab(string vehicleType)
             {
-                if (Enum.TryParse(vehicleType, out NormalVehicleType normalVehicleType) && Enum.IsDefined(typeof(NormalVehicleType), normalVehicleType))
+                NormalVehicleType normalVehicleType;
+                if (Enum.TryParse(vehicleType, out normalVehicleType) && Enum.IsDefined(typeof(NormalVehicleType), normalVehicleType))
                 {
-                    return normalVehicleType switch
+                    switch (normalVehicleType)
                     {
-                        NormalVehicleType.Tugboat => PREFAB_TUGBOAT,
-                        NormalVehicleType.Rowboat => PREFAB_ROWBOAT,
-                        NormalVehicleType.RHIB => PREFAB_RHIB,
-                        NormalVehicleType.Sedan => PREFAB_SEDAN,
-                        NormalVehicleType.HotAirBalloon or NormalVehicleType.ArmoredHotAirBalloon => PREFAB_HOTAIRBALLOON,
-                        NormalVehicleType.MiniCopter => PREFAB_MINICOPTER,
-                        NormalVehicleType.AttackHelicopter => PREFAB_ATTACKHELICOPTER,
-                        NormalVehicleType.TransportHelicopter => PREFAB_TRANSPORTCOPTER,
-                        NormalVehicleType.Chinook => PREFAB_CHINOOK,
-                        NormalVehicleType.RidableHorse => PREFAB_RIDABLEHORSE,
-                        NormalVehicleType.WorkCart => PREFAB_WORKCART,
-                        NormalVehicleType.SedanRail => PREFAB_SEDANRAIL,
-                        NormalVehicleType.MagnetCrane => PREFAB_MAGNET_CRANE,
-                        NormalVehicleType.SubmarineSolo => PREFAB_SUBMARINE_SOLO,
-                        NormalVehicleType.SubmarineDuo => PREFAB_SUBMARINE_DUO,
-                        NormalVehicleType.Snowmobile => PREFAB_SNOWMOBILE,
-                        NormalVehicleType.TomahaSnowmobile => PREFAB_SNOWMOBILE_TOMAHA,
-                        NormalVehicleType.PedalBike => PREFAB_PEDALBIKE,
-                        NormalVehicleType.PedalTrike => PREFAB_PEDALTRIKE,
-                        NormalVehicleType.MotorBike => PREFAB_MOTORBIKE,
-                        NormalVehicleType.MotorBike_SideCar => PREFAB_MOTORBIKE_SIDECAR,
-                        NormalVehicleType.Kayak => PREFAB_KAYAK,
-                        _ => null,
-                    };
+                        case NormalVehicleType.Tugboat:
+                            return PREFAB_TUGBOAT;
+                        case NormalVehicleType.Rowboat:
+                            return PREFAB_ROWBOAT;
+                        case NormalVehicleType.RHIB:
+                            return PREFAB_RHIB;
+                        case NormalVehicleType.Sedan:
+                            return PREFAB_SEDAN;
+                        case NormalVehicleType.HotAirBalloon:
+                        case NormalVehicleType.ArmoredHotAirBalloon:
+                            return PREFAB_HOTAIRBALLOON;
+                        case NormalVehicleType.MiniCopter:
+                            return PREFAB_MINICOPTER;
+                        case NormalVehicleType.AttackHelicopter:
+                            return PREFAB_ATTACKHELICOPTER;
+                        case NormalVehicleType.TransportHelicopter:
+                            return PREFAB_TRANSPORTCOPTER;
+                        case NormalVehicleType.Chinook:
+                            return PREFAB_CHINOOK;
+                        case NormalVehicleType.RidableHorse:
+                            return PREFAB_RIDABLEHORSE;
+                        case NormalVehicleType.WorkCart:
+                            return PREFAB_WORKCART;
+                        case NormalVehicleType.SedanRail:
+                            return PREFAB_SEDANRAIL;
+                        case NormalVehicleType.MagnetCrane:
+                            return PREFAB_MAGNET_CRANE;
+                        case NormalVehicleType.SubmarineSolo:
+                            return PREFAB_SUBMARINE_SOLO;
+                        case NormalVehicleType.SubmarineDuo:
+                            return PREFAB_SUBMARINE_DUO;
+                        case NormalVehicleType.Snowmobile:
+                            return PREFAB_SNOWMOBILE;
+                        case NormalVehicleType.TomahaSnowmobile:
+                            return PREFAB_SNOWMOBILE_TOMAHA;
+                        case NormalVehicleType.PedalBike:
+                            return PREFAB_PEDALBIKE;
+                        case NormalVehicleType.PedalTrike:
+                            return PREFAB_PEDALTRIKE;
+                        case NormalVehicleType.MotorBike:
+                            return PREFAB_MOTORBIKE;
+                        case NormalVehicleType.MotorBike_SideCar:
+                            return PREFAB_MOTORBIKE_SIDECAR;
+                        case NormalVehicleType.Kayak:
+                            return PREFAB_KAYAK;
+                        default:
+                            return null;
+                    }
                 }
                 return null;
             }
@@ -5373,54 +5628,98 @@ namespace Oxide.Plugins
             protected virtual string GetVehicleCustomPrefab(string vehicleType)
             {
                 if (!configData.global.useCustomVehicles) return string.Empty;
-                if (Enum.TryParse(vehicleType, out CustomVehicleType normalVehicleType) && Enum.IsDefined(typeof(CustomVehicleType), normalVehicleType))
+                CustomVehicleType normalVehicleType;
+                if (Enum.TryParse(vehicleType, out normalVehicleType) && Enum.IsDefined(typeof(CustomVehicleType), normalVehicleType))
                 {
-                    return normalVehicleType switch
+                    switch (normalVehicleType)
                     {
-                        CustomVehicleType.ATV => PREFAB_ATV,
-                        CustomVehicleType.RaceSofa => PREFAB_SOFA,
-                        CustomVehicleType.WaterBird => PREFAB_WATERBIRD,
-                        CustomVehicleType.WarBird => PREFAB_WARBIRD,
-                        CustomVehicleType.LittleBird => PREFAB_LITTLEBIRD,
-                        CustomVehicleType.Fighter => PREFAB_FIGHTER,
-                        CustomVehicleType.OldFighter => PREFAB_OLDFIGHTER,
-                        CustomVehicleType.FighterBus => PREFAB_FIGHTERBUS,
-                        CustomVehicleType.WarBus => PREFAB_WARBUS,
-                        CustomVehicleType.AirBus => PREFAB_AIRBUS,
-                        CustomVehicleType.PatrolHeli => PREFAB_PATROLHELI,
-                        CustomVehicleType.RustWing => PREFAB_RUSTWING,
-                        CustomVehicleType.RustWingDetailed => PREFAB_RUSTWINGDETAILED,
-                        CustomVehicleType.RustWingDetailedOld => PREFAB_RUSTWINGDETAILEDOLD,
-                        CustomVehicleType.TinFighter => PREFAB_TINFIGHTER,
-                        CustomVehicleType.TinFighterDetailed => PREFAB_TINFIGHTERDETAILED,
-                        CustomVehicleType.TinFighterDetailedOld => PREFAB_TINFIGHTERDETAILEDOLD,
-                        CustomVehicleType.MarsFighter => PREFAB_MARSFIGHTER,
-                        CustomVehicleType.MarsFighterDetailed => PREFAB_MARSFIGHTERDETAILED,
-                        CustomVehicleType.SkyPlane => PREFAB_SKYPLANE,
-                        CustomVehicleType.SkyBoat => PREFAB_SKYBOAT,
-                        CustomVehicleType.TwistedTruck => PREFAB_TWISTEDTRUCK,
-                        CustomVehicleType.TrainWreck => PREFAB_TRIANWRECK,
-                        CustomVehicleType.TrainWrecker => PREFAB_TRIANWRECKER,
-                        CustomVehicleType.Santa => PREFAB_SANTA,
-                        CustomVehicleType.WarSanta => PREFAB_WARSANTA,
-                        CustomVehicleType.Witch => PREFAB_WITCH,
-                        CustomVehicleType.MagicCarpet => PREFAB_MAGICCARPET,
-                        CustomVehicleType.Ah69t => PREFAB_AH69T,
-                        CustomVehicleType.Ah69r => PREFAB_AH69R,
-                        CustomVehicleType.Ah69a => PREFAB_AH69A,
-                        CustomVehicleType.Mavik => PREFAB_MAVIK,
-                        CustomVehicleType.HeavyFighter => PREFAB_HEAVYFIGHTER,
-                        CustomVehicleType.PorcelainCommander => PREFAB_PORCELAINCOMMANDER,
-                        CustomVehicleType.DuneBuggie => PREFAB_DUNEBUGGIE,
-                        CustomVehicleType.DuneTruckArmed => PREFAB_DUNETRUCKARMED,
-                        CustomVehicleType.DuneTruckUnArmed => PREFAB_DUNETRUCKUNARMED,
-                        CustomVehicleType.DoomsDayDiscoVan => PREFAB_DOOMSDAYDISCOVAN,
-                        CustomVehicleType.ForkLift => PREFAB_FORKLIFT,
-                        CustomVehicleType.LawnMower => PREFAB_LAWNMOWER,
-                        CustomVehicleType.Chariot => PREFAB_CHARIOT,
-                        CustomVehicleType.SoulHarvester => PREFAB_SOULHARVESTER,
-                        _ => null,
-                    };
+                        case CustomVehicleType.ATV:
+                            return PREFAB_ATV;
+                        case CustomVehicleType.RaceSofa:
+                            return PREFAB_SOFA;
+                        case CustomVehicleType.WaterBird:
+                            return PREFAB_WATERBIRD;
+                        case CustomVehicleType.WarBird:
+                            return PREFAB_WARBIRD;
+                        case CustomVehicleType.LittleBird:
+                            return PREFAB_LITTLEBIRD;
+                        case CustomVehicleType.Fighter:
+                            return PREFAB_FIGHTER;
+                        case CustomVehicleType.OldFighter:
+                            return PREFAB_OLDFIGHTER;
+                        case CustomVehicleType.FighterBus:
+                            return PREFAB_FIGHTERBUS;
+                        case CustomVehicleType.WarBus:
+                            return PREFAB_WARBUS;
+                        case CustomVehicleType.AirBus:
+                            return PREFAB_AIRBUS;
+                        case CustomVehicleType.PatrolHeli:
+                            return PREFAB_PATROLHELI;
+                        case CustomVehicleType.RustWing:
+                            return PREFAB_RUSTWING;
+                        case CustomVehicleType.RustWingDetailed:
+                            return PREFAB_RUSTWINGDETAILED;
+                        case CustomVehicleType.RustWingDetailedOld:
+                            return PREFAB_RUSTWINGDETAILEDOLD;
+                        case CustomVehicleType.TinFighter:
+                            return PREFAB_TINFIGHTER;
+                        case CustomVehicleType.TinFighterDetailed:
+                            return PREFAB_TINFIGHTERDETAILED;
+                        case CustomVehicleType.TinFighterDetailedOld:
+                            return PREFAB_TINFIGHTERDETAILEDOLD;
+                        case CustomVehicleType.MarsFighter:
+                            return PREFAB_MARSFIGHTER;
+                        case CustomVehicleType.MarsFighterDetailed:
+                            return PREFAB_MARSFIGHTERDETAILED;
+                        case CustomVehicleType.SkyPlane:
+                            return PREFAB_SKYPLANE;
+                        case CustomVehicleType.SkyBoat:
+                            return PREFAB_SKYBOAT;
+                        case CustomVehicleType.TwistedTruck:
+                            return PREFAB_TWISTEDTRUCK;
+                        case CustomVehicleType.TrainWreck:
+                            return PREFAB_TRIANWRECK;
+                        case CustomVehicleType.TrainWrecker:
+                            return PREFAB_TRIANWRECKER;
+                        case CustomVehicleType.Santa:
+                            return PREFAB_SANTA;
+                        case CustomVehicleType.WarSanta:
+                            return PREFAB_WARSANTA;
+                        case CustomVehicleType.Witch:
+                            return PREFAB_WITCH;
+                        case CustomVehicleType.MagicCarpet:
+                            return PREFAB_MAGICCARPET;
+                        case CustomVehicleType.Ah69t:
+                            return PREFAB_AH69T;
+                        case CustomVehicleType.Ah69r:
+                            return PREFAB_AH69R;
+                        case CustomVehicleType.Ah69a:
+                            return PREFAB_AH69A;
+                        case CustomVehicleType.Mavik:
+                            return PREFAB_MAVIK;
+                        case CustomVehicleType.HeavyFighter:
+                            return PREFAB_HEAVYFIGHTER;
+                        case CustomVehicleType.PorcelainCommander:
+                            return PREFAB_PORCELAINCOMMANDER;
+                        case CustomVehicleType.DuneBuggie:
+                            return PREFAB_DUNEBUGGIE;
+                        case CustomVehicleType.DuneTruckArmed:
+                            return PREFAB_DUNETRUCKARMED;
+                        case CustomVehicleType.DuneTruckUnArmed:
+                            return PREFAB_DUNETRUCKUNARMED;
+                        case CustomVehicleType.DoomsDayDiscoVan:
+                            return PREFAB_DOOMSDAYDISCOVAN;
+                        case CustomVehicleType.ForkLift:
+                            return PREFAB_FORKLIFT;
+                        case CustomVehicleType.LawnMower:
+                            return PREFAB_LAWNMOWER;
+                        case CustomVehicleType.Chariot:
+                            return PREFAB_CHARIOT;
+                        case CustomVehicleType.SoulHarvester:
+                            return PREFAB_SOULHARVESTER;
+                        default:
+                            return null;
+                    }
                 }
                 return null;
             }
@@ -5503,7 +5802,8 @@ namespace Oxide.Plugins
                 {
                     RidableHorse2 ridableHorse = entity as RidableHorse2;
                     string randBreed = configData.normalVehicles.ridableHorse.Breeds[Random.Range(0, configData.normalVehicles.ridableHorse.Breeds.Count)];
-                    if (configData.normalVehicles.ridableHorse.BreedsRef.TryGetValue(randBreed, out int breedIndex))
+                    int breedIndex;
+                    if (configData.normalVehicles.ridableHorse.BreedsRef.TryGetValue(randBreed, out breedIndex))
                         ridableHorse.ApplyBreed(breedIndex);
                     if (!configData.normalVehicles.ridableHorse.IsDoubleSaddle) return entity;
 
@@ -5544,6 +5844,7 @@ namespace Oxide.Plugins
                     HotAirBalloonEquipment equipment = GameManager.server.CreateEntity(component.Prefab.resourcePath, HAB.transform.position, HAB.transform.rotation) as HotAirBalloonEquipment;
                     equipment.SetParent(HAB, true);
                     equipment.Spawn();
+                    equipment.DelayNextUpgradeOnRemoveDuration = equipment.DelayNextUpgradeOnRemoveDuration;
                     armor.UseItem();
                     HAB.SendNetworkUpdateImmediate();
                     return entity;
@@ -5635,7 +5936,9 @@ namespace Oxide.Plugins
 
             protected bool TryGetTrainCarPositionAndRotation(BasePlayer player, Vehicle vehicle, ref string reason, ref Vector3 original, ref Quaternion rotation)
             {
-                if (!TrainTrackSpline.TryFindTrackNear(original, Distance, out TrainTrackSpline splineResult, out float distResult))
+                float distResult;
+                TrainTrackSpline splineResult;
+                if (!TrainTrackSpline.TryFindTrackNear(original, Distance, out splineResult, out distResult))
                 {
                     reason = Instance.Lang("TooFarTrainTrack", player.UserIDString);
                     return false;
@@ -5655,10 +5958,13 @@ namespace Oxide.Plugins
 
             protected bool TryMoveToTrainTrackNear(TrainCar trainCar)
             {
-                if (TrainTrackSpline.TryFindTrackNear(trainCar.GetFrontWheelPos(), 2f, out TrainTrackSpline splineResult, out float distResult))
+                float distResult;
+                TrainTrackSpline splineResult;
+                if (TrainTrackSpline.TryFindTrackNear(trainCar.GetFrontWheelPos(), 2f, out splineResult, out distResult))
                 {
                     trainCar.FrontWheelSplineDist = distResult;
-                    var positionAndTangent = splineResult.GetPositionAndTangent(trainCar.FrontWheelSplineDist, trainCar.transform.forward, out Vector3 tangent);
+                    Vector3 tangent;
+                    var positionAndTangent = splineResult.GetPositionAndTangent(trainCar.FrontWheelSplineDist, trainCar.transform.forward, out tangent);
                     trainCar.SetTheRestFromFrontWheelData(ref splineResult, positionAndTangent, tangent, trainCar.localTrackSelection, null, true);
                     trainCar.FrontTrackSection = splineResult;
                     if (trainCar.SpaceIsClear())
@@ -5825,7 +6131,9 @@ namespace Oxide.Plugins
 
             public virtual bool TryGetVehicleParams(BasePlayer player, Vehicle vehicle, out string reason, ref Vector3 spawnPos, ref Quaternion spawnRot)
             {
-                if (!TryGetPositionAndRotation(player, vehicle, out reason, out Vector3 original, out Quaternion rotation))
+                Vector3 original;
+                Quaternion rotation;
+                if (!TryGetPositionAndRotation(player, vehicle, out reason, out original, out rotation))
                 {
                     return false;
                 }
@@ -5870,7 +6178,8 @@ namespace Oxide.Plugins
                     reason = Instance.Lang("NotLookingAtWater", player.UserIDString, DisplayName);
                     return false;
                 }
-                if (IsWaterVehicle && Physics.Raycast(original, player.eyes.MovementForward(), out RaycastHit hit, 100))
+                RaycastHit hit;
+                if (IsWaterVehicle && Physics.Raycast(original, player.eyes.MovementForward(), out hit, 100))
                 {
                     if (hit.GetEntity() is PaddlingPool)
                     {
@@ -5905,7 +6214,8 @@ namespace Oxide.Plugins
                     var needGetGround = true;
                     if (IsWaterVehicle)
                     {
-                        if (Physics.Raycast(spawnPos, Vector3.up, out RaycastHit hit, 100, LAYER_GROUND) && hit.GetEntity() is StabilityEntity)
+                        RaycastHit hit;
+                        if (Physics.Raycast(spawnPos, Vector3.up, out hit, 100, LAYER_GROUND) && hit.GetEntity() is StabilityEntity)
                         {
                             needGetGround = false; //At the dock
                         }
@@ -6719,7 +7029,8 @@ namespace Oxide.Plugins
                 if (ridableHorse != null)
                 {
                     ridableHorse.TryLeaveHitch();
-                    ridableHorse.DropCorpse("assets/content/vehicles/horse/ridablehorse2.prefab");
+                    // Broke on update, not sure what the replacement is or if one is needed
+                    // ridableHorse.DropToGround(ridableHorse.transform.position, ridableHorse.transform.rotation, true); //ridableHorse.UpdateDropToGroundForDuration(2f);
                 }
             }
 
@@ -6956,13 +7267,17 @@ namespace Oxide.Plugins
 
             protected override string GetVehiclePrefab(string vehicleType)
             {
-                return ChassisType switch
+                switch (ChassisType)
                 {
-                    ChassisType.Small => PREFAB_CHASSIS_SMALL,
-                    ChassisType.Medium => PREFAB_CHASSIS_MEDIUM,
-                    ChassisType.Large => PREFAB_CHASSIS_LARGE,
-                    _ => null,
-                };
+                    case ChassisType.Small:
+                        return PREFAB_CHASSIS_SMALL;
+                    case ChassisType.Medium:
+                        return PREFAB_CHASSIS_MEDIUM;
+                    case ChassisType.Large:
+                        return PREFAB_CHASSIS_LARGE;
+                    default:
+                        return null;
+                }
             }
 
             #region Setup
@@ -7059,7 +7374,8 @@ namespace Oxide.Plugins
                 var modularCar = vehicle.Entity as ModularCar;
                 if (modularCar != null)
                 {
-                    GetRefundStatus(isCrash, isUnload, out bool refundFuel, out bool refundInventory, out bool refundEngine, out bool refundModule);
+                    bool refundFuel, refundInventory, refundEngine, refundModule;
+                    GetRefundStatus(isCrash, isUnload, out refundFuel, out refundInventory, out refundEngine, out refundModule);
 
                     foreach (var moduleEntity in modularCar.AttachedModuleEntities)
                     {
@@ -7206,20 +7522,31 @@ namespace Oxide.Plugins
 
             private static string GetTrainVehiclePrefab(TrainComponentType componentType)
             {
-                return componentType switch
+                switch (componentType)
                 {
-                    TrainComponentType.Engine => PREFAB_TRAINENGINE,
-                    TrainComponentType.CoveredEngine => PREFAB_TRAINENGINE_COVERED,
-                    TrainComponentType.Locomotive => PREFAB_TRAINENGINE_LOCOMOTIVE,
-                    TrainComponentType.WagonA => PREFAB_TRAINWAGON_A,
-                    TrainComponentType.WagonB => PREFAB_TRAINWAGON_B,
-                    TrainComponentType.WagonC => PREFAB_TRAINWAGON_C,
-                    TrainComponentType.Unloadable => PREFAB_TRAINWAGON_UNLOADABLE,
-                    TrainComponentType.UnloadableLoot => PREFAB_TRAINWAGON_UNLOADABLE_LOOT,
-                    TrainComponentType.UnloadableFuel => PREFAB_TRAINWAGON_UNLOADABLE_FUEL,
-                    TrainComponentType.Caboose => PREFAB_CABOOSE,
-                    _ => null,
-                };
+                    case TrainComponentType.Engine:
+                        return PREFAB_TRAINENGINE;
+                    case TrainComponentType.CoveredEngine:
+                        return PREFAB_TRAINENGINE_COVERED;
+                    case TrainComponentType.Locomotive:
+                        return PREFAB_TRAINENGINE_LOCOMOTIVE;
+                    case TrainComponentType.WagonA:
+                        return PREFAB_TRAINWAGON_A;
+                    case TrainComponentType.WagonB:
+                        return PREFAB_TRAINWAGON_B;
+                    case TrainComponentType.WagonC:
+                        return PREFAB_TRAINWAGON_C;
+                    case TrainComponentType.Unloadable:
+                        return PREFAB_TRAINWAGON_UNLOADABLE;
+                    case TrainComponentType.UnloadableLoot:
+                        return PREFAB_TRAINWAGON_UNLOADABLE_LOOT;
+                    case TrainComponentType.UnloadableFuel:
+                        return PREFAB_TRAINWAGON_UNLOADABLE_FUEL;
+                    case TrainComponentType.Caboose:
+                        return PREFAB_CABOOSE;
+                    default:
+                        return null;
+                }
             }
 
             public override BaseEntity SpawnVehicle(BasePlayer player, Vehicle vehicle, Vector3 position, Quaternion rotation)
@@ -7269,7 +7596,8 @@ namespace Oxide.Plugins
                             newTrainCar.CancelInvoke(newTrainCar.KillMessage);
                             SetupVehicle(newTrainCar, vehicle, player);
 
-                            var distance = prevTrainCar.RearTrackSection.GetDistance(position, 1f, out float minSplineDist);
+                            float minSplineDist;
+                            var distance = prevTrainCar.RearTrackSection.GetDistance(position, 1f, out minSplineDist);
                             var preferredAltTrack = prevTrainCar.RearTrackSection != prevTrainCar.FrontTrackSection ? prevTrainCar.RearTrackSection : null;
                             newTrainCar.MoveFrontWheelsAlongTrackSpline(prevTrainCar.RearTrackSection, minSplineDist, distance, preferredAltTrack, TrainTrackSpline.TrackSelection.Default);
 
@@ -7408,7 +7736,8 @@ namespace Oxide.Plugins
             if (configData.version >= Version) return;
             if (configData.version <= default(VersionNumber))
             {
-                if (GetConfigValue(out string prefix, "Chat Settings", "Chat Prefix") && GetConfigValue(out string prefixColor, "Chat Settings", "Chat Prefix Color"))
+                string prefix, prefixColor;
+                if (GetConfigValue(out prefix, "Chat Settings", "Chat Prefix") && GetConfigValue(out prefixColor, "Chat Settings", "Chat Prefix Color"))
                 {
                     configData.chat.prefix = $"<color={prefixColor}>{prefix}</color>: ";
                 }
@@ -7451,7 +7780,8 @@ namespace Oxide.Plugins
                 LoadData();
                 foreach (var data in storedData.playerData)
                 {
-                    if (data.Value.TryGetValue("SubmarineDouble", out Vehicle vehicle))
+                    Vehicle vehicle;
+                    if (data.Value.TryGetValue("SubmarineDouble", out vehicle))
                     {
                         data.Value.Remove("SubmarineDouble");
                         data.Value.Add(nameof(NormalVehicleType.SubmarineDuo), vehicle);
@@ -7551,7 +7881,8 @@ namespace Oxide.Plugins
                 return;
             }
             //Interface.Oxide.DataFileSystem.WriteObject(Name + "_old", jObject);
-            if (!GetConfigVersionPre(config, out VersionNumber oldVersion)) return;
+            VersionNumber oldVersion;
+            if (!GetConfigVersionPre(config, out oldVersion)) return;
             if (oldVersion >= Version) return;
             if (oldVersion < new VersionNumber(1, 7, 35))
             {
@@ -7656,7 +7987,8 @@ namespace Oxide.Plugins
 
             try
             {
-                if (!config.TryGetValue(path[0], out JToken jToken))
+                JToken jToken;
+                if (!config.TryGetValue(path[0], out jToken))
                 {
                     return null;
                 }
@@ -7687,7 +8019,8 @@ namespace Oxide.Plugins
 
             try
             {
-                if (!config.TryGetValue(path[0], out JToken jToken))
+                JToken jToken;
+                if (!config.TryGetValue(path[0], out jToken))
                 {
                     value = default(T);
                     return false;
@@ -7722,7 +8055,8 @@ namespace Oxide.Plugins
 
             try
             {
-                if (!config.TryGetValue(path[0], out JToken jToken))
+                JToken jToken;
+                if (!config.TryGetValue(path[0], out jToken))
                 {
                     if (path.Length == 1)
                     {
@@ -7760,7 +8094,8 @@ namespace Oxide.Plugins
         {
             try
             {
-                if (config.TryGetValue("Version", out JToken jToken))
+                JToken jToken;
+                if (config.TryGetValue("Version", out jToken))
                 {
                     version = jToken.ToObject<VersionNumber>();
                     return true;
@@ -7788,7 +8123,8 @@ namespace Oxide.Plugins
 
             public IEnumerable<BaseEntity> ActiveVehicles(ulong playerId)
             {
-                if (!playerData.TryGetValue(playerId, out Dictionary<string, Vehicle> vehicles))
+                Dictionary<string, Vehicle> vehicles;
+                if (!playerData.TryGetValue(playerId, out vehicles))
                 {
                     yield break;
                 }
@@ -7804,7 +8140,8 @@ namespace Oxide.Plugins
 
             public Dictionary<string, Vehicle> GetPlayerVehicles(ulong playerId, bool readOnly = true)
             {
-                if (!playerData.TryGetValue(playerId, out Dictionary<string, Vehicle> vehicles))
+                Dictionary<string, Vehicle> vehicles;
+                if (!playerData.TryGetValue(playerId, out vehicles))
                 {
                     if (!readOnly)
                     {
@@ -7829,11 +8166,13 @@ namespace Oxide.Plugins
 
             public Vehicle GetVehicleLicense(ulong playerId, string vehicleType)
             {
-                if (!playerData.TryGetValue(playerId, out Dictionary<string, Vehicle> vehicles))
+                Dictionary<string, Vehicle> vehicles;
+                if (!playerData.TryGetValue(playerId, out vehicles))
                 {
                     return null;
                 }
-                if (!vehicles.TryGetValue(vehicleType, out Vehicle vehicle))
+                Vehicle vehicle;
+                if (!vehicles.TryGetValue(vehicleType, out vehicle))
                 {
                     return null;
                 }
@@ -7842,7 +8181,8 @@ namespace Oxide.Plugins
 
             public bool HasVehicleLicense(ulong playerId, string vehicleType)
             {
-                if (!playerData.TryGetValue(playerId, out Dictionary<string, Vehicle> vehicles))
+                Dictionary<string, Vehicle> vehicles;
+                if (!playerData.TryGetValue(playerId, out vehicles))
                 {
                     return false;
                 }
@@ -7851,7 +8191,8 @@ namespace Oxide.Plugins
 
             public bool AddVehicleLicense(ulong playerId, string vehicleType)
             {
-                if (!playerData.TryGetValue(playerId, out Dictionary<string, Vehicle> vehicles))
+                Dictionary<string, Vehicle> vehicles;
+                if (!playerData.TryGetValue(playerId, out vehicles))
                 {
                     vehicles = new Dictionary<string, Vehicle>();
                     playerData.Add(playerId, vehicles);
@@ -7867,7 +8208,8 @@ namespace Oxide.Plugins
 
             public bool RemoveVehicleLicense(ulong playerId, string vehicleType)
             {
-                if (!playerData.TryGetValue(playerId, out Dictionary<string, Vehicle> vehicles))
+                Dictionary<string, Vehicle> vehicles;
+                if (!playerData.TryGetValue(playerId, out vehicles))
                 {
                     return false;
                 }
@@ -7882,7 +8224,8 @@ namespace Oxide.Plugins
 
             public List<string> GetVehicleLicenseNames(ulong playerId)
             {
-                if (!playerData.TryGetValue(playerId, out Dictionary<string, Vehicle> vehicles))
+                Dictionary<string, Vehicle> vehicles;
+                if (!playerData.TryGetValue(playerId, out vehicles))
                 {
                     return new List<string>();
                 }
@@ -7892,7 +8235,8 @@ namespace Oxide.Plugins
             public void PurchaseAllVehicles(ulong playerId)
             {
                 var changed = false;
-                if (!playerData.TryGetValue(playerId, out Dictionary<string, Vehicle> vehicles))
+                Dictionary<string, Vehicle> vehicles;
+                if (!playerData.TryGetValue(playerId, out vehicles))
                 {
                     vehicles = new Dictionary<string, Vehicle>();
                     playerData.Add(playerId, vehicles);
