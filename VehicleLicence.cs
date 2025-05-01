@@ -564,7 +564,7 @@ namespace Oxide.Plugins
 
         #region Loot
 
-        private object CanLootEntity(BasePlayer friend, RidableHorse2 horse)
+        private object CanLootEntity(BasePlayer friend, RidableHorse horse)
         {
             if (friend == null || horse == null)
             {
@@ -658,7 +658,7 @@ namespace Oxide.Plugins
             TryClaimVehicle(attackHelicopter);
         }
 
-        private void OnRidableAnimalClaimed(BaseRidableAnimal ridableAnimal, BasePlayer player)
+        private void OnRidableAnimalClaimed(RidableHorse ridableAnimal, BasePlayer player)
         {
             TryClaimVehicle(ridableAnimal, player);
         }
@@ -1785,7 +1785,7 @@ namespace Oxide.Plugins
             {
                 return NormalVehicleType.Tugboat;
             }
-            if (baseVehicle is RidableHorse2)
+            if (baseVehicle is RidableHorse)
             {
                 return NormalVehicleType.RidableHorse;
             }
@@ -5798,9 +5798,9 @@ namespace Oxide.Plugins
 
             private BaseEntity ModifyVehicle(BaseEntity entity, Vehicle vehicle, BasePlayer player)
             {
-                if (entity is RidableHorse2) // Thanks to Beee :)
+                if (entity is RidableHorse) // Thanks to Beee :)
                 {
-                    RidableHorse2 ridableHorse = entity as RidableHorse2;
+                    RidableHorse ridableHorse = entity as RidableHorse;
                     string randBreed = configData.normalVehicles.ridableHorse.Breeds[Random.Range(0, configData.normalVehicles.ridableHorse.Breeds.Count)];
                     int breedIndex;
                     if (configData.normalVehicles.ridableHorse.BreedsRef.TryGetValue(randBreed, out breedIndex))
@@ -7018,14 +7018,14 @@ namespace Oxide.Plugins
 
             protected override IEnumerable<ItemContainer> GetInventories(BaseEntity entity)
             {
-                yield return (entity as RidableHorse2)?.storageInventory;
+                yield return (entity as RidableHorse)?.storageInventory;
             }
 
             public override void PostRecallVehicle(BasePlayer player, Vehicle vehicle, Vector3 position, Quaternion rotation)
             {
                 base.PostRecallVehicle(player, vehicle, position, rotation);
 
-                var ridableHorse = vehicle.Entity as RidableHorse2;
+                var ridableHorse = vehicle.Entity as RidableHorse;
                 if (ridableHorse != null)
                 {
                     ridableHorse.TryLeaveHitch();
