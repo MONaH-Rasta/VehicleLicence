@@ -1,5 +1,4 @@
-﻿// #define DEBUG
-
+// #define DEBUG
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -16,34 +15,38 @@ using Oxide.Core.Plugins;
 using Oxide.Game.Rust;
 using Rust;
 using Rust.Modular;
+using Rust.Safety;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 using Random = UnityEngine.Random;
 
 // TODO: Fix mincopters spawning above user.
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.8")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.9")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
         #region Fields
-
-        [PluginReference]
-        private readonly Plugin Economics, ServerRewards, Friends, Clans, NoEscape, LandOnCargoShip, RustTranslationAPI, ZoneManager;
+        [PluginReference] readonly Plugin Economics, ServerRewards, Friends, Clans, NoEscape, LandOnCargoShip, RustTranslationAPI, ZoneManager, KaruzaVehicleChatCommand;
 
         private readonly string PERMISSION_USE = "vehiclelicence.use";
         private readonly string PERMISSION_ALL = "vehiclelicence.all";
         private readonly string PERMISSION_ADMIN = "vehiclelicence.admin";
-
         private readonly string PERMISSION_BYPASS_COST = "vehiclelicence.bypasscost";
         private readonly string PERMISSION_NO_DAMAGE = "vehiclelicence.nodamage";
         private readonly string PERMISSION_NO_COLLISION_DAMAGE = "vehiclelicence.nocollisiondamage";
-
         private const int ITEMID_FUEL = -946369541;
         private const int ITEMID_HOTAIRBALLOON_ARMOR = -1989600732;
         private const string PREFAB_ITEM_DROP = "assets/prefabs/misc/item drop/item_drop.prefab";
+
+        /// <summary>
+        /// 
+        /// 28 normal vehicles
+        /// 
+        /// 393 custom vehicles
+        /// 
+        /// </summary>
 
         //BIKES
         private const string PREFAB_PEDALBIKE = "assets/content/vehicles/bikes/pedalbike.prefab";
@@ -54,7 +57,7 @@ namespace Oxide.Plugins
         //SPECIAL
         private const string PREFAB_ATV = "assets/custom/atv.prefab";
         private const string PREFAB_SOFA = "assets/custom/racesofa.prefab";
-        private const string PREFAB_WATERBIRD = "assets/custom/waterheli.prefab";
+        private const string PREFAB_WATERHELI = "assets/custom/waterheli.prefab";
         private const string PREFAB_WARBIRD = "assets/custom/warbird.prefab";
         private const string PREFAB_LITTLEBIRD = "assets/custom/littlebird.prefab";
         private const string PREFAB_FIGHTER = "assets/custom/fighter.prefab";
@@ -91,15 +94,388 @@ namespace Oxide.Plugins
         private const string PREFAB_DUNETRUCKUNARMED = "assets/custom/dunetruckunarmed.prefab";
         private const string PREFAB_DOOMSDAYDISCOVAN = "assets/custom/doomsdaydiscovan.prefab";
         private const string PREFAB_FORKLIFT = "assets/custom/forklift.prefab";
-        private const string PREFAB_LAWNMOWER = "assets/custom/lawnmower.prefab";
+        private const string PREFAB_LAWNMOWER_RED = "assets/custom/lawnmower_red.prefab";
+        private const string PREFAB_LAWNMOWER_GREEN = "assets/custom/lawnmower_green.prefab";
         private const string PREFAB_CHARIOT = "assets/custom/chariot.prefab";
         private const string PREFAB_SOULHARVESTER = "assets/custom/soulharvester.prefab";
+        private const string PREFAB_RUSTLERG = "assets/custom/rustlerg.prefab";
+        private const string PREFAB_RUSTLERS = "assets/custom/rustlers.prefab";
+        private const string PREFAB_F1 = "assets/custom/f1.prefab";
+        private const string PREFAB_SEMITRUCK_RED = "assets/custom/semitruck_red.prefab";
+        private const string PREFAB_SEMITRUCK_YELLOW = "assets/custom/semitruck_yellow.prefab";
+        private const string PREFAB_SEMITRUCK_GREEN = "assets/custom/semitruck_green.prefab";
+        private const string PREFAB_SEMITRUCK_BLUE = "assets/custom/semitruck_blue.prefab";
+        private const string PREFAB_SEMITRUCK_WHITE = "assets/custom/semitruck_white.prefab";
+        private const string PREFAB_SEMITRAILER_ORANGE = "assets/custom/semitrailer_orange.prefab";
+        private const string PREFAB_SEMITRAILER_GREEN = "assets/custom/semitrailer_green.prefab";
+        private const string PREFAB_SEMITRAILER_YELLOW = "assets/custom/semitrailer_yellow.prefab";
+        private const string PREFAB_SEMITRAILER_BLUE = "assets/custom/semitrailer_blue.prefab";
+        private const string PREFAB_SEMITRAILER_FUEL = "assets/custom/semitrailer_fuel.prefab";
+        private const string PREFAB_WHEELCHAIR = "assets/custom/wheelchair.prefab";
+        private const string PREFAB_COBRA_GREEN = "assets/custom/cobra_green.prefab";
+        private const string PREFAB_COBRA_GREY = "assets/custom/cobra_grey.prefab";
+        private const string PREFAB_COBRA_BLACK = "assets/custom/cobra_black.prefab";
+        private const string PREFAB_MOBILECASINO = "assets/custom/mobilecasino.prefab";
+        private const string PREFAB_DREADNOUGHT = "assets/custom/dreadnought.prefab";
+        private const string PREFAB_DREAD_TRAILER = "assets/custom/dreadtrailer.prefab";
+        private const string PREFAB_ONYX = "assets/custom/onyx.prefab";
+        private const string PREFAB_ONYX_AA = "assets/custom/onyx_aa.prefab";
+        private const string PREFAB_ONYX_IFV = "assets/custom/onyx_ifv.prefab";
+        private const string PREFAB_LANDBEETLE = "assets/custom/landbeetle.prefab";
+        private const string PREFAB_WINGFIGHTER = "assets/custom/wingfighter.prefab";
+        private const string PREFAB_WINGBOMBER = "assets/custom/wingbomber.prefab";
+        private const string PREFAB_TIMBERWING = "assets/custom/timberwing.prefab";
+        private const string PREFAB_PARTYTRAILER = "assets/custom/partytrailer.prefab";
+        private const string PREFAB_TRACTOR = "assets/custom/tractor.prefab";
+        private const string PREFAB_FARM_TRACTOR = "assets/custom/farmtractor.prefab";
+        private const string PREFAB_JET = "assets/custom/jet.prefab";
+        private const string PREFAB_BOATMOBILE = "assets/custom/boatmobile.prefab";
+        private const string PREFAB_TRICYCLE = "assets/custom/tricycle.prefab";
+        private const string PREFAB_SHOPPINGCART = "assets/custom/shoppingcart.prefab";
+        private const string PREFAB_SHOPPINGCART_BLUE = "assets/custom/shoppingcart_blue.prefab";
+        private const string PREFAB_SPOOKY_SHOPPINGCART = "assets/custom/spookyshoppingcart.prefab";
+        private const string PREFAB_BATBIKE = "assets/custom/batbike.prefab";
+        private const string PREFAB_SPOOKY_BATBIKE = "assets/custom/spookybatbike.prefab";
+        private const string PREFAB_SPORTSBIKE_BLACK = "assets/custom/sportsbike_black.prefab";
+        private const string PREFAB_SPORTSBIKE_BLUE = "assets/custom/sportsbike_blue.prefab";
+        private const string PREFAB_SPORTSBIKE_GREEN = "assets/custom/sportsbike_green.prefab";
+        private const string PREFAB_SPORTSBIKE_ORANGE = "assets/custom/sportsbike_orange.prefab";
+        private const string PREFAB_SPORTSBIKE_RED = "assets/custom/sportsbike_red.prefab";
+        private const string PREFAB_UFO_DUO = "assets/custom/ufo_duo.prefab";
+        private const string PREFAB_UFO_MOTHERSHIP = "assets/custom/ufo_mothership.prefab";
+        private const string PREFAB_UFO_SOLO = "assets/custom/ufo_solo.prefab";
+        private const string PREFAB_UFO_SPOOKY = "assets/custom/ufo_spooky.prefab";
+        private const string PREFAB_TARDIS = "assets/custom/tardis.prefab";
+        private const string PREFAB_DRIFTWOOD = "assets/custom/driftwood.prefab";
+        private const string PREFAB_HAILFIRE_BIKE = "assets/custom/hailfirebike.prefab";
+        private const string PREFAB_HOVER_SLED = "assets/custom/hoversled.prefab";
+        private const string PREFAB_MOON_BUGGY = "assets/custom/moonbuggy.prefab";
+        private const string PREFAB_MANDO_SPEEDER = "assets/custom/mandospeeder.prefab";
+        private const string PREFAB_POD_SPEEDER = "assets/custom/podspeeder.prefab";
+        private const string PREFAB_GLIDER = "assets/custom/glider.prefab";
+        private const string PREFAB_GLIDER_ARMED = "assets/custom/gliderarmed.prefab";
+        private const string PREFAB_UAP_DUO = "assets/custom/uap_duo.prefab";
+        private const string PREFAB_UAP_SOLO = "assets/custom/uap_solo.prefab";
+        private const string PREFAB_UAP_PROTOTYPE = "assets/custom/uap_prototype.prefab";
+        private const string PREFAB_UAP_XMAS = "assets/custom/uap_xmas.prefab";
+        private const string PREFAB_STAR_FIGHTER = "assets/custom/starfighter.prefab";
+        private const string PREFAB_WAR_CHAIR = "assets/custom/warchair.prefab";
+        private const string PREFAB_RAPTOR = "assets/custom/raptor.prefab";
+        private const string PREFAB_TALON = "assets/custom/talon.prefab";
+        private const string PREFAB_HOVER_BAT_BIKE = "assets/custom/hoverbatbike.prefab";
+        private const string PREFAB_FROST_SLED = "assets/custom/frostsled.prefab";
+        private const string PREFAB_SCOOTER = "assets/custom/scooter.prefab";
+        private const string PREFAB_HOVER_SCOOTER = "assets/custom/hoverscooter.prefab";
+        private const string PREFAB_DRONE_BACKPACK = "assets/custom/dronebackpack.prefab";
+        private const string PREFAB_HOVERCRAFT = "assets/custom/hovercraft.prefab";
+        private const string PREFAB_HOVERCRAFTARMED = "assets/custom/hovercraftarmed.prefab";
+        private const string PREFAB_HEELIES = "assets/custom/heelies.prefab";
+        private const string PREFAB_EHOVERBOARD = "assets/custom/ehoverboard.prefab";
+        private const string PREFAB_MONOCYCLE = "assets/custom/monocycle.prefab";
+        private const string PREFAB_SKYWING = "assets/custom/skywing.prefab";
+        private const string PREFAB_MINIPLANE = "assets/custom/miniplane.prefab";
+        private const string PREFAB_WARPLANE = "assets/custom/warplane.prefab";
+        private const string PREFAB_RAIDPLANE = "assets/custom/raidplane.prefab";
+        private const string PREFAB_BRADLEY = "assets/custom/bradleyvehicle.prefab";
+        private const string PREFAB_JET2 = "assets/custom/f15solo.prefab";
+        private const string PREFAB_JET2_DUO = "assets/custom/f15duo.prefab";
+        private const string PREFAB_A10 = "assets/custom/a10.prefab";
+        private const string PREFAB_GOBLIN_GLIDER = "assets/custom/goblinglider.prefab";
+        private const string PREFAB_DRONE_BOARD = "assets/custom/droneboard.prefab";
+        private const string PREFAB_HELIHAT = "assets/custom/helihat.prefab";
+        private const string PREFAB_HELIHAT_UNARMED = "assets/custom/helihatunarmed.prefab";
+        private const string PREFAB_M939 = "assets/custom/m939.prefab";
+        private const string PREFAB_M939_ENCLOSED = "assets/custom/m939_enclosed.prefab";
+        private const string PREFAB_M939_DESERT = "assets/custom/m939_desert.prefab";
+        private const string PREFAB_M939_DESERT_ENCLOSED = "assets/custom/m939_desert_enclosed.prefab";
+        private const string PREFAB_OPPRESSOR = "assets/custom/oppressor.prefab";
+        private const string PREFAB_TUMBLER = "assets/custom/tumbler.prefab";
+        private const string PREFAB_TUMBLERARMED = "assets/custom/tumblerarmed.prefab";
+        private const string PREFAB_FALCON = "assets/custom/falcon.prefab";
+        private const string PREFAB_IMPERIALSHUTTLE = "assets/custom/imperialshuttle.prefab";
+        private const string PREFAB_BALLISTACAR = "assets/custom/ballistacar.prefab";
+        private const string PREFAB_AIRSPEEDER = "assets/custom/airspeeder.prefab";
+        private const string PREFAB_GROUNDSPEEDER = "assets/custom/groundspeeder.prefab";
+        private const string PREFAB_ROADSTER_RP = "assets/custom/roadsterrp.prefab";
+        private const string PREFAB_AMBULANCE = "assets/custom/ambulance.prefab";
+        private const string PREFAB_MAMBA = "assets/custom/mamba.prefab";
+        private const string PREFAB_BIKE_HELL_RIDER = "assets/custom/bikehellrider.prefab";
+        private const string PREFAB_LANDSPEEDER = "assets/custom/landspeeder.prefab";
+        private const string PREFAB_FLYINGBOAT = "assets/custom/flyingboat.prefab";
+        private const string PREFAB_OPPRESSORBIKE = "assets/custom/oppressorbike.prefab";
+        private const string PREFAB_BATWING = "assets/custom/batwing.prefab";
+        private const string PREFAB_BATWING_DUO = "assets/custom/batwingduo.prefab";
+        private const string PREFAB_MOTORTRIKE = "assets/custom/motortrike.prefab";
+        private const string PREFAB_SUPERTRIKE = "assets/custom/supertrike.prefab";
+        private const string PREFAB_SITHSPEEDER = "assets/custom/sithspeeder.prefab";
+        private const string PREFAB_CARRIAGE_1 = "assets/custom/carriage1.prefab";
+        private const string PREFAB_CARRIAGE_2 = "assets/custom/carriage2.prefab";
+        private const string PREFAB_CARRIAGE_3 = "assets/custom/carriage3.prefab";
+        private const string PREFAB_KART1 = "assets/custom/kart1.prefab";
+        private const string PREFAB_KART2 = "assets/custom/kart2.prefab";
+        private const string PREFAB_KART3 = "assets/custom/kart3.prefab";
+        private const string PREFAB_KART4 = "assets/custom/kart4.prefab";
+        private const string PREFAB_KART5 = "assets/custom/kart5.prefab";
+        private const string PREFAB_KART6 = "assets/custom/kart6.prefab";
+        private const string PREFAB_KART7 = "assets/custom/kart7.prefab";
+        private const string PREFAB_KART8 = "assets/custom/kart8.prefab";
+        private const string PREFAB_HOVERKART1 = "assets/custom/hoverkart1.prefab";
+        private const string PREFAB_MONGOOSE = "assets/custom/mongoose.prefab";
+        private const string PREFAB_WARTHOG = "assets/custom/warthog.prefab";
+        private const string PREFAB_WARTHOGS = "assets/custom/warthogs.prefab";
+        private const string PREFAB_WARTHOGT = "assets/custom/warthogt.prefab";
+        private const string PREFAB_DRUMCAR = "assets/custom/drumcar.prefab";
+        private const string PREFAB_PIANOCAR = "assets/custom/pianocar.prefab";
+        private const string PREFAB_BONECAR = "assets/custom/bonecar.prefab";
+        private const string PREFAB_TABLECAR = "assets/custom/tablecar.prefab";
+        private const string PREFAB_SLOTSCAR = "assets/custom/slotscar.prefab";
+        private const string PREFAB_BEANCAR = "assets/custom/beancar.prefab";
+        private const string PREFAB_BALLCAR = "assets/custom/ballcar.prefab";
+        private const string PREFAB_POLICECAR = "assets/custom/policecar.prefab";
+        private const string PREFAB_POLICEBIKE = "assets/custom/policebike.prefab";
+        private const string PREFAB_SWATVAN = "assets/custom/swatvan.prefab";
+        private const string PREFAB_AIRBOAT = "assets/custom/airboat.prefab";
+        private const string PREFAB_AIRBOAT2 = "assets/custom/airboat2.prefab";
+        private const string PREFAB_FLINTMOBILE = "assets/custom/flintmobile.prefab";
+        private const string PREFAB_NIGHTHAWK = "assets/custom/nighthawk.prefab";
+        private const string PREFAB_MINI_NIGHTHAWK = "assets/custom/mininighthawk.prefab";
+        private const string PREFAB_HOVERSHARK = "assets/custom/hovershark.prefab";
+        private const string PREFAB_JEEP = "assets/custom/jeep.prefab";
+        private const string PREFAB_JEEPJP = "assets/custom/jeepjp.prefab";
+        private const string PREFAB_JEEPCAMO = "assets/custom/jeepcamo.prefab";
+        private const string PREFAB_JEEPDESERT = "assets/custom/jeepdesert.prefab";
+        private const string PREFAB_JEEPAA = "assets/custom/jeepaa.prefab";
+        private const string PREFAB_MONSTERTRUCK = "assets/custom/monstertruck.prefab";
+        private const string PREFAB_MONSTERTRUCK2 = "assets/custom/monstertruck2.prefab";
+        private const string PREFAB_MONSTERTRUCKBAT = "assets/custom/monstertruckbat.prefab";
+        private const string PREFAB_MONSTERTRUCKBEAN = "assets/custom/monstertruckbean.prefab";
+        private const string PREFAB_MONSTERTRUCKSEMI = "assets/custom/monstertrucksemi.prefab";
+        private const string PREFAB_BUMPERBLUE = "assets/custom/bumperblue.prefab";
+        private const string PREFAB_BUMPERBLACK = "assets/custom/bumperblack.prefab";
+        private const string PREFAB_BUMPERRED = "assets/custom/bumperred.prefab";
+        private const string PREFAB_BUMPERORANGE = "assets/custom/bumperorange.prefab";
+        private const string PREFAB_BUMPERGREEN = "assets/custom/bumpergreen.prefab";
+        private const string PREFAB_LUGGAGECART = "assets/custom/luggagecart.prefab";
+        private const string PREFAB_LUGGAGETRAILER = "assets/custom/luggagetrailer.prefab";
+        private const string PREFAB_LUGGAGETRAILER2 = "assets/custom/luggagetrailer2.prefab";
+        private const string PREFAB_LUGGAGETRAILER3 = "assets/custom/luggagetrailer3.prefab";
+        private const string PREFAB_LUGGAGETRAILER4 = "assets/custom/luggagetrailer4.prefab";
+        private const string PREFAB_MINESWEEPER = "assets/custom/minesweeper.prefab";
+        private const string PREFAB_MINIDOZER = "assets/custom/minidozer.prefab";
+        private const string PREFAB_MINITIPPER = "assets/custom/minitipper.prefab";
+        private const string PREFAB_STEAMROLLER = "assets/custom/steamroller.prefab";
+        private const string PREFAB_BIGDUMPTRUCK = "assets/custom/bigdumptruck.prefab";
+        private const string PREFAB_BIGTRACTOR = "assets/custom/bigtractor.prefab";
+        private const string PREFAB_INVADER = "assets/custom/invader.prefab";
+        private const string PREFAB_ORLIK = "assets/custom/orlik.prefab";
+        private const string PREFAB_AH69G = "assets/custom/ah69g.prefab";
+        private const string PREFAB_SCHOOLBUS1 = "assets/custom/schoolbus1.prefab";
+        private const string PREFAB_SCHOOLBUS2 = "assets/custom/schoolbus2.prefab";
+        private const string PREFAB_SCHOOLBUSSHORT = "assets/custom/schoolbusshort.prefab";
+        private const string PREFAB_PRISONBUS = "assets/custom/prisonbus.prefab";
+        private const string PREFAB_SCRAPJETA = "assets/custom/scrapjeta.prefab";
+        private const string PREFAB_SCRAPJETB = "assets/custom/scrapjetb.prefab";
+        private const string PREFAB_HOVERSCOUT = "assets/custom/hoverscout.prefab";
+        private const string PREFAB_BADCOPPI_INTERCETTORE = "assets/custom/badcoppi_intercettore.prefab";
+        private const string PREFAB_BADCOPPI_STRADA_BLACK = "assets/custom/badcoppi_strada_black.prefab";
+        private const string PREFAB_BADCOPPI_STRADA_BLUE = "assets/custom/badcoppi_strada_blue.prefab";
+        private const string PREFAB_BADCOPPI_STRADA_GOLD = "assets/custom/badcoppi_strada_gold.prefab";
+        private const string PREFAB_BADCOPPI_STRADA_GREEN = "assets/custom/badcoppi_strada_green.prefab";
+        private const string PREFAB_BADCOPPI_STRADA_PINK = "assets/custom/badcoppi_strada_pink.prefab";
+        private const string PREFAB_BADCOPPI_STRADA_YELLOW = "assets/custom/badcoppi_strada_yellow.prefab";
+        private const string PREFAB_BADCOPPI_SPORT_RED = "assets/custom/badcoppi_sport_red.prefab";
+        private const string PREFAB_BADCOPPI_SPORT_BLUE = "assets/custom/badcoppi_sport_blue.prefab";
+        private const string PREFAB_BADCOPPI_SPORT_BLACK = "assets/custom/badcoppi_sport_black.prefab";
+        private const string PREFAB_BADCOPPI_SPORT_GREEN = "assets/custom/badcoppi_sport_green.prefab";
+        private const string PREFAB_BADCOPPI_SPORT_WHITE = "assets/custom/badcoppi_sport_white.prefab";
+        private const string PREFAB_BADCOPPI_SPORT_PINK = "assets/custom/badcoppi_sport_pink.prefab";
+        private const string PREFAB_BADCOPPI_SPORT_YELLOW = "assets/custom/badcoppi_sport_yellow.prefab";
+        private const string PREFAB_LEVIATHAN = "assets/custom/leviathan.prefab";
+        private const string PREFAB_LEVIATHANCARRIER = "assets/custom/leviathancarrier.prefab";
+        private const string PREFAB_LEVIATHANGIGACARRIER = "assets/custom/leviathangigacarrier.prefab";
+        private const string PREFAB_KAMIKAZE = "assets/custom/kamikaze.prefab";
+        private const string PREFAB_OPPRESSORCOPTER = "assets/custom/oppressorcopter.prefab";
+        private const string PREFAB_SKYCRANE = "assets/custom/skycrane.prefab";
+        private const string PREFAB_HOVERRACER = "assets/custom/hoverracer.prefab";
+        private const string PREFAB_EGGMOBILE = "assets/custom/eggmobile.prefab";
+        private const string PREFAB_EGGKART = "assets/custom/eggkart.prefab";
+        private const string PREFAB_DRILLCAR = "assets/custom/drillcar.prefab";
+        private const string PREFAB_JETSON = "assets/custom/jetson.prefab";
+        private const string PREFAB_SCOUTSPEEDER = "assets/custom/scoutspeeder.prefab";
+        private const string PREFAB_MINIBIKE = "assets/custom/minibike.prefab";
+        private const string PREFAB_MINITRIKE = "assets/custom/minitrike.prefab";
+        private const string PREFAB_SUPERBIKE_BLACK = "assets/custom/superbike_black.prefab";
+        private const string PREFAB_SUPERBIKE_BLUE = "assets/custom/superbike_blue.prefab";
+        private const string PREFAB_SUPERBIKE_GREEN = "assets/custom/superbike_green.prefab";
+        private const string PREFAB_SUPERBIKE_ORANGE = "assets/custom/superbike_orange.prefab";
+        private const string PREFAB_SUPERBIKE_RED = "assets/custom/superbike_red.prefab";
+        private const string PREFAB_TOWTRUCK = "assets/custom/towtruck.prefab";
+        private const string PREFAB_BM21 = "assets/custom/bm21.prefab";
+        private const string PREFAB_PREDATOR_Y = "assets/custom/predator_y.prefab";
+        private const string PREFAB_PREDATOR_X = "assets/custom/predator_x.prefab";
+        private const string PREFAB_PREDATOR_RP = "assets/custom/predator_rp.prefab";
+        private const string PREFAB_SPOOKOPTER = "assets/custom/spookopter.prefab";
+        private const string PREFAB_MIG17 = "assets/custom/mig17.prefab";
+        private const string PREFAB_HARRIER = "assets/custom/harrier.prefab";
+        private const string PREFAB_SU47 = "assets/custom/su47.prefab";
+        private const string PREFAB_SU47_QT = "assets/custom/su47_qt.prefab";
+        private const string PREFAB_SU47_BLING = "assets/custom/su47_bling.prefab";
+        private const string PREFAB_TORNADO_GREY = "assets/custom/tornado_grey.prefab";
+        private const string PREFAB_TORNADO_TAN = "assets/custom/tornado_tan.prefab";
+        private const string PREFAB_CF105 = "assets/custom/cf105.prefab";
+        private const string PREFAB_SHIFTERKART1 = "assets/custom/shifterkart1.prefab";
+        private const string PREFAB_SHIFTERKART2 = "assets/custom/shifterkart2.prefab";
+        private const string PREFAB_SHIFTERKART3 = "assets/custom/shifterkart3.prefab";
+        private const string PREFAB_SHIFTERKART4 = "assets/custom/shifterkart4.prefab";
+        private const string PREFAB_SHIFTERKART5 = "assets/custom/shifterkart5.prefab";
+        private const string PREFAB_SHIFTERKART6 = "assets/custom/shifterkart6.prefab";
+        private const string PREFAB_MH60X = "assets/custom/mh60x.prefab";
+        private const string PREFAB_AH001 = "assets/custom/ah001.prefab";
+        private const string PREFAB_BOLTBUCKET = "assets/custom/boltbucket.prefab";
+        private const string PREFAB_CRUDEBIRD = "assets/custom/crudebird.prefab";
+        private const string PREFAB_STRETCH_BLACK = "assets/custom/stretch_black.prefab";
+        private const string PREFAB_STRETCH_WHITE = "assets/custom/stretch_white.prefab";
+        private const string PREFAB_STRETCH_PINK = "assets/custom/stretch_pink.prefab";
+        private const string PREFAB_MOTORHOME = "assets/custom/motorhome.prefab";
+        private const string PREFAB_CYBERTRUCK = "assets/custom/cybertruck.prefab";
+        private const string PREFAB_CYBERKART = "assets/custom/cyberkart.prefab";
+        private const string PREFAB_KARTTOY = "assets/custom/karttoy.prefab";
+        private const string PREFAB_KARTUFO = "assets/custom/kartufo.prefab";
+        private const string PREFAB_KARTSEMI = "assets/custom/kartsemi.prefab";
+        private const string PREFAB_KARTSEDAN = "assets/custom/kartsedan.prefab";
+        private const string PREFAB_KARTRACEBED = "assets/custom/kartracebed.prefab";
+        private const string PREFAB_KARTPINATA = "assets/custom/kartpinata.prefab";
+        private const string PREFAB_KARTPIE = "assets/custom/kartpie.prefab";
+        private const string PREFAB_KARTCOOP = "assets/custom/kartcoop.prefab";
+        private const string PREFAB_KARTCATAPULT = "assets/custom/kartcatapult.prefab";
+        private const string PREFAB_KARTCAKE = "assets/custom/kartcake.prefab";
+        private const string PREFAB_KARTBRADLEY = "assets/custom/kartbradley.prefab";
+        private const string PREFAB_SCRAPBUGGY = "assets/custom/scrapbuggy.prefab";
+        private const string PREFAB_SCRAPCAR = "assets/custom/scrapcar.prefab";
+        private const string PREFAB_SCRAPTRUCK = "assets/custom/scraptruck.prefab";
+        private const string PREFAB_DIABLO_BLACK = "assets/custom/diablo_black.prefab";
+        private const string PREFAB_DIABLO_BLUE = "assets/custom/diablo_blue.prefab";
+        private const string PREFAB_DIABLO_GOLD = "assets/custom/diablo_gold.prefab";
+        private const string PREFAB_DIABLO_GREEN = "assets/custom/diablo_green.prefab";
+        private const string PREFAB_DIABLO_ORANGE = "assets/custom/diablo_orange.prefab";
+        private const string PREFAB_DIABLO_POLICE = "assets/custom/diablo_police.prefab";
+        private const string PREFAB_DIABLO_PURPLE = "assets/custom/diablo_purple.prefab";
+        private const string PREFAB_DIABLO_RED = "assets/custom/diablo_red.prefab";
+        private const string PREFAB_DIABLO_WHITE = "assets/custom/diablo_white.prefab";
+        private const string PREFAB_DIABLO_YELLOW = "assets/custom/diablo_yellow.prefab";
+        private const string PREFAB_DIABLO_PINK = "assets/custom/diablo_pink.prefab";
+        private const string PREFAB_JETPACK = "assets/custom/jetpack.prefab";
+        private const string PREFAB_JETPACK_UNARMED = "assets/custom/jetpackunarmed.prefab";
+        private const string PREFAB_126P_BLUE = "assets/custom/126p_blue.prefab";
+        private const string PREFAB_126P_BROWN = "assets/custom/126p_brown.prefab";
+        private const string PREFAB_126P_PURPLE = "assets/custom/126p_purple.prefab";
+        private const string PREFAB_126P_GREEN = "assets/custom/126p_green.prefab";
+        private const string PREFAB_126P_LIME = "assets/custom/126p_lime.prefab";
+        private const string PREFAB_TUKTUK = "assets/custom/tuktuk.prefab";
+        private const string PREFAB_SANTASLED = "assets/custom/santasled.prefab";
+        private const string PREFAB_PORTAPOTTY = "assets/custom/portapotty.prefab";
+        private const string PREFAB_SPACEBUGGY = "assets/custom/spacebuggy.prefab";
+        private const string PREFAB_SPACEHELI = "assets/custom/spaceheli.prefab";
+        private const string PREFAB_SPACEHELIARMED = "assets/custom/spaceheliarmed.prefab";
+        private const string PREFAB_VIPERWING = "assets/custom/viperwing.prefab";
+        private const string PREFAB_NIGHTWING = "assets/custom/nightwing.prefab";
+        private const string PREFAB_ASSAULTDRONE = "assets/custom/assaultdrone.prefab";
+        private const string PREFAB_CHAIRCAR = "assets/custom/chaircar.prefab";
+        private const string PREFAB_ROCKINGCHAIRCAR = "assets/custom/rockingchaircar.prefab";
+        private const string PREFAB_BEANBAGCAR = "assets/custom/beanbagcar.prefab";
+        private const string PREFAB_BEANBAGCARDUO = "assets/custom/beanbagcarduo.prefab";
+        private const string PREFAB_BEACHCHAIRCAR = "assets/custom/beachchaircar.prefab";
+        private const string PREFAB_BEACHCHAIRCARDUO = "assets/custom/beachchaircarduo.prefab";
+        private const string PREFAB_HOVERTHRONE = "assets/custom/hoverthrone.prefab";
+        private const string PREFAB_ROCKETSEAT = "assets/custom/rocketseat.prefab";
+        private const string PREFAB_DESKCAR = "assets/custom/deskcar.prefab";
+        private const string PREFAB_UMBRELLACOPTER = "assets/custom/umbrellacopter.prefab";
+        private const string PREFAB_DESKCOPTER = "assets/custom/deskcopter.prefab";
+        private const string PREFAB_UTILITYTRUCK = "assets/custom/utilitytruck.prefab";
+        private const string PREFAB_UTILITYTRUCK2 = "assets/custom/utilitytruck2.prefab";
+        private const string PREFAB_UTILITYTRUCK3 = "assets/custom/utilitytruck3.prefab";
+        private const string PREFAB_SEMITANDEMAXLE = "assets/custom/semitandemaxle.prefab";
+        private const string PREFAB_ARES_T = "assets/custom/ares_t.prefab";
+        private const string PREFAB_ARES_AA = "assets/custom/ares_aa.prefab";
+        private const string PREFAB_ARES_HC = "assets/custom/ares_hc.prefab";
+        private const string PREFAB_FARMTRAILER = "assets/custom/farmtrailer.prefab";
+        private const string PREFAB_ATV_BLUE = "assets/custom/atv_blue.prefab";
+        private const string PREFAB_ATV_CAMO = "assets/custom/atv_camo.prefab";
+        private const string PREFAB_ATV_RED = "assets/custom/atv_red.prefab";
+        private const string PREFAB_ATV_YELLOW = "assets/custom/atv_yellow.prefab";
+        private const string PREFAB_BEEVAN = "assets/custom/beevan.prefab";
+        private const string PREFAB_FOODTRUCK = "assets/custom/foodtruck.prefab";
+        private const string PREFAB_GUNTRUCK = "assets/custom/guntruck.prefab";
+        private const string PREFAB_VAULTVAN = "assets/custom/vaultvan.prefab";
+        private const string PREFAB_DELIVERYVAN = "assets/custom/deliveryvan.prefab";
+        private const string PREFAB_RUSTLUX = "assets/custom/rustlux.prefab";
+        private const string PREFAB_RUSTLUX_50CAL = "assets/custom/rustlux_50cal.prefab";
+        private const string PREFAB_RUSTLUX_ARMOR = "assets/custom/rustlux_armor.prefab";
+        private const string PREFAB_RUSTLUX_HE = "assets/custom/rustlux_he.prefab";
+        private const string PREFAB_RUSTLUX_HV = "assets/custom/rustlux_hv.prefab";
+        private const string PREFAB_RUSTLUX_MLRS = "assets/custom/rustlux_mlrs.prefab";
+        private const string PREFAB_FIREAMBULANCE = "assets/custom/fireambulance.prefab";
+        private const string PREFAB_FIRETRUCK = "assets/custom/firetruck.prefab";
+        private const string PREFAB_FIRELIGHTRESCUE = "assets/custom/firelightrescue.prefab";
+        private const string PREFAB_FIREPICKUPTRUCK = "assets/custom/firepickuptruck.prefab";
+        private const string PREFAB_APACHE = "assets/custom/apache.prefab";
+        private const string PREFAB_PODRACERSKY = "assets/custom/podracersky.prefab";
+        private const string PREFAB_WEDGE = "assets/custom/wedge.prefab";
+        private const string PREFAB_CANNONCAR = "assets/custom/cannoncar.prefab";
+        private const string PREFAB_SHARKSUIT = "assets/custom/sharksuit.prefab";
+        private const string PREFAB_SHARKSUITARMED = "assets/custom/sharksuitarmed.prefab";
+        private const string PREFAB_SHARKBOAT = "assets/custom/sharkboat.prefab";
+        private const string PREFAB_SHARKBOATARMED = "assets/custom/sharkboatarmed.prefab";
+        private const string PREFAB_SHARKBOATHUGE = "assets/custom/sharkboathuge.prefab";
+        private const string PREFAB_STANDSKI = "assets/custom/standski.prefab";
+        private const string PREFAB_STANDSKI2 = "assets/custom/standski2.prefab";
+        private const string PREFAB_STANDSKI3 = "assets/custom/standski3.prefab";
+        private const string PREFAB_STANDSKI4 = "assets/custom/standski4.prefab";
+        private const string PREFAB_STANDSKI5 = "assets/custom/standski5.prefab";
+        private const string PREFAB_STANDSKI6 = "assets/custom/standski6.prefab";
+        private const string PREFAB_JETSKIBLACK = "assets/custom/jetskiblack.prefab";
+        private const string PREFAB_JETSKIBLUE = "assets/custom/jetskiblue.prefab";
+        private const string PREFAB_JETSKIBLUEREDSTRIPED = "assets/custom/jetskiblueredstriped.prefab";
+        private const string PREFAB_JETSKIBLUEYELLOWSTRIPED = "assets/custom/jetskiblueyellowstriped.prefab";
+        private const string PREFAB_JETSKICAMO = "assets/custom/jetskicamo.prefab";
+        private const string PREFAB_JETSKIGOLD = "assets/custom/jetskigold.prefab";
+        private const string PREFAB_JETSKIGREEN = "assets/custom/jetskigreen.prefab";
+        private const string PREFAB_JETSKIPINK = "assets/custom/jetskipink.prefab";
+        private const string PREFAB_JETSKIPOLICE = "assets/custom/jetskipolice.prefab";
+        private const string PREFAB_JETSKIPURPLE = "assets/custom/jetskipurple.prefab";
+        private const string PREFAB_JETSKIRED = "assets/custom/jetskired.prefab";
+        private const string PREFAB_JETSKIYELLOW = "assets/custom/jetskiyellow.prefab";
+        private const string PREFAB_WEEDVAN = "assets/custom/weedvan.prefab";
+        private const string PREFAB_WARTHOGBLACK = "assets/custom/warthogblack.prefab";
+        private const string PREFAB_TRANSIT = "assets/custom/transit.prefab";
+        private const string PREFAB_TRANSITDROPSIDE = "assets/custom/transitdropside.prefab";
+        private const string PREFAB_TRANSITRECYCLING = "assets/custom/transitrecycling.prefab";
+        private const string PREFAB_TRANSITBOX = "assets/custom/transitbox.prefab";
+        private const string PREFAB_SENTRYCAR = "assets/custom/sentrycar.prefab";
+        private const string PREFAB_SENTRYCAR2 = "assets/custom/sentrycar2.prefab";
+        private const string PREFAB_BARRELCARTHING = "assets/custom/barrelcarthing.prefab";
+        private const string PREFAB_HUMANCAR = "assets/custom/humancar.prefab";
+        private const string PREFAB_HUMANKART = "assets/custom/humankart.prefab";
+        private const string PREFAB_MONSTERBIKE = "assets/custom/monsterbike.prefab";
+        private const string PREFAB_TIRE = "assets/custom/tire.prefab";
+        private const string PREFAB_ZERGATRON = "assets/custom/zergatron.prefab";
+        private const string PREFAB_OXIDEMAN = "assets/custom/oxideman.prefab";
+        private const string PREFAB_COFFINCAR = "assets/custom/coffincar.prefab";
+        private const string PREFAB_STORMWING = "assets/custom/stormwing.prefab";
+        private const string PREFAB_MINIRHIB = "assets/custom/minirhib.prefab";
+        private const string PREFAB_MINIPTBOAT = "assets/custom/miniptboat.prefab";
+        private const string PREFAB_MINISUB = "assets/custom/minisub.prefab";
+        private const string PREFAB_MINISUB2 = "assets/custom/minisub2.prefab";
+        private const string PREFAB_CPV_GREY = "assets/custom/cpv_grey.prefab";
+        private const string PREFAB_CPV_GREEN = "assets/custom/cpv_green.prefab";
 
         //OTHER
         private const string PREFAB_KAYAK = "assets/content/vehicles/boats/kayak/kayak.prefab";
         private const string PREFAB_TUGBOAT = "assets/content/vehicles/boats/tugboat/tugboat.prefab";
         private const string PREFAB_ROWBOAT = "assets/content/vehicles/boats/rowboat/rowboat.prefab";
         private const string PREFAB_RHIB = "assets/content/vehicles/boats/rhib/rhib.prefab";
+        private const string PREFAB_DPV = "assets/content/vehicles/dpv/dpv.deployed.prefab";
+        private const string PREFAB_PTB = "assets/content/vehicles/boats/ptboat/ptboat.prefab";
         private const string PREFAB_SEDAN = "assets/content/vehicles/sedan_a/sedantest.entity.prefab";
         private const string PREFAB_HOTAIRBALLOON = "assets/prefabs/deployable/hot air balloon/hotairballoon.prefab";
         private const string PREFAB_MINICOPTER = "assets/content/vehicles/minicopter/minicopter.entity.prefab";
@@ -112,13 +488,10 @@ namespace Oxide.Plugins
         private const string PREFAB_MAGNET_CRANE = "assets/content/vehicles/crane_magnet/magnetcrane.entity.prefab";
         private const string PREFAB_SUBMARINE_DUO = "assets/content/vehicles/submarine/submarineduo.entity.prefab";
         private const string PREFAB_SUBMARINE_SOLO = "assets/content/vehicles/submarine/submarinesolo.entity.prefab";
-
         private const string PREFAB_CHASSIS_SMALL = "assets/content/vehicles/modularcar/car_chassis_2module.entity.prefab";
         private const string PREFAB_CHASSIS_MEDIUM = "assets/content/vehicles/modularcar/car_chassis_3module.entity.prefab";
         private const string PREFAB_CHASSIS_LARGE = "assets/content/vehicles/modularcar/car_chassis_4module.entity.prefab";
-
         private const string PREFAB_SNOWMOBILE = "assets/content/vehicles/snowmobiles/snowmobile.prefab";
-        private const string PREFAB_SNOWMOBILE_TOMAHA = "assets/content/vehicles/snowmobiles/tomahasnowmobile.prefab";
 
         // Train Engine
         private const string PREFAB_TRAINENGINE = "assets/content/vehicles/trains/workcart/workcart_aboveground.entity.prefab";
@@ -134,24 +507,27 @@ namespace Oxide.Plugins
         private const string PREFAB_TRAINWAGON_UNLOADABLE_LOOT = "assets/content/vehicles/trains/wagons/trainwagonunloadableloot.entity.prefab";
         private const string PREFAB_CABOOSE = "assets/content/vehicles/trains/caboose/traincaboose.entity.prefab";
 
+        // Siege Weapons
+        private const string PREFAB_SIEGETOWER = "assets/content/vehicles/siegeweapons/siegetower/siegetower.entity.prefab";
+        private const string PREFAB_CATAPULT = "assets/content/vehicles/siegeweapons/catapult/catapult.entity.prefab";
+        private const string PREFAB_BATTERINGRAM = "assets/content/vehicles/siegeweapons/batteringram/batteringram.entity.prefab";
+        private const string PREFAB_BALLISTA = "assets/content/vehicles/siegeweapons/ballista/ballista.entity.prefab";
+
         // Defaults for Vehicle Modifications
         private readonly float TUGBOAT_ENGINETHRUST = 200000f;
         private readonly float HELICOPTER_LIFT = 0.25f;
         private readonly Vector3 SCRAP_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 4000.0f);
         private readonly Vector3 MINICOPTER_TORQUE = new Vector3(400.0f, 400.0f, 200.0f);
         private readonly Vector3 ATTACK_HELICOPTER_TORQUE = new Vector3(8000.0f, 8000.0f, 5200.0f);
-
-        private const int LAYER_GROUND = Layers.Solid | Layers.Mask.Water;
-
+        private const int LAYER_GROUND = Layers.Solid | Layers.Mask.Water | Layers.Construction;
         private readonly object _false = false;
         private bool finishedLoading = false;
 
         public static VehicleLicence Instance { get; private set; }
-
         public readonly Dictionary<BaseEntity, Vehicle> vehiclesCache = new Dictionary<BaseEntity, Vehicle>();
         public readonly Dictionary<string, BaseVehicleSettings> allVehicleSettings = new Dictionary<string, BaseVehicleSettings>();
         public readonly Dictionary<string, string> commandToVehicleType = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        
+
         public enum NormalVehicleType
         {
             Tugboat,
@@ -171,19 +547,24 @@ namespace Oxide.Plugins
             SubmarineSolo,
             SubmarineDuo,
             Snowmobile,
-            TomahaSnowmobile,
             Kayak,
             PedalBike,
             PedalTrike,
             MotorBike,
             MotorBike_SideCar,
+            Dpv,
+            SiegeTower,
+            Catapult,
+            Batteringram,
+            Ballista,
+            PtBoat
         }
 
         public enum CustomVehicleType
         {
             ATV,
             RaceSofa,
-            WaterBird,
+            WaterHeli,
             WarBird,
             LittleBird,
             Fighter,
@@ -212,6 +593,7 @@ namespace Oxide.Plugins
             Ah69t,
             Ah69r,
             Ah69a,
+            Ah69g,
             Mavik,
             HeavyFighter,
             PorcelainCommander,
@@ -220,9 +602,379 @@ namespace Oxide.Plugins
             DuneTruckUnArmed,
             DoomsDayDiscoVan,
             ForkLift,
-            LawnMower,
+            LawnMowerRed,
+            LawnMowerGreen,
             Chariot,
-            SoulHarvester
+            SoulHarvester,
+            F1,
+            Rustlerg,
+            Rustlers,
+            SemiTruck_Red,
+            SemiTruck_Yellow,
+            SemiTruck_Green,
+            SemiTruck_Blue,
+            SemiTruck_White,
+            SemiTrailer_Orange,
+            SemiTrailer_Green,
+            SemiTrailer_Yellow,
+            SemiTrailer_Blue,
+            SemiTrailer_Fuel,
+            Wheelchair,
+            CobraGreen,
+            CobraGrey,
+            CobraBlack,
+            MobileCasino,
+            DreadNought,
+            DreadTrailer,
+            ONYX,
+            ONYX_AA,
+            ONYX_IFV,
+            LandBeetle,
+            WingFighter,
+            WingBomber,
+            TimberWing,
+            PartyTrailer,
+            Tractor,
+            FarmTractor,
+            Jet,
+            BoatMobile,
+            Tricycle,
+            ShoppingCart,
+            ShoppingCartBlue,
+            SpookyShoppingCart,
+            BatBike,
+            SpookyBatBike,
+            SportsBikeBlack,
+            SportsBikeBlue,
+            SportsBikeGreen,
+            SportsBikeOrange,
+            SportsBikeRed,
+            UfoDuo,
+            UfoMotherShip,
+            UfoSolo,
+            UfoSpooky,
+            Tardis,
+            Driftwood,
+            HailFireBike,
+            HoverSled,
+            MoonBuggy,
+            MandoSpeeder,
+            PodSpeeder,
+            Glider,
+            GliderArmed,
+            UAP_Duo,
+            UAP_Solo,
+            UAP_Prototype,
+            UAP_Xmas,
+            Starfighter,
+            Warchair,
+            Raptor,
+            Talon,
+            HoverBatBike,
+            FrostSled,
+            Scooter,
+            HoverScooter,
+            DroneBackpack,
+            Hovercraft,
+            HovercraftArmed,
+            Heelies,
+            Ehoverboard,
+            Monocycle,
+            SkyWing,
+            MiniPlane,
+            WarPlane,
+            RaidPlane,
+            BradleyVehicle,
+            F15Solo,
+            F15Duo,
+            A10,
+            GoblinGlider,
+            DroneBoard,
+            HeliHat,
+            HeliHatUnarmed,
+            M939,
+            M939_Enclosed,
+            M939_Desert,
+            M939_Desert_Enclosed,
+            Oppressor,
+            Tumbler,
+            TumblerArmed,
+            Falcon,
+            ImperialShuttle,
+            BallistaCar,
+            AirSpeeder,
+            GroundSpeeder,
+            RoadsterRp,
+            Ambulance,
+            Mamba,
+            BikeHellRider,
+            LandSpeeder,
+            FlyingBoat,
+            OppressorBike,
+            Batwing,
+            BatwingDuo,
+            MotorTrike,
+            SuperTrike,
+            SithSpeeder,
+            Carriage1,
+            Carriage2,
+            Carriage3,
+            Kart1,
+            Kart2,
+            Kart3,
+            Kart4,
+            Kart5,
+            Kart6,
+            Kart7,
+            Kart8,
+            HoverKart1,
+            Mongoose,
+            Warthog,
+            WarthogS,
+            WarthogT,
+            DrumCar,
+            PianoCar,
+            BoneCar,
+            TableCar,
+            SlotsCar,
+            BeanCar,
+            BallCar,
+            PoliceCar,
+            PoliceBike,
+            SwatVan,
+            AirBoat,
+            AirBoat2,
+            FlintMobile,
+            Nighthawk,
+            MiniNighthawk,
+            HoverShark,
+            Jeep,
+            JeepJp,
+            JeepCamo,
+            JeepDesert,
+            JeepAa,
+            MonsterTruck,
+            MonsterTruck2,
+            MonsterTruckBat,
+            MonsterTruckBean,
+            MonsterTruckSemi,
+            BumperBlue,
+            BumperBlack,
+            BumperRed,
+            BumperOrange,
+            BumperGreen,
+            LuggageCart,
+            LuggageTrailer,
+            LuggageTrailer2,
+            LuggageTrailer3,
+            LuggageTrailer4,
+            Minesweeper,
+            MiniDozer,
+            MiniTipper,
+            Steamroller,
+            BigDumpTruck,
+            BigTractor,
+            Invader,
+            Orlik,
+            SchoolBus1,
+            SchoolBus2,
+            SchoolBusShort,
+            PrisonBus,
+            ScrapJetA,
+            ScrapJetB,
+            Hoverscout,
+            Badcoppi_Intercettore,
+            Badcoppi_Strada_Black,
+            Badcoppi_Strada_Blue,
+            Badcoppi_Strada_Gold,
+            Badcoppi_Strada_Green,
+            Badcoppi_Strada_Pink,
+            Badcoppi_Strada_Yellow,
+            Badcoppi_Sport_Red,
+            Badcoppi_Sport_Blue,
+            Badcoppi_Sport_Black,
+            Badcoppi_Sport_Green,
+            Badcoppi_Sport_White,
+            Badcoppi_Sport_Pink,
+            Badcoppi_Sport_Yellow,
+            Leviathan,
+            LeviathanCarrier,
+            LeviathanGigaCarrier,
+            Kamikaze,
+            OppressorCopter,
+            Skycrane,
+            HoverRacer,
+            EggMobile,
+            EggKart,
+            Drillcar,
+            Jetson,
+            ScoutSpeeder,
+            MiniBike,
+            MiniTrike,
+            SuperBikeBlack,
+            SuperBikeBlue,
+            SuperBikeGreen,
+            SuperBikeOrange,
+            SuperBikeRed,
+            TowTruck,
+            BM21,
+            Predator_Y,
+            Predator_X,
+            Predator_RP,
+            Spookopter,
+            MIG17,
+            Harrier,
+            SU47,
+            SU47_QT,
+            SU47_Bling,
+            Tornado_Grey,
+            Tornado_Tan,
+            CF105,
+            ShifterKart1,
+            ShifterKart2,
+            ShifterKart3,
+            ShifterKart4,
+            ShifterKart5,
+            ShifterKart6,
+            MH60X,
+            AH001,
+            BoltBucket,
+            CrudeBird,
+            Stretch_Black,
+            Stretch_White,
+            Stretch_Pink,
+            Motorhome,
+            Cybertruck,
+            Cyberkart,
+            KartToy,
+            KartUFO,
+            KartSemi,
+            KartSedan,
+            KartRaceBed,
+            KartPinata,
+            KartPie,
+            KartCoop,
+            KartCatapult,
+            KartCake,
+            KartBradley,
+            ScrapBuggy,
+            ScrapCar,
+            ScrapTruck,
+            Diablo_Black,
+            Diablo_Blue,
+            Diablo_Gold,
+            Diablo_Green,
+            Diablo_Orange,
+            Diablo_Police,
+            Diablo_Purple,
+            Diablo_Red,
+            Diablo_White,
+            Diablo_Yellow,
+            Diablo_Pink,
+            Jetpack,
+            JetpackUnarmed,
+            _126pBlue,
+            _126pBrown,
+            _126pPurple,
+            _126pGreen,
+            _126pLime,
+            Tuktuk,
+            SantaSled,
+            PortaPotty,
+            SpaceBuggy,
+            SpaceHeli,
+            SpaceHeliArmed,
+            Viperwing,
+            Nightwing,
+            AssaultDrone,
+            ChairCar,
+            RockingChairCar,
+            BeanBagCar,
+            BeanBagCarDuo,
+            BeachChairCar,
+            BeachChairCarDuo,
+            HoverThrone,
+            RocketSeat,
+            DeskCar,
+            UmbrellaCopter,
+            DeskCopter,
+            UtilityTruck,
+            UtilityTruck2,
+            UtilityTruck3,
+            SemiTandemAxle,
+            ARES_T,
+            ARES_AA,
+            ARES_HC,
+            FarmTrailer,
+            ATV_Blue,
+            ATV_Camo,
+            ATV_Red,
+            ATV_Yellow,
+            BeeVan,
+            FoodTruck,
+            GunTruck,
+            VaultVan,
+            DeliveryVan,
+            Rustlux,
+            Rustlux_50cal,
+            Rustlux_Armor,
+            Rustlux_HE,
+            Rustlux_HV,
+            Rustlux_MLRS,
+            FireAmbulance,
+            FireTruck,
+            FireLightRescue,
+            FirePickupTruck,
+            Apache,
+            PodRacerSky,
+            Wedge,
+            CannonCar,
+            SharkSuit,
+            SharkSuitArmed,
+            SharkBoat,
+            SharkBoatArmed,
+            SharkBoatHuge,
+            StandSki,
+            StandSki2,
+            StandSki3,
+            StandSki4,
+            StandSki5,
+            StandSki6,
+            JetSkiBlack,
+            JetSkiBlue,
+            JetSkiBlueRedStriped,
+            JetSkiBlueYellowStriped,
+            JetSkiCamo,
+            JetSkiGold,
+            JetSkiGreen,
+            JetSkiPink,
+            JetSkiPolice,
+            JetSkiPurple,
+            JetSkiRed,
+            JetSkiYellow,
+            WeedVan,
+            WarthogBlack,
+            Transit,
+            TransitDropside,
+            TransitRecycling,
+            TransitBox,
+            SentryCar,
+            SentryCar2,
+            BarrelCarThing,
+            HumanCar,
+            HumanKart,
+            MonsterBike,
+            Tire,
+            Zergatron,
+            OxideMan,
+            CoffinCar,
+            Stormwing,
+            MiniRHIB,
+            MiniPTBoat,
+            MiniSub,
+            MiniSub2,
+            CPV_Grey,
+            CPV_Green,
         }
 
         [JsonConverter(typeof(StringEnumConverter))]
@@ -264,19 +1016,19 @@ namespace Oxide.Plugins
             permission.RegisterPermission(PERMISSION_NO_COLLISION_DAMAGE, this);
 
             bool useCustomVehicles = configData.global.useCustomVehicles;
-            if(useCustomVehicles && configData.customVehicles == null)
+            if (useCustomVehicles && configData.customVehicles == null)
             {
                 configData.customVehicles = new CustomVehicleSettings();
                 SaveConfig();
             }
-            
-            if(useCustomVehicles)
+
+            if (useCustomVehicles)
             {
                 foreach (NormalVehicleType value in Enum.GetValues(typeof(NormalVehicleType)))
                 {
                     allVehicleSettings.Add(value.ToString(), GetBaseVehicleSettings(value));
                 }
-                
+
                 foreach (CustomVehicleType value in Enum.GetValues(typeof(CustomVehicleType)))
                 {
                     allVehicleSettings.Add(value.ToString(), GetCustomVehicleSettings(value));
@@ -289,7 +1041,7 @@ namespace Oxide.Plugins
                     allVehicleSettings.Add(value.ToString(), GetBaseVehicleSettings(value));
                 }
             }
-            
+
             foreach (var entry in configData.modularVehicles)
             {
                 allVehicleSettings.Add(entry.Key, entry.Value);
@@ -301,7 +1053,7 @@ namespace Oxide.Plugins
             foreach (var entry in allVehicleSettings)
             {
                 BaseVehicleSettings settings = entry.Value;
-                
+
                 if (settings.UsePermission && !string.IsNullOrEmpty(settings.Permission))
                 {
                     if (!permission.PermissionExists(settings.Permission, this))
@@ -410,6 +1162,17 @@ namespace Oxide.Plugins
             {
                 Subscribe(nameof(OnVehiclePush));
             }
+
+            if (KaruzaVehicleChatCommand == true)
+            {
+                var pluginName = "KaruzaVehicleChatCommand";
+                PrintError($"{pluginName} Detected!");
+                NextTick(() => Interface.Oxide.UnloadPlugin(pluginName));
+                PrintError($"Unloaded {pluginName} to prevent plugin conflict...");
+
+                NextTick(() => Interface.Oxide.ReloadPlugin(Name));
+                return;
+            }
         }
 
         private void Unload()
@@ -508,11 +1271,11 @@ namespace Oxide.Plugins
         {
             if (vehicle == null || player == null) return null;
             if (!vehiclesCache.TryGetValue(vehicle, out Vehicle foundVehicle)) return null;
-            // ulong userID = player.userID.Get();
-            //
-            // if (foundVehicle.PlayerId == userID || AreFriends(foundVehicle.PlayerId, player.userID)) return null;
-            // if (HasAdminPermission(player)) return null;
-            
+            ulong userID = player.userID.Get();
+
+            if (foundVehicle.PlayerId == userID || AreFriends(foundVehicle.PlayerId, player.userID)) return null;
+            if (HasAdminPermission(player)) return null;
+
             // Respond here
             SendCantPushMessage(player, foundVehicle);
             return true;
@@ -658,7 +1421,7 @@ namespace Oxide.Plugins
             TryClaimVehicle(attackHelicopter);
         }
 
-        private void OnRidableAnimalClaimed(RidableHorse ridableAnimal, BasePlayer player)
+        private void OnRidableAnimalClaimed(BaseVehicle ridableAnimal, BasePlayer player)
         {
             TryClaimVehicle(ridableAnimal, player);
         }
@@ -761,6 +1524,50 @@ namespace Oxide.Plugins
 
         #endregion Reskin
 
+        #region Player
+        void OnPlayerDisconnected(BasePlayer player)
+        {
+            if (!configData.global.killOnDisconnect)
+                return;
+
+            var playerVehicles = storedData.GetPlayerVehicles(player.userID);
+            if (playerVehicles == null || playerVehicles.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var kvp in playerVehicles)
+            {
+                var vehicleType = kvp.Key;
+                KillLicensedVehicle(player, vehicleType);
+            }
+        }
+        #endregion Player
+
+        #region VirtualGarage Integration
+        // Credit to vis entities for this patch.
+        private void OnGarageVehicleSpawned(BaseEntity entity, BasePlayer player)
+        {
+            if (entity == null || player == null || entity.net == null)
+            {
+                return;
+            }
+
+            if (vehiclesCache.ContainsKey(entity))
+            {
+                return;
+            }
+
+            BaseVehicle baseVehicle = entity as BaseVehicle;
+            if (baseVehicle == null)
+            {
+                return;
+            }
+
+            TryClaimVehicle(baseVehicle, player);
+        }
+        #endregion VirtualGarage Integration
+
         #endregion Oxide Hooks
 
         #region Methods
@@ -782,7 +1589,7 @@ namespace Oxide.Plugins
         {
             var settings = GetBaseVehicleSettings(vehicle.VehicleType);
             if (settings == null) return;
-            
+
             var player = RustCore.FindPlayerById(vehicle.PlayerId);
             var playerName = player?.displayName ?? ServerMgr.Instance.persistance.GetPlayerName(vehicle.PlayerId) ?? "Unknown";
             Print(friend, Lang("CantPush", friend.UserIDString, settings.DisplayName, $"<color=#{(player != null && player.IsConnected ? "69D214" : "FF6347")}>{playerName}</color>"));
@@ -814,6 +1621,7 @@ namespace Oxide.Plugins
 
             vehicle.OnDeath();
             vehiclesCache.Remove(entity);
+            Interface.CallHook("OnLicensedVehicleDeath", vehicle.PlayerId, vehicle.VehicleType); // Added Hook For Snaplatack
         }
 
         #endregion CheckEntity
@@ -1185,8 +1993,6 @@ namespace Oxide.Plugins
                     return configData.normalVehicles.submarineDuo;
                 case NormalVehicleType.Snowmobile:
                     return configData.normalVehicles.snowmobile;
-                case NormalVehicleType.TomahaSnowmobile:
-                    return configData.normalVehicles.tomahaSnowmobile;
                 case NormalVehicleType.PedalBike:
                     return configData.normalVehicles.pedalBike;
                 case NormalVehicleType.PedalTrike:
@@ -1197,6 +2003,18 @@ namespace Oxide.Plugins
                     return configData.normalVehicles.motorBikeSidecar;
                 case NormalVehicleType.Kayak:
                     return configData.normalVehicles.Kayak;
+                case NormalVehicleType.Dpv:
+                    return configData.normalVehicles.dpv;
+                case NormalVehicleType.SiegeTower:
+                    return configData.normalVehicles.siegeTower;
+                case NormalVehicleType.Catapult:
+                    return configData.normalVehicles.catapult;
+                case NormalVehicleType.Batteringram:
+                    return configData.normalVehicles.batteringram;
+                case NormalVehicleType.Ballista:
+                    return configData.normalVehicles.ballista;
+                case NormalVehicleType.PtBoat:
+                    return configData.normalVehicles.pTBoat;
                 default:
                     return null;
             }
@@ -1210,8 +2028,8 @@ namespace Oxide.Plugins
                     return configData.customVehicles.atv;
                 case CustomVehicleType.RaceSofa:
                     return configData.customVehicles.raceSofa;
-                case CustomVehicleType.WaterBird:
-                    return configData.customVehicles.waterBird;
+                case CustomVehicleType.WaterHeli:
+                    return configData.customVehicles.waterHeli;
                 case CustomVehicleType.WarBird:
                     return configData.customVehicles.warBird;
                 case CustomVehicleType.LittleBird:
@@ -1284,12 +2102,754 @@ namespace Oxide.Plugins
                     return configData.customVehicles.doomsDayDiscoVan;
                 case CustomVehicleType.ForkLift:
                     return configData.customVehicles.forkLift;
-                case CustomVehicleType.LawnMower:
-                    return configData.customVehicles.lawnMower;
+                case CustomVehicleType.LawnMowerRed:
+                    return configData.customVehicles.lawnMowerRed;
+                case CustomVehicleType.LawnMowerGreen:
+                    return configData.customVehicles.lawnMowerGreen;
                 case CustomVehicleType.Chariot:
                     return configData.customVehicles.chariot;
                 case CustomVehicleType.SoulHarvester:
                     return configData.customVehicles.soulHarvester;
+                case CustomVehicleType.F1:
+                    return configData.customVehicles.f1;
+                case CustomVehicleType.Rustlerg:
+                    return configData.customVehicles.rustlerg;
+                case CustomVehicleType.Rustlers:
+                    return configData.customVehicles.rustlers;
+                case CustomVehicleType.SemiTruck_Blue:
+                    return configData.customVehicles.semitruck_Blue;
+                case CustomVehicleType.SemiTruck_Green:
+                    return configData.customVehicles.semitruck_Green;
+                case CustomVehicleType.SemiTruck_Red:
+                    return configData.customVehicles.semitruck_Red;
+                case CustomVehicleType.SemiTruck_White:
+                    return configData.customVehicles.semitruck_White;
+                case CustomVehicleType.SemiTruck_Yellow:
+                    return configData.customVehicles.semitruck_Yellow;
+                case CustomVehicleType.SemiTrailer_Blue:
+                    return configData.customVehicles.semitrailer_Blue;
+                case CustomVehicleType.SemiTrailer_Fuel:
+                    return configData.customVehicles.semitrailer_Fuel;
+                case CustomVehicleType.SemiTrailer_Green:
+                    return configData.customVehicles.semitrailer_Green;
+                case CustomVehicleType.SemiTrailer_Orange:
+                    return configData.customVehicles.semitrailer_Orange;
+                case CustomVehicleType.SemiTrailer_Yellow:
+                    return configData.customVehicles.semitrailer_Yellow;
+                case CustomVehicleType.Wheelchair:
+                    return configData.customVehicles.wheelchair;
+                case CustomVehicleType.CobraGreen:
+                    return configData.customVehicles.cobraGreen;
+                case CustomVehicleType.CobraGrey:
+                    return configData.customVehicles.cobraGrey;
+                case CustomVehicleType.CobraBlack:
+                    return configData.customVehicles.cobraBlack;
+                case CustomVehicleType.MobileCasino:
+                    return configData.customVehicles.mobileCasino;
+                case CustomVehicleType.DreadNought:
+                    return configData.customVehicles.dreadNought;
+                case CustomVehicleType.DreadTrailer:
+                    return configData.customVehicles.dreadTrailer;
+                case CustomVehicleType.ONYX:
+                    return configData.customVehicles.oNYX;
+                case CustomVehicleType.ONYX_AA:
+                    return configData.customVehicles.oNYX_AA;
+                case CustomVehicleType.ONYX_IFV:
+                    return configData.customVehicles.oNYX_IFV;
+                case CustomVehicleType.LandBeetle:
+                    return configData.customVehicles.landBeetle;
+                case CustomVehicleType.WingFighter:
+                    return configData.customVehicles.wingFighter;
+                case CustomVehicleType.WingBomber:
+                    return configData.customVehicles.wingBomber;
+                case CustomVehicleType.TimberWing:
+                    return configData.customVehicles.timberWing;
+                case CustomVehicleType.PartyTrailer:
+                    return configData.customVehicles.partyTrailer;
+                case CustomVehicleType.Tractor:
+                    return configData.customVehicles.tractor;
+                case CustomVehicleType.FarmTractor:
+                    return configData.customVehicles.farmTractor;
+                case CustomVehicleType.Jet:
+                    return configData.customVehicles.jet;
+                case CustomVehicleType.BoatMobile:
+                    return configData.customVehicles.boatMobile;
+                case CustomVehicleType.Tricycle:
+                    return configData.customVehicles.tricycle;
+                case CustomVehicleType.ShoppingCart:
+                    return configData.customVehicles.shoppingCart;
+                case CustomVehicleType.ShoppingCartBlue:
+                    return configData.customVehicles.shoppingCartBlue;
+                case CustomVehicleType.SpookyShoppingCart:
+                    return configData.customVehicles.spookyShoppingCart;
+                case CustomVehicleType.BatBike:
+                    return configData.customVehicles.batBike;
+                case CustomVehicleType.SpookyBatBike:
+                    return configData.customVehicles.spookyBatBike;
+                case CustomVehicleType.SportsBikeBlack:
+                    return configData.customVehicles.sportsBikeBlack;
+                case CustomVehicleType.SportsBikeBlue:
+                    return configData.customVehicles.sportsBikeBlue;
+                case CustomVehicleType.SportsBikeGreen:
+                    return configData.customVehicles.sportsBikeGreen;
+                case CustomVehicleType.SportsBikeOrange:
+                    return configData.customVehicles.sportsBikeOrange;
+                case CustomVehicleType.SportsBikeRed:
+                    return configData.customVehicles.sportsBikeRed;
+                case CustomVehicleType.UfoDuo:
+                    return configData.customVehicles.ufoDuo;
+                case CustomVehicleType.UfoMotherShip:
+                    return configData.customVehicles.ufoMotherShip;
+                case CustomVehicleType.UfoSolo:
+                    return configData.customVehicles.ufoSolo;
+                case CustomVehicleType.UfoSpooky:
+                    return configData.customVehicles.ufoSpooky;
+                case CustomVehicleType.Tardis:
+                    return configData.customVehicles.tardis;
+                case CustomVehicleType.Driftwood:
+                    return configData.customVehicles.driftwood;
+                case CustomVehicleType.HailFireBike:
+                    return configData.customVehicles.hailFireBike;
+                case CustomVehicleType.HoverSled:
+                    return configData.customVehicles.hoverSled;
+                case CustomVehicleType.MoonBuggy:
+                    return configData.customVehicles.moonBuggy;
+                case CustomVehicleType.MandoSpeeder:
+                    return configData.customVehicles.mandoSpeeder;
+                case CustomVehicleType.PodSpeeder:
+                    return configData.customVehicles.podSpeeder;
+                case CustomVehicleType.Glider:
+                    return configData.customVehicles.glider;
+                case CustomVehicleType.GliderArmed:
+                    return configData.customVehicles.gliderArmed;
+                case CustomVehicleType.UAP_Duo:
+                    return configData.customVehicles.uAP_Duo;
+                case CustomVehicleType.UAP_Solo:
+                    return configData.customVehicles.uAP_Solo;
+                case CustomVehicleType.UAP_Prototype:
+                    return configData.customVehicles.uAP_Prototype;
+                case CustomVehicleType.UAP_Xmas:
+                    return configData.customVehicles.uAP_Xmas;
+                case CustomVehicleType.Starfighter:
+                    return configData.customVehicles.starfighter;
+                case CustomVehicleType.Warchair:
+                    return configData.customVehicles.warchair;
+                case CustomVehicleType.Raptor:
+                    return configData.customVehicles.raptor;
+                case CustomVehicleType.Talon:
+                    return configData.customVehicles.talon;
+                case CustomVehicleType.HoverBatBike:
+                    return configData.customVehicles.hoverBatBike;
+                case CustomVehicleType.FrostSled:
+                    return configData.customVehicles.frostSled;
+                case CustomVehicleType.Scooter:
+                    return configData.customVehicles.scooter;
+                case CustomVehicleType.HoverScooter:
+                    return configData.customVehicles.hoverScooter;
+                case CustomVehicleType.DroneBackpack:
+                    return configData.customVehicles.droneBackpack;
+                case CustomVehicleType.Hovercraft:
+                    return configData.customVehicles.hovercraft;
+                case CustomVehicleType.HovercraftArmed:
+                    return configData.customVehicles.hovercraftArmed;
+                case CustomVehicleType.Heelies:
+                    return configData.customVehicles.heelies;
+                case CustomVehicleType.Ehoverboard:
+                    return configData.customVehicles.ehoverboard;
+                case CustomVehicleType.Monocycle:
+                    return configData.customVehicles.monocycle;
+                case CustomVehicleType.SkyWing:
+                    return configData.customVehicles.skyWing;
+                case CustomVehicleType.MiniPlane:
+                    return configData.customVehicles.miniPlane;
+                case CustomVehicleType.WarPlane:
+                    return configData.customVehicles.warPlane;
+                case CustomVehicleType.RaidPlane:
+                    return configData.customVehicles.raidPlane;
+                case CustomVehicleType.BradleyVehicle:
+                    return configData.customVehicles.bradleyVehicle;
+                case CustomVehicleType.F15Solo:
+                    return configData.customVehicles.f15Solo;
+                case CustomVehicleType.F15Duo:
+                    return configData.customVehicles.f15Duo;
+                case CustomVehicleType.A10:
+                    return configData.customVehicles.a10;
+                case CustomVehicleType.GoblinGlider:
+                    return configData.customVehicles.goblinGlider;
+                case CustomVehicleType.DroneBoard:
+                    return configData.customVehicles.droneBoard;
+                case CustomVehicleType.HeliHat:
+                    return configData.customVehicles.heliHat;
+                case CustomVehicleType.HeliHatUnarmed:
+                    return configData.customVehicles.heliHatUnarmed;
+                case CustomVehicleType.M939:
+                    return configData.customVehicles.m939;
+                case CustomVehicleType.M939_Enclosed:
+                    return configData.customVehicles.m939enclosed;
+                case CustomVehicleType.M939_Desert:
+                    return configData.customVehicles.m939desert;
+                case CustomVehicleType.M939_Desert_Enclosed:
+                    return configData.customVehicles.m939encloseddesert;
+                case CustomVehicleType.Oppressor:
+                    return configData.customVehicles.oppressor;
+                case CustomVehicleType.Tumbler:
+                    return configData.customVehicles.tumbler;
+                case CustomVehicleType.TumblerArmed:
+                    return configData.customVehicles.tumblerArmed;
+                case CustomVehicleType.Falcon:
+                    return configData.customVehicles.falcon;
+                case CustomVehicleType.ImperialShuttle:
+                    return configData.customVehicles.imperialShuttle;
+                case CustomVehicleType.BallistaCar:
+                    return configData.customVehicles.ballistaCar;
+                case CustomVehicleType.AirSpeeder:
+                    return configData.customVehicles.airSpeeder;
+                case CustomVehicleType.GroundSpeeder:
+                    return configData.customVehicles.groundSpeeder;
+                case CustomVehicleType.RoadsterRp:
+                    return configData.customVehicles.roadsterRp;
+                case CustomVehicleType.Ambulance:
+                    return configData.customVehicles.ambulance;
+                case CustomVehicleType.Mamba:
+                    return configData.customVehicles.mamba;
+                case CustomVehicleType.BikeHellRider:
+                    return configData.customVehicles.bikeHellRider;
+                case CustomVehicleType.LandSpeeder:
+                    return configData.customVehicles.landSpeeder;
+                case CustomVehicleType.FlyingBoat:
+                    return configData.customVehicles.flyingBoat;
+                case CustomVehicleType.OppressorBike:
+                    return configData.customVehicles.oppressorBike;
+                case CustomVehicleType.Batwing:
+                    return configData.customVehicles.batWing;
+                case CustomVehicleType.BatwingDuo:
+                    return configData.customVehicles.batWingDuo;
+                case CustomVehicleType.MotorTrike:
+                    return configData.customVehicles.motorTrike;
+                case CustomVehicleType.SuperTrike:
+                    return configData.customVehicles.superTrike;
+                case CustomVehicleType.SithSpeeder:
+                    return configData.customVehicles.sithSpeeder;
+                case CustomVehicleType.Carriage1:
+                    return configData.customVehicles.carriage1;
+                case CustomVehicleType.Carriage2:
+                    return configData.customVehicles.carriage2;
+                case CustomVehicleType.Carriage3:
+                    return configData.customVehicles.carriage3;
+                case CustomVehicleType.Kart1:
+                    return configData.customVehicles.kart1;
+                case CustomVehicleType.Kart2:
+                    return configData.customVehicles.kart2;
+                case CustomVehicleType.Kart3:
+                    return configData.customVehicles.kart3;
+                case CustomVehicleType.Kart4:
+                    return configData.customVehicles.kart4;
+                case CustomVehicleType.Kart5:
+                    return configData.customVehicles.kart5;
+                case CustomVehicleType.Kart6:
+                    return configData.customVehicles.kart6;
+                case CustomVehicleType.Kart7:
+                    return configData.customVehicles.kart7;
+                case CustomVehicleType.Kart8:
+                    return configData.customVehicles.kart8;
+                case CustomVehicleType.HoverKart1:
+                    return configData.customVehicles.hoverKart1;
+                case CustomVehicleType.Mongoose:
+                    return configData.customVehicles.mongoose;
+                case CustomVehicleType.Warthog:
+                    return configData.customVehicles.warthog;
+                case CustomVehicleType.WarthogS:
+                    return configData.customVehicles.warthogs;
+                case CustomVehicleType.WarthogT:
+                    return configData.customVehicles.warthogt;
+                case CustomVehicleType.DrumCar:
+                    return configData.customVehicles.drumCar;
+                case CustomVehicleType.PianoCar:
+                    return configData.customVehicles.pianoCar;
+                case CustomVehicleType.BoneCar:
+                    return configData.customVehicles.boneCar;
+                case CustomVehicleType.TableCar:
+                    return configData.customVehicles.tableCar;
+                case CustomVehicleType.SlotsCar:
+                    return configData.customVehicles.slotsCar;
+                case CustomVehicleType.BeanCar:
+                    return configData.customVehicles.beanCar;
+                case CustomVehicleType.BallCar:
+                    return configData.customVehicles.ballCar;
+                case CustomVehicleType.PoliceCar:
+                    return configData.customVehicles.policeCar;
+                case CustomVehicleType.PoliceBike:
+                    return configData.customVehicles.policeBike;
+                case CustomVehicleType.SwatVan:
+                    return configData.customVehicles.swatVan;
+                case CustomVehicleType.AirBoat:
+                    return configData.customVehicles.airBoat;
+                case CustomVehicleType.AirBoat2:
+                    return configData.customVehicles.airBoat2;
+                case CustomVehicleType.FlintMobile:
+                    return configData.customVehicles.flintMobile;
+                case CustomVehicleType.Nighthawk:
+                    return configData.customVehicles.nighthawk;
+                case CustomVehicleType.MiniNighthawk:
+                    return configData.customVehicles.miniNighthawk;
+                case CustomVehicleType.HoverShark:
+                    return configData.customVehicles.hoverShark;
+                case CustomVehicleType.Jeep:
+                    return configData.customVehicles.jeep;
+                case CustomVehicleType.JeepJp:
+                    return configData.customVehicles.jeepJp;
+                case CustomVehicleType.JeepCamo:
+                    return configData.customVehicles.jeepCamo;
+                case CustomVehicleType.JeepDesert:
+                    return configData.customVehicles.jeepDesert;
+                case CustomVehicleType.JeepAa:
+                    return configData.customVehicles.jeepAa;
+                case CustomVehicleType.MonsterTruck:
+                    return configData.customVehicles.monsterTruck;
+                case CustomVehicleType.MonsterTruck2:
+                    return configData.customVehicles.monsterTruck2;
+                case CustomVehicleType.MonsterTruckBat:
+                    return configData.customVehicles.monsterTruckBat;
+                case CustomVehicleType.MonsterTruckBean:
+                    return configData.customVehicles.monsterTruckBean;
+                case CustomVehicleType.MonsterTruckSemi:
+                    return configData.customVehicles.monsterTruckSemi;
+                case CustomVehicleType.BumperBlue:
+                    return configData.customVehicles.bumperBlue;
+                case CustomVehicleType.BumperBlack:
+                    return configData.customVehicles.bumperBlack;
+                case CustomVehicleType.BumperRed:
+                    return configData.customVehicles.bumperRed;
+                case CustomVehicleType.BumperOrange:
+                    return configData.customVehicles.bumperOrange;
+                case CustomVehicleType.BumperGreen:
+                    return configData.customVehicles.bumperGreen;
+                case CustomVehicleType.LuggageCart:
+                    return configData.customVehicles.luggageCart;
+                case CustomVehicleType.LuggageTrailer:
+                    return configData.customVehicles.luggageTrailer;
+                case CustomVehicleType.LuggageTrailer2:
+                    return configData.customVehicles.luggageTrailer2;
+                case CustomVehicleType.LuggageTrailer3:
+                    return configData.customVehicles.luggageTrailer3;
+                case CustomVehicleType.LuggageTrailer4:
+                    return configData.customVehicles.luggageTrailer4;
+                case CustomVehicleType.Minesweeper:
+                    return configData.customVehicles.minesweeper;
+                case CustomVehicleType.MiniDozer:
+                    return configData.customVehicles.miniDozer;
+                case CustomVehicleType.MiniTipper:
+                    return configData.customVehicles.miniTipper;
+                case CustomVehicleType.Steamroller:
+                    return configData.customVehicles.steamroller;
+                case CustomVehicleType.BigDumpTruck:
+                    return configData.customVehicles.bigDumpTruck;
+                case CustomVehicleType.BigTractor:
+                    return configData.customVehicles.bigTractor;
+                case CustomVehicleType.Invader:
+                    return configData.customVehicles.invader;
+                case CustomVehicleType.Orlik:
+                    return configData.customVehicles.orlik;
+                case CustomVehicleType.Ah69g:
+                    return configData.customVehicles.ah69g;
+                case CustomVehicleType.SchoolBus1:
+                    return configData.customVehicles.schoolBus1;
+                case CustomVehicleType.SchoolBus2:
+                    return configData.customVehicles.schoolBus2;
+                case CustomVehicleType.SchoolBusShort:
+                    return configData.customVehicles.schoolBusShort;
+                case CustomVehicleType.PrisonBus:
+                    return configData.customVehicles.prisonBus;
+                case CustomVehicleType.ScrapJetA:
+                    return configData.customVehicles.scrapJetA;
+                case CustomVehicleType.ScrapJetB:
+                    return configData.customVehicles.scrapJetB;
+                case CustomVehicleType.Hoverscout:
+                    return configData.customVehicles.hoverscout;
+                case CustomVehicleType.Badcoppi_Intercettore:
+                    return configData.customVehicles.badcoppi_Intercettore;
+                case CustomVehicleType.Badcoppi_Strada_Black:
+                    return configData.customVehicles.badcoppi_Strada_Black;
+                case CustomVehicleType.Badcoppi_Strada_Blue:
+                    return configData.customVehicles.badcoppi_Strada_Blue;
+                case CustomVehicleType.Badcoppi_Strada_Gold:
+                    return configData.customVehicles.badcoppi_Strada_Gold;
+                case CustomVehicleType.Badcoppi_Strada_Green:
+                    return configData.customVehicles.badcoppi_Strada_Green;
+                case CustomVehicleType.Badcoppi_Strada_Pink:
+                    return configData.customVehicles.badcoppi_Strada_Pink;
+                case CustomVehicleType.Badcoppi_Strada_Yellow:
+                    return configData.customVehicles.badcoppi_Strada_Yellow;
+                case CustomVehicleType.Badcoppi_Sport_Red:
+                    return configData.customVehicles.badcoppi_Sport_Red;
+                case CustomVehicleType.Badcoppi_Sport_Blue:
+                    return configData.customVehicles.badcoppi_Sport_Blue;
+                case CustomVehicleType.Badcoppi_Sport_Black:
+                    return configData.customVehicles.badcoppi_Sport_Black;
+                case CustomVehicleType.Badcoppi_Sport_Green:
+                    return configData.customVehicles.badcoppi_Sport_Green;
+                case CustomVehicleType.Badcoppi_Sport_White:
+                    return configData.customVehicles.badcoppi_Sport_White;
+                case CustomVehicleType.Badcoppi_Sport_Pink:
+                    return configData.customVehicles.badcoppi_Sport_Pink;
+                case CustomVehicleType.Badcoppi_Sport_Yellow:
+                    return configData.customVehicles.badcoppi_Sport_Yellow;
+                case CustomVehicleType.Leviathan:
+                    return configData.customVehicles.leviathan;
+                case CustomVehicleType.LeviathanCarrier:
+                    return configData.customVehicles.leviathanCarrier;
+                case CustomVehicleType.LeviathanGigaCarrier:
+                    return configData.customVehicles.leviathanGigaCarrier;
+                case CustomVehicleType.Kamikaze:
+                    return configData.customVehicles.kamikaze;
+                case CustomVehicleType.OppressorCopter:
+                    return configData.customVehicles.oppressorCopter;
+                case CustomVehicleType.Skycrane:
+                    return configData.customVehicles.skycrane;
+                case CustomVehicleType.HoverRacer:
+                    return configData.customVehicles.hoverRacer;
+                case CustomVehicleType.EggMobile:
+                    return configData.customVehicles.eggMobile;
+                case CustomVehicleType.EggKart:
+                    return configData.customVehicles.eggKart;
+                case CustomVehicleType.Drillcar:
+                    return configData.customVehicles.drillcar;
+                case CustomVehicleType.Jetson:
+                    return configData.customVehicles.jetson;
+                case CustomVehicleType.ScoutSpeeder:
+                    return configData.customVehicles.scoutSpeeder;
+                case CustomVehicleType.MiniBike:
+                    return configData.customVehicles.miniBike;
+                case CustomVehicleType.MiniTrike:
+                    return configData.customVehicles.miniTrike;
+                case CustomVehicleType.SuperBikeBlack:
+                    return configData.customVehicles.superBikeBlack;
+                case CustomVehicleType.SuperBikeBlue:
+                    return configData.customVehicles.superBikeBlue;
+                case CustomVehicleType.SuperBikeGreen:
+                    return configData.customVehicles.superBikeGreen;
+                case CustomVehicleType.SuperBikeOrange:
+                    return configData.customVehicles.superBikeOrange;
+                case CustomVehicleType.SuperBikeRed:
+                    return configData.customVehicles.superBikeRed;
+                case CustomVehicleType.TowTruck:
+                    return configData.customVehicles.towTruck;
+                case CustomVehicleType.BM21:
+                    return configData.customVehicles.bM21;
+                case CustomVehicleType.Predator_Y:
+                    return configData.customVehicles.predator_Y;
+                case CustomVehicleType.Predator_X:
+                    return configData.customVehicles.predator_X;
+                case CustomVehicleType.Predator_RP:
+                    return configData.customVehicles.predator_RP;
+                case CustomVehicleType.Spookopter:
+                    return configData.customVehicles.spookopter;
+                case CustomVehicleType.MIG17:
+                    return configData.customVehicles.mIG17;
+                case CustomVehicleType.Harrier:
+                    return configData.customVehicles.harrier;
+                case CustomVehicleType.SU47:
+                    return configData.customVehicles.sU47;
+                case CustomVehicleType.SU47_QT:
+                    return configData.customVehicles.sU47_QT;
+                case CustomVehicleType.SU47_Bling:
+                    return configData.customVehicles.sU47_Bling;
+                case CustomVehicleType.Tornado_Grey:
+                    return configData.customVehicles.tornado_Grey;
+                case CustomVehicleType.Tornado_Tan:
+                    return configData.customVehicles.tornado_Tan;
+                case CustomVehicleType.CF105:
+                    return configData.customVehicles.cF105;
+                case CustomVehicleType.ShifterKart1:
+                    return configData.customVehicles.shifterKart1;
+                case CustomVehicleType.ShifterKart2:
+                    return configData.customVehicles.shifterKart2;
+                case CustomVehicleType.ShifterKart3:
+                    return configData.customVehicles.shifterKart3;
+                case CustomVehicleType.ShifterKart4:
+                    return configData.customVehicles.shifterKart4;
+                case CustomVehicleType.ShifterKart5:
+                    return configData.customVehicles.shifterKart5;
+                case CustomVehicleType.ShifterKart6:
+                    return configData.customVehicles.shifterKart6;
+                case CustomVehicleType.MH60X:
+                    return configData.customVehicles.mh60x;
+                case CustomVehicleType.AH001:
+                    return configData.customVehicles.ah001;
+                case CustomVehicleType.BoltBucket:
+                    return configData.customVehicles.boltBucket;
+                case CustomVehicleType.CrudeBird:
+                    return configData.customVehicles.crudeBird;
+                case CustomVehicleType.Stretch_Black:
+                    return configData.customVehicles.stretch_Black;
+                case CustomVehicleType.Stretch_White:
+                    return configData.customVehicles.stretch_White;
+                case CustomVehicleType.Stretch_Pink:
+                    return configData.customVehicles.stretch_Pink;
+                case CustomVehicleType.Motorhome:
+                    return configData.customVehicles.motorhome;
+                case CustomVehicleType.Cybertruck:
+                    return configData.customVehicles.cybertruck;
+                case CustomVehicleType.Cyberkart:
+                    return configData.customVehicles.cyberkart;
+                case CustomVehicleType.KartToy:
+                    return configData.customVehicles.kartToy;
+                case CustomVehicleType.KartUFO:
+                    return configData.customVehicles.kartUFO;
+                case CustomVehicleType.KartSemi:
+                    return configData.customVehicles.kartSemi;
+                case CustomVehicleType.KartSedan:
+                    return configData.customVehicles.kartSedan;
+                case CustomVehicleType.KartRaceBed:
+                    return configData.customVehicles.kartRaceBed;
+                case CustomVehicleType.KartPinata:
+                    return configData.customVehicles.kartPinata;
+                case CustomVehicleType.KartPie:
+                    return configData.customVehicles.kartPie;
+                case CustomVehicleType.KartCoop:
+                    return configData.customVehicles.kartCoop;
+                case CustomVehicleType.KartCatapult:
+                    return configData.customVehicles.kartCatapult;
+                case CustomVehicleType.KartCake:
+                    return configData.customVehicles.kartCake;
+                case CustomVehicleType.KartBradley:
+                    return configData.customVehicles.kartBradley;
+                case CustomVehicleType.ScrapBuggy:
+                    return configData.customVehicles.scrapBuggy;
+                case CustomVehicleType.ScrapCar:
+                    return configData.customVehicles.scrapCar;
+                case CustomVehicleType.ScrapTruck:
+                    return configData.customVehicles.scrapTruck;
+                case CustomVehicleType.Diablo_Black:
+                    return configData.customVehicles.diabloBlack;
+                case CustomVehicleType.Diablo_Blue:
+                    return configData.customVehicles.diabloBlue;
+                case CustomVehicleType.Diablo_Gold:
+                    return configData.customVehicles.diabloGold;
+                case CustomVehicleType.Diablo_Green:
+                    return configData.customVehicles.diabloGreen;
+                case CustomVehicleType.Diablo_Orange:
+                    return configData.customVehicles.diabloOrange;
+                case CustomVehicleType.Diablo_Police:
+                    return configData.customVehicles.diabloPolice;
+                case CustomVehicleType.Diablo_Purple:
+                    return configData.customVehicles.diabloPurple;
+                case CustomVehicleType.Diablo_Red:
+                    return configData.customVehicles.diabloRed;
+                case CustomVehicleType.Diablo_White:
+                    return configData.customVehicles.diabloWhite;
+                case CustomVehicleType.Diablo_Yellow:
+                    return configData.customVehicles.diabloYellow;
+                case CustomVehicleType.Diablo_Pink:
+                    return configData.customVehicles.diabloPink;
+                case CustomVehicleType.Jetpack:
+                    return configData.customVehicles.jetpack;
+                case CustomVehicleType.JetpackUnarmed:
+                    return configData.customVehicles.jetpackUnarmed;
+                case CustomVehicleType._126pBlue:
+                    return configData.customVehicles._126pBlue;
+                case CustomVehicleType._126pBrown:
+                    return configData.customVehicles._126pBrown;
+                case CustomVehicleType._126pPurple:
+                    return configData.customVehicles._126pPurple;
+                case CustomVehicleType._126pGreen:
+                    return configData.customVehicles._126pGreen;
+                case CustomVehicleType._126pLime:
+                    return configData.customVehicles._126pLime;
+                case CustomVehicleType.Tuktuk:
+                    return configData.customVehicles.tuktuk;
+                case CustomVehicleType.SantaSled:
+                    return configData.customVehicles.santaSled;
+                case CustomVehicleType.PortaPotty:
+                    return configData.customVehicles.portaPotty;
+                case CustomVehicleType.SpaceBuggy:
+                    return configData.customVehicles.spaceBuggy;
+                case CustomVehicleType.SpaceHeli:
+                    return configData.customVehicles.spaceHeli;
+                case CustomVehicleType.SpaceHeliArmed:
+                    return configData.customVehicles.spaceHeliArmed;
+                case CustomVehicleType.Viperwing:
+                    return configData.customVehicles.viperwing;
+                case CustomVehicleType.Nightwing:
+                    return configData.customVehicles.nightwing;
+                case CustomVehicleType.AssaultDrone:
+                    return configData.customVehicles.assaultDrone;
+                case CustomVehicleType.ChairCar:
+                    return configData.customVehicles.chairCar;
+                case CustomVehicleType.RockingChairCar:
+                    return configData.customVehicles.rockingChairCar;
+                case CustomVehicleType.BeanBagCar:
+                    return configData.customVehicles.beanBagCar;
+                case CustomVehicleType.BeanBagCarDuo:
+                    return configData.customVehicles.beanBagCarDuo;
+                case CustomVehicleType.BeachChairCar:
+                    return configData.customVehicles.beachChairCar;
+                case CustomVehicleType.BeachChairCarDuo:
+                    return configData.customVehicles.beachChairCarDuo;
+                case CustomVehicleType.HoverThrone:
+                    return configData.customVehicles.hoverThrone;
+                case CustomVehicleType.RocketSeat:
+                    return configData.customVehicles.rocketSeat;
+                case CustomVehicleType.DeskCar:
+                    return configData.customVehicles.deskCar;
+                case CustomVehicleType.UmbrellaCopter:
+                    return configData.customVehicles.umbrellaCopter;
+                case CustomVehicleType.DeskCopter:
+                    return configData.customVehicles.deskCopter;
+                case CustomVehicleType.UtilityTruck:
+                    return configData.customVehicles.utilityTruck;
+                case CustomVehicleType.UtilityTruck2:
+                    return configData.customVehicles.utilityTruck2;
+                case CustomVehicleType.UtilityTruck3:
+                    return configData.customVehicles.utilityTruck3;
+                case CustomVehicleType.SemiTandemAxle:
+                    return configData.customVehicles.semiTandemAxle;
+                case CustomVehicleType.ARES_T:
+                    return configData.customVehicles.aresT;
+                case CustomVehicleType.ARES_AA:
+                    return configData.customVehicles.aresAA;
+                case CustomVehicleType.ARES_HC:
+                    return configData.customVehicles.aresHC;
+                case CustomVehicleType.FarmTrailer:
+                    return configData.customVehicles.farmTrailer;
+                case CustomVehicleType.ATV_Blue:
+                    return configData.customVehicles.atvBlue;
+                case CustomVehicleType.ATV_Camo:
+                    return configData.customVehicles.atvCamo;
+                case CustomVehicleType.ATV_Red:
+                    return configData.customVehicles.atvRed;
+                case CustomVehicleType.ATV_Yellow:
+                    return configData.customVehicles.atvYellow;
+                case CustomVehicleType.BeeVan:
+                    return configData.customVehicles.beeVan;
+                case CustomVehicleType.FoodTruck:
+                    return configData.customVehicles.foodTruck;
+                case CustomVehicleType.GunTruck:
+                    return configData.customVehicles.gunTruck;
+                case CustomVehicleType.VaultVan:
+                    return configData.customVehicles.vaultVan;
+                case CustomVehicleType.DeliveryVan:
+                    return configData.customVehicles.deliveryVan;
+                case CustomVehicleType.Rustlux:
+                    return configData.customVehicles.rustlux;
+                case CustomVehicleType.Rustlux_50cal:
+                    return configData.customVehicles.rustlux50cal;
+                case CustomVehicleType.Rustlux_Armor:
+                    return configData.customVehicles.rustluxArmor;
+                case CustomVehicleType.Rustlux_HE:
+                    return configData.customVehicles.rustluxHE;
+                case CustomVehicleType.Rustlux_HV:
+                    return configData.customVehicles.rustluxHV;
+                case CustomVehicleType.Rustlux_MLRS:
+                    return configData.customVehicles.rustluxMLRS;
+                case CustomVehicleType.FireAmbulance:
+                    return configData.customVehicles.fireAmbulance;
+                case CustomVehicleType.FireTruck:
+                    return configData.customVehicles.fireTruck;
+                case CustomVehicleType.FireLightRescue:
+                    return configData.customVehicles.fireLightRescue;
+                case CustomVehicleType.FirePickupTruck:
+                    return configData.customVehicles.firePickupTruck;
+                case CustomVehicleType.Apache:
+                    return configData.customVehicles.apache;
+                case CustomVehicleType.PodRacerSky:
+                    return configData.customVehicles.podRacerSky;
+                case CustomVehicleType.Wedge:
+                    return configData.customVehicles.wedge;
+                case CustomVehicleType.CannonCar:
+                    return configData.customVehicles.cannonCar;
+                case CustomVehicleType.SharkSuit:
+                    return configData.customVehicles.sharkSuit;
+                case CustomVehicleType.SharkSuitArmed:
+                    return configData.customVehicles.sharkSuitArmed;
+                case CustomVehicleType.SharkBoat:
+                    return configData.customVehicles.sharkBoat;
+                case CustomVehicleType.SharkBoatArmed:
+                    return configData.customVehicles.sharkBoatArmed;
+                case CustomVehicleType.SharkBoatHuge:
+                    return configData.customVehicles.sharkBoatHuge;
+                case CustomVehicleType.StandSki:
+                    return configData.customVehicles.standSki;
+                case CustomVehicleType.StandSki2:
+                    return configData.customVehicles.standSki2;
+                case CustomVehicleType.StandSki3:
+                    return configData.customVehicles.standSki3;
+                case CustomVehicleType.StandSki4:
+                    return configData.customVehicles.standSki4;
+                case CustomVehicleType.StandSki5:
+                    return configData.customVehicles.standSki5;
+                case CustomVehicleType.StandSki6:
+                    return configData.customVehicles.standSki6;
+                case CustomVehicleType.JetSkiBlack:
+                    return configData.customVehicles.jetSkiBlack;
+                case CustomVehicleType.JetSkiBlue:
+                    return configData.customVehicles.jetSkiBlue;
+                case CustomVehicleType.JetSkiBlueRedStriped:
+                    return configData.customVehicles.jetSkiBlueRedStriped;
+                case CustomVehicleType.JetSkiBlueYellowStriped:
+                    return configData.customVehicles.jetSkiBlueYellowStriped;
+                case CustomVehicleType.JetSkiCamo:
+                    return configData.customVehicles.jetSkiCamo;
+                case CustomVehicleType.JetSkiGold:
+                    return configData.customVehicles.jetSkiGold;
+                case CustomVehicleType.JetSkiGreen:
+                    return configData.customVehicles.jetSkiGreen;
+                case CustomVehicleType.JetSkiPink:
+                    return configData.customVehicles.jetSkiPink;
+                case CustomVehicleType.JetSkiPolice:
+                    return configData.customVehicles.jetSkiPolice;
+                case CustomVehicleType.JetSkiPurple:
+                    return configData.customVehicles.jetSkiPurple;
+                case CustomVehicleType.JetSkiRed:
+                    return configData.customVehicles.jetSkiRed;
+                case CustomVehicleType.JetSkiYellow:
+                    return configData.customVehicles.jetSkiYellow;
+                case CustomVehicleType.WeedVan:
+                    return configData.customVehicles.weedVan;
+                case CustomVehicleType.WarthogBlack:
+                    return configData.customVehicles.warthogBlack;
+                case CustomVehicleType.Transit:
+                    return configData.customVehicles.transit;
+                case CustomVehicleType.TransitDropside:
+                    return configData.customVehicles.transitDropside;
+                case CustomVehicleType.TransitRecycling:
+                    return configData.customVehicles.transitRecycling;
+                case CustomVehicleType.TransitBox:
+                    return configData.customVehicles.transitBox;
+                case CustomVehicleType.SentryCar:
+                    return configData.customVehicles.sentryCar;
+                case CustomVehicleType.SentryCar2:
+                    return configData.customVehicles.sentryCar2;
+                case CustomVehicleType.BarrelCarThing:
+                    return configData.customVehicles.barrelCarThing;
+                case CustomVehicleType.HumanCar:
+                    return configData.customVehicles.humanCar;
+                case CustomVehicleType.HumanKart:
+                    return configData.customVehicles.humanKart;
+                case CustomVehicleType.MonsterBike:
+                    return configData.customVehicles.monsterBike;
+                case CustomVehicleType.Tire:
+                    return configData.customVehicles.tire;
+                case CustomVehicleType.Zergatron:
+                    return configData.customVehicles.zergatron;
+                case CustomVehicleType.OxideMan:
+                    return configData.customVehicles.oxideMan;
+                case CustomVehicleType.CoffinCar:
+                    return configData.customVehicles.coffinCar;
+                case CustomVehicleType.Stormwing:
+                    return configData.customVehicles.stormwing;
+                case CustomVehicleType.MiniRHIB:
+                    return configData.customVehicles.miniRHIB;
+                case CustomVehicleType.MiniPTBoat:
+                    return configData.customVehicles.miniPTBoat;
+                case CustomVehicleType.MiniSub:
+                    return configData.customVehicles.miniSub;
+                case CustomVehicleType.MiniSub2:
+                    return configData.customVehicles.miniSub2;
+                case CustomVehicleType.CPV_Grey:
+                    return configData.customVehicles.cpvGrey;
+                case CustomVehicleType.CPV_Green:
+                    return configData.customVehicles.cpvGreen;
                 default:
                     return null;
             }
@@ -1300,12 +2860,6 @@ namespace Oxide.Plugins
             BaseVehicleSettings settings;
             return allVehicleSettings.TryGetValue(vehicleType, out settings) && settings.NoCollisionDamage;
         }
-
-        // private bool GetBaseVehicleCollisionDamage(string vehicleType)
-        // {
-        //     BaseVehicleSettings settings;
-        //     return allVehicleSettings.TryGetValue(vehicleType, out settings) && settings.NoCollisionDamage;
-        // }
 
         private bool GetBaseVehicleCollisionDamage(NormalVehicleType normalVehicleType)
         {
@@ -1345,8 +2899,6 @@ namespace Oxide.Plugins
                     return configData.normalVehicles.submarineDuo.NoCollisionDamage;
                 case NormalVehicleType.Snowmobile:
                     return configData.normalVehicles.snowmobile.NoCollisionDamage;
-                case NormalVehicleType.TomahaSnowmobile:
-                    return configData.normalVehicles.tomahaSnowmobile.NoCollisionDamage;
                 case NormalVehicleType.PedalBike:
                     return configData.normalVehicles.pedalBike.NoCollisionDamage;
                 case NormalVehicleType.PedalTrike:
@@ -1357,6 +2909,18 @@ namespace Oxide.Plugins
                     return configData.normalVehicles.motorBikeSidecar.NoCollisionDamage;
                 case NormalVehicleType.Kayak:
                     return configData.normalVehicles.Kayak.NoCollisionDamage;
+                case NormalVehicleType.Dpv:
+                    return configData.normalVehicles.dpv.NoCollisionDamage;
+                case NormalVehicleType.SiegeTower:
+                    return configData.normalVehicles.siegeTower.NoCollisionDamage;
+                case NormalVehicleType.Catapult:
+                    return configData.normalVehicles.catapult.NoCollisionDamage;
+                case NormalVehicleType.Batteringram:
+                    return configData.normalVehicles.batteringram.NoCollisionDamage;
+                case NormalVehicleType.Ballista:
+                    return configData.normalVehicles.ballista.NoCollisionDamage;
+                case NormalVehicleType.PtBoat:
+                    return configData.normalVehicles.pTBoat.NoCollisionDamage;
                 default:
                     return false;
             }
@@ -1370,8 +2934,8 @@ namespace Oxide.Plugins
                     return configData.customVehicles.atv.NoCollisionDamage;
                 case CustomVehicleType.RaceSofa:
                     return configData.customVehicles.raceSofa.NoCollisionDamage;
-                case CustomVehicleType.WaterBird:
-                    return configData.customVehicles.waterBird.NoCollisionDamage;
+                case CustomVehicleType.WaterHeli:
+                    return configData.customVehicles.waterHeli.NoCollisionDamage;
                 case CustomVehicleType.WarBird:
                     return configData.customVehicles.warBird.NoCollisionDamage;
                 case CustomVehicleType.LittleBird:
@@ -1444,12 +3008,754 @@ namespace Oxide.Plugins
                     return configData.customVehicles.doomsDayDiscoVan.NoCollisionDamage;
                 case CustomVehicleType.ForkLift:
                     return configData.customVehicles.forkLift.NoCollisionDamage;
-                case CustomVehicleType.LawnMower:
-                    return configData.customVehicles.lawnMower.NoCollisionDamage;
+                case CustomVehicleType.LawnMowerRed:
+                    return configData.customVehicles.lawnMowerRed.NoCollisionDamage;
+                case CustomVehicleType.LawnMowerGreen:
+                    return configData.customVehicles.lawnMowerGreen.NoCollisionDamage;
                 case CustomVehicleType.Chariot:
                     return configData.customVehicles.chariot.NoCollisionDamage;
                 case CustomVehicleType.SoulHarvester:
                     return configData.customVehicles.soulHarvester.NoCollisionDamage;
+                case CustomVehicleType.F1:
+                    return configData.customVehicles.f1.NoCollisionDamage;
+                case CustomVehicleType.Rustlerg:
+                    return configData.customVehicles.rustlerg.NoCollisionDamage;
+                case CustomVehicleType.Rustlers:
+                    return configData.customVehicles.rustlers.NoCollisionDamage;
+                case CustomVehicleType.SemiTruck_Blue:
+                    return configData.customVehicles.semitruck_Blue.NoCollisionDamage;
+                case CustomVehicleType.SemiTruck_Green:
+                    return configData.customVehicles.semitruck_Green.NoCollisionDamage;
+                case CustomVehicleType.SemiTruck_Red:
+                    return configData.customVehicles.semitruck_Red.NoCollisionDamage;
+                case CustomVehicleType.SemiTruck_White:
+                    return configData.customVehicles.semitruck_White.NoCollisionDamage;
+                case CustomVehicleType.SemiTruck_Yellow:
+                    return configData.customVehicles.semitruck_Yellow.NoCollisionDamage;
+                case CustomVehicleType.SemiTrailer_Blue:
+                    return configData.customVehicles.semitrailer_Blue.NoCollisionDamage;
+                case CustomVehicleType.SemiTrailer_Fuel:
+                    return configData.customVehicles.semitrailer_Fuel.NoCollisionDamage;
+                case CustomVehicleType.SemiTrailer_Green:
+                    return configData.customVehicles.semitrailer_Green.NoCollisionDamage;
+                case CustomVehicleType.SemiTrailer_Orange:
+                    return configData.customVehicles.semitrailer_Orange.NoCollisionDamage;
+                case CustomVehicleType.SemiTrailer_Yellow:
+                    return configData.customVehicles.semitrailer_Yellow.NoCollisionDamage;
+                case CustomVehicleType.Wheelchair:
+                    return configData.customVehicles.wheelchair.NoCollisionDamage;
+                case CustomVehicleType.CobraGreen:
+                    return configData.customVehicles.cobraGreen.NoCollisionDamage;
+                case CustomVehicleType.CobraGrey:
+                    return configData.customVehicles.cobraGrey.NoCollisionDamage;
+                case CustomVehicleType.CobraBlack:
+                    return configData.customVehicles.cobraBlack.NoCollisionDamage;
+                case CustomVehicleType.MobileCasino:
+                    return configData.customVehicles.mobileCasino.NoCollisionDamage;
+                case CustomVehicleType.DreadNought:
+                    return configData.customVehicles.dreadNought.NoCollisionDamage;
+                case CustomVehicleType.DreadTrailer:
+                    return configData.customVehicles.dreadTrailer.NoCollisionDamage;
+                case CustomVehicleType.ONYX:
+                    return configData.customVehicles.oNYX.NoCollisionDamage;
+                case CustomVehicleType.ONYX_AA:
+                    return configData.customVehicles.oNYX_AA.NoCollisionDamage;
+                case CustomVehicleType.ONYX_IFV:
+                    return configData.customVehicles.oNYX_IFV.NoCollisionDamage;
+                case CustomVehicleType.LandBeetle:
+                    return configData.customVehicles.landBeetle.NoCollisionDamage;
+                case CustomVehicleType.WingFighter:
+                    return configData.customVehicles.wingFighter.NoCollisionDamage;
+                case CustomVehicleType.WingBomber:
+                    return configData.customVehicles.wingBomber.NoCollisionDamage;
+                case CustomVehicleType.TimberWing:
+                    return configData.customVehicles.timberWing.NoCollisionDamage;
+                case CustomVehicleType.PartyTrailer:
+                    return configData.customVehicles.partyTrailer.NoCollisionDamage;
+                case CustomVehicleType.Tractor:
+                    return configData.customVehicles.tractor.NoCollisionDamage;
+                case CustomVehicleType.FarmTractor:
+                    return configData.customVehicles.farmTractor.NoCollisionDamage;
+                case CustomVehicleType.Jet:
+                    return configData.customVehicles.jet.NoCollisionDamage;
+                case CustomVehicleType.BoatMobile:
+                    return configData.customVehicles.boatMobile.NoCollisionDamage;
+                case CustomVehicleType.Tricycle:
+                    return configData.customVehicles.tricycle.NoCollisionDamage;
+                case CustomVehicleType.ShoppingCart:
+                    return configData.customVehicles.shoppingCart.NoCollisionDamage;
+                case CustomVehicleType.ShoppingCartBlue:
+                    return configData.customVehicles.shoppingCartBlue.NoCollisionDamage;
+                case CustomVehicleType.SpookyShoppingCart:
+                    return configData.customVehicles.spookyShoppingCart.NoCollisionDamage;
+                case CustomVehicleType.BatBike:
+                    return configData.customVehicles.batBike.NoCollisionDamage;
+                case CustomVehicleType.SpookyBatBike:
+                    return configData.customVehicles.spookyBatBike.NoCollisionDamage;
+                case CustomVehicleType.SportsBikeBlack:
+                    return configData.customVehicles.sportsBikeBlack.NoCollisionDamage;
+                case CustomVehicleType.SportsBikeBlue:
+                    return configData.customVehicles.sportsBikeBlue.NoCollisionDamage;
+                case CustomVehicleType.SportsBikeGreen:
+                    return configData.customVehicles.sportsBikeGreen.NoCollisionDamage;
+                case CustomVehicleType.SportsBikeOrange:
+                    return configData.customVehicles.sportsBikeOrange.NoCollisionDamage;
+                case CustomVehicleType.SportsBikeRed:
+                    return configData.customVehicles.sportsBikeRed.NoCollisionDamage;
+                case CustomVehicleType.UfoDuo:
+                    return configData.customVehicles.ufoDuo.NoCollisionDamage;
+                case CustomVehicleType.UfoMotherShip:
+                    return configData.customVehicles.ufoMotherShip.NoCollisionDamage;
+                case CustomVehicleType.UfoSolo:
+                    return configData.customVehicles.ufoSolo.NoCollisionDamage;
+                case CustomVehicleType.UfoSpooky:
+                    return configData.customVehicles.ufoSpooky.NoCollisionDamage;
+                case CustomVehicleType.Tardis:
+                    return configData.customVehicles.tardis.NoCollisionDamage;
+                case CustomVehicleType.Driftwood:
+                    return configData.customVehicles.driftwood.NoCollisionDamage;
+                case CustomVehicleType.HailFireBike:
+                    return configData.customVehicles.hailFireBike.NoCollisionDamage;
+                case CustomVehicleType.HoverSled:
+                    return configData.customVehicles.hoverSled.NoCollisionDamage;
+                case CustomVehicleType.MoonBuggy:
+                    return configData.customVehicles.moonBuggy.NoCollisionDamage;
+                case CustomVehicleType.MandoSpeeder:
+                    return configData.customVehicles.mandoSpeeder.NoCollisionDamage;
+                case CustomVehicleType.PodSpeeder:
+                    return configData.customVehicles.podSpeeder.NoCollisionDamage;
+                case CustomVehicleType.Glider:
+                    return configData.customVehicles.glider.NoCollisionDamage;
+                case CustomVehicleType.GliderArmed:
+                    return configData.customVehicles.gliderArmed.NoCollisionDamage;
+                case CustomVehicleType.UAP_Duo:
+                    return configData.customVehicles.uAP_Duo.NoCollisionDamage;
+                case CustomVehicleType.UAP_Solo:
+                    return configData.customVehicles.uAP_Solo.NoCollisionDamage;
+                case CustomVehicleType.UAP_Prototype:
+                    return configData.customVehicles.uAP_Prototype.NoCollisionDamage;
+                case CustomVehicleType.UAP_Xmas:
+                    return configData.customVehicles.uAP_Xmas.NoCollisionDamage;
+                case CustomVehicleType.Starfighter:
+                    return configData.customVehicles.starfighter.NoCollisionDamage;
+                case CustomVehicleType.Warchair:
+                    return configData.customVehicles.warchair.NoCollisionDamage;
+                case CustomVehicleType.Raptor:
+                    return configData.customVehicles.raptor.NoCollisionDamage;
+                case CustomVehicleType.Talon:
+                    return configData.customVehicles.talon.NoCollisionDamage;
+                case CustomVehicleType.HoverBatBike:
+                    return configData.customVehicles.hoverBatBike.NoCollisionDamage;
+                case CustomVehicleType.FrostSled:
+                    return configData.customVehicles.frostSled.NoCollisionDamage;
+                case CustomVehicleType.Scooter:
+                    return configData.customVehicles.scooter.NoCollisionDamage;
+                case CustomVehicleType.HoverScooter:
+                    return configData.customVehicles.hoverScooter.NoCollisionDamage;
+                case CustomVehicleType.DroneBackpack:
+                    return configData.customVehicles.droneBackpack.NoCollisionDamage;
+                case CustomVehicleType.Hovercraft:
+                    return configData.customVehicles.hovercraft.NoCollisionDamage;
+                case CustomVehicleType.HovercraftArmed:
+                    return configData.customVehicles.hovercraftArmed.NoCollisionDamage;
+                case CustomVehicleType.Heelies:
+                    return configData.customVehicles.heelies.NoCollisionDamage;
+                case CustomVehicleType.Ehoverboard:
+                    return configData.customVehicles.ehoverboard.NoCollisionDamage;
+                case CustomVehicleType.Monocycle:
+                    return configData.customVehicles.monocycle.NoCollisionDamage;
+                case CustomVehicleType.SkyWing:
+                    return configData.customVehicles.skyWing.NoCollisionDamage;
+                case CustomVehicleType.MiniPlane:
+                    return configData.customVehicles.miniPlane.NoCollisionDamage;
+                case CustomVehicleType.WarPlane:
+                    return configData.customVehicles.warPlane.NoCollisionDamage;
+                case CustomVehicleType.RaidPlane:
+                    return configData.customVehicles.raidPlane.NoCollisionDamage;
+                case CustomVehicleType.BradleyVehicle:
+                    return configData.customVehicles.bradleyVehicle.NoCollisionDamage;
+                case CustomVehicleType.F15Solo:
+                    return configData.customVehicles.f15Solo.NoCollisionDamage;
+                case CustomVehicleType.F15Duo:
+                    return configData.customVehicles.f15Duo.NoCollisionDamage;
+                case CustomVehicleType.A10:
+                    return configData.customVehicles.a10.NoCollisionDamage;
+                case CustomVehicleType.GoblinGlider:
+                    return configData.customVehicles.goblinGlider.NoCollisionDamage;
+                case CustomVehicleType.DroneBoard:
+                    return configData.customVehicles.droneBoard.NoCollisionDamage;
+                case CustomVehicleType.HeliHat:
+                    return configData.customVehicles.heliHat.NoCollisionDamage;
+                case CustomVehicleType.HeliHatUnarmed:
+                    return configData.customVehicles.heliHatUnarmed.NoCollisionDamage;
+                case CustomVehicleType.M939:
+                    return configData.customVehicles.m939.NoCollisionDamage;
+                case CustomVehicleType.M939_Enclosed:
+                    return configData.customVehicles.m939enclosed.NoCollisionDamage;
+                case CustomVehicleType.M939_Desert:
+                    return configData.customVehicles.m939desert.NoCollisionDamage;
+                case CustomVehicleType.M939_Desert_Enclosed:
+                    return configData.customVehicles.m939encloseddesert.NoCollisionDamage;
+                case CustomVehicleType.Oppressor:
+                    return configData.customVehicles.oppressor.NoCollisionDamage;
+                case CustomVehicleType.Tumbler:
+                    return configData.customVehicles.tumbler.NoCollisionDamage;
+                case CustomVehicleType.TumblerArmed:
+                    return configData.customVehicles.tumblerArmed.NoCollisionDamage;
+                case CustomVehicleType.Falcon:
+                    return configData.customVehicles.falcon.NoCollisionDamage;
+                case CustomVehicleType.ImperialShuttle:
+                    return configData.customVehicles.imperialShuttle.NoCollisionDamage;
+                case CustomVehicleType.BallistaCar:
+                    return configData.customVehicles.ballistaCar.NoCollisionDamage;
+                case CustomVehicleType.AirSpeeder:
+                    return configData.customVehicles.airSpeeder.NoCollisionDamage;
+                case CustomVehicleType.GroundSpeeder:
+                    return configData.customVehicles.groundSpeeder.NoCollisionDamage;
+                case CustomVehicleType.RoadsterRp:
+                    return configData.customVehicles.roadsterRp.NoCollisionDamage;
+                case CustomVehicleType.Ambulance:
+                    return configData.customVehicles.ambulance.NoCollisionDamage;
+                case CustomVehicleType.Mamba:
+                    return configData.customVehicles.mamba.NoCollisionDamage;
+                case CustomVehicleType.BikeHellRider:
+                    return configData.customVehicles.bikeHellRider.NoCollisionDamage;
+                case CustomVehicleType.LandSpeeder:
+                    return configData.customVehicles.landSpeeder.NoCollisionDamage;
+                case CustomVehicleType.FlyingBoat:
+                    return configData.customVehicles.flyingBoat.NoCollisionDamage;
+                case CustomVehicleType.OppressorBike:
+                    return configData.customVehicles.oppressorBike.NoCollisionDamage;
+                case CustomVehicleType.Batwing:
+                    return configData.customVehicles.batWing.NoCollisionDamage;
+                case CustomVehicleType.BatwingDuo:
+                    return configData.customVehicles.batWingDuo.NoCollisionDamage;
+                case CustomVehicleType.MotorTrike:
+                    return configData.customVehicles.motorTrike.NoCollisionDamage;
+                case CustomVehicleType.SuperTrike:
+                    return configData.customVehicles.superTrike.NoCollisionDamage;
+                case CustomVehicleType.SithSpeeder:
+                    return configData.customVehicles.sithSpeeder.NoCollisionDamage;
+                case CustomVehicleType.Carriage1:
+                    return configData.customVehicles.carriage1.NoCollisionDamage;
+                case CustomVehicleType.Carriage2:
+                    return configData.customVehicles.carriage2.NoCollisionDamage;
+                case CustomVehicleType.Carriage3:
+                    return configData.customVehicles.carriage3.NoCollisionDamage;
+                case CustomVehicleType.Kart1:
+                    return configData.customVehicles.kart1.NoCollisionDamage;
+                case CustomVehicleType.Kart2:
+                    return configData.customVehicles.kart2.NoCollisionDamage;
+                case CustomVehicleType.Kart3:
+                    return configData.customVehicles.kart3.NoCollisionDamage;
+                case CustomVehicleType.Kart4:
+                    return configData.customVehicles.kart4.NoCollisionDamage;
+                case CustomVehicleType.Kart5:
+                    return configData.customVehicles.kart5.NoCollisionDamage;
+                case CustomVehicleType.Kart6:
+                    return configData.customVehicles.kart6.NoCollisionDamage;
+                case CustomVehicleType.Kart7:
+                    return configData.customVehicles.kart7.NoCollisionDamage;
+                case CustomVehicleType.Kart8:
+                    return configData.customVehicles.kart8.NoCollisionDamage;
+                case CustomVehicleType.HoverKart1:
+                    return configData.customVehicles.hoverKart1.NoCollisionDamage;
+                case CustomVehicleType.Mongoose:
+                    return configData.customVehicles.mongoose.NoCollisionDamage;
+                case CustomVehicleType.Warthog:
+                    return configData.customVehicles.warthog.NoCollisionDamage;
+                case CustomVehicleType.WarthogS:
+                    return configData.customVehicles.warthogs.NoCollisionDamage;
+                case CustomVehicleType.WarthogT:
+                    return configData.customVehicles.warthogt.NoCollisionDamage;
+                case CustomVehicleType.DrumCar:
+                    return configData.customVehicles.drumCar.NoCollisionDamage;
+                case CustomVehicleType.PianoCar:
+                    return configData.customVehicles.pianoCar.NoCollisionDamage;
+                case CustomVehicleType.BoneCar:
+                    return configData.customVehicles.boneCar.NoCollisionDamage;
+                case CustomVehicleType.TableCar:
+                    return configData.customVehicles.tableCar.NoCollisionDamage;
+                case CustomVehicleType.SlotsCar:
+                    return configData.customVehicles.slotsCar.NoCollisionDamage;
+                case CustomVehicleType.BeanCar:
+                    return configData.customVehicles.beanCar.NoCollisionDamage;
+                case CustomVehicleType.BallCar:
+                    return configData.customVehicles.ballCar.NoCollisionDamage;
+                case CustomVehicleType.PoliceCar:
+                    return configData.customVehicles.policeCar.NoCollisionDamage;
+                case CustomVehicleType.PoliceBike:
+                    return configData.customVehicles.policeBike.NoCollisionDamage;
+                case CustomVehicleType.SwatVan:
+                    return configData.customVehicles.swatVan.NoCollisionDamage;
+                case CustomVehicleType.AirBoat:
+                    return configData.customVehicles.airBoat.NoCollisionDamage;
+                case CustomVehicleType.AirBoat2:
+                    return configData.customVehicles.airBoat2.NoCollisionDamage;
+                case CustomVehicleType.FlintMobile:
+                    return configData.customVehicles.flintMobile.NoCollisionDamage;
+                case CustomVehicleType.Nighthawk:
+                    return configData.customVehicles.nighthawk.NoCollisionDamage;
+                case CustomVehicleType.MiniNighthawk:
+                    return configData.customVehicles.miniNighthawk.NoCollisionDamage;
+                case CustomVehicleType.HoverShark:
+                    return configData.customVehicles.hoverShark.NoCollisionDamage;
+                case CustomVehicleType.Jeep:
+                    return configData.customVehicles.jeep.NoCollisionDamage;
+                case CustomVehicleType.JeepJp:
+                    return configData.customVehicles.jeepJp.NoCollisionDamage;
+                case CustomVehicleType.JeepCamo:
+                    return configData.customVehicles.jeepCamo.NoCollisionDamage;
+                case CustomVehicleType.JeepDesert:
+                    return configData.customVehicles.jeepDesert.NoCollisionDamage;
+                case CustomVehicleType.JeepAa:
+                    return configData.customVehicles.jeepAa.NoCollisionDamage;
+                case CustomVehicleType.MonsterTruck:
+                    return configData.customVehicles.monsterTruck.NoCollisionDamage;
+                case CustomVehicleType.MonsterTruck2:
+                    return configData.customVehicles.monsterTruck2.NoCollisionDamage;
+                case CustomVehicleType.MonsterTruckBat:
+                    return configData.customVehicles.monsterTruckBat.NoCollisionDamage;
+                case CustomVehicleType.MonsterTruckBean:
+                    return configData.customVehicles.monsterTruckBean.NoCollisionDamage;
+                case CustomVehicleType.MonsterTruckSemi:
+                    return configData.customVehicles.monsterTruckSemi.NoCollisionDamage;
+                case CustomVehicleType.BumperBlue:
+                    return configData.customVehicles.bumperBlue.NoCollisionDamage;
+                case CustomVehicleType.BumperBlack:
+                    return configData.customVehicles.bumperBlack.NoCollisionDamage;
+                case CustomVehicleType.BumperRed:
+                    return configData.customVehicles.bumperRed.NoCollisionDamage;
+                case CustomVehicleType.BumperOrange:
+                    return configData.customVehicles.bumperOrange.NoCollisionDamage;
+                case CustomVehicleType.BumperGreen:
+                    return configData.customVehicles.bumperGreen.NoCollisionDamage;
+                case CustomVehicleType.LuggageCart:
+                    return configData.customVehicles.luggageCart.NoCollisionDamage;
+                case CustomVehicleType.LuggageTrailer:
+                    return configData.customVehicles.luggageTrailer.NoCollisionDamage;
+                case CustomVehicleType.LuggageTrailer2:
+                    return configData.customVehicles.luggageTrailer2.NoCollisionDamage;
+                case CustomVehicleType.LuggageTrailer3:
+                    return configData.customVehicles.luggageTrailer3.NoCollisionDamage;
+                case CustomVehicleType.LuggageTrailer4:
+                    return configData.customVehicles.luggageTrailer4.NoCollisionDamage;
+                case CustomVehicleType.Minesweeper:
+                    return configData.customVehicles.minesweeper.NoCollisionDamage;
+                case CustomVehicleType.MiniDozer:
+                    return configData.customVehicles.miniDozer.NoCollisionDamage;
+                case CustomVehicleType.MiniTipper:
+                    return configData.customVehicles.miniTipper.NoCollisionDamage;
+                case CustomVehicleType.Steamroller:
+                    return configData.customVehicles.steamroller.NoCollisionDamage;
+                case CustomVehicleType.BigDumpTruck:
+                    return configData.customVehicles.bigDumpTruck.NoCollisionDamage;
+                case CustomVehicleType.BigTractor:
+                    return configData.customVehicles.bigTractor.NoCollisionDamage;
+                case CustomVehicleType.Invader:
+                    return configData.customVehicles.invader.NoCollisionDamage;
+                case CustomVehicleType.Orlik:
+                    return configData.customVehicles.orlik.NoCollisionDamage;
+                case CustomVehicleType.Ah69g:
+                    return configData.customVehicles.ah69g.NoCollisionDamage;
+                case CustomVehicleType.SchoolBus1:
+                    return configData.customVehicles.schoolBus1.NoCollisionDamage;
+                case CustomVehicleType.SchoolBus2:
+                    return configData.customVehicles.schoolBus2.NoCollisionDamage;
+                case CustomVehicleType.SchoolBusShort:
+                    return configData.customVehicles.schoolBusShort.NoCollisionDamage;
+                case CustomVehicleType.PrisonBus:
+                    return configData.customVehicles.prisonBus.NoCollisionDamage;
+                case CustomVehicleType.ScrapJetA:
+                    return configData.customVehicles.scrapJetA.NoCollisionDamage;
+                case CustomVehicleType.ScrapJetB:
+                    return configData.customVehicles.scrapJetB.NoCollisionDamage;
+                case CustomVehicleType.Hoverscout:
+                    return configData.customVehicles.hoverscout.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Intercettore:
+                    return configData.customVehicles.badcoppi_Intercettore.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Strada_Black:
+                    return configData.customVehicles.badcoppi_Strada_Black.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Strada_Blue:
+                    return configData.customVehicles.badcoppi_Strada_Blue.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Strada_Gold:
+                    return configData.customVehicles.badcoppi_Strada_Gold.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Strada_Green:
+                    return configData.customVehicles.badcoppi_Strada_Green.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Strada_Pink:
+                    return configData.customVehicles.badcoppi_Strada_Pink.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Strada_Yellow:
+                    return configData.customVehicles.badcoppi_Strada_Yellow.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Sport_Red:
+                    return configData.customVehicles.badcoppi_Sport_Red.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Sport_Blue:
+                    return configData.customVehicles.badcoppi_Sport_Blue.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Sport_Black:
+                    return configData.customVehicles.badcoppi_Sport_Black.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Sport_Green:
+                    return configData.customVehicles.badcoppi_Sport_Green.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Sport_White:
+                    return configData.customVehicles.badcoppi_Sport_White.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Sport_Pink:
+                    return configData.customVehicles.badcoppi_Sport_Pink.NoCollisionDamage;
+                case CustomVehicleType.Badcoppi_Sport_Yellow:
+                    return configData.customVehicles.badcoppi_Sport_Yellow.NoCollisionDamage;
+                case CustomVehicleType.Leviathan:
+                    return configData.customVehicles.leviathan.NoCollisionDamage;
+                case CustomVehicleType.LeviathanCarrier:
+                    return configData.customVehicles.leviathanCarrier.NoCollisionDamage;
+                case CustomVehicleType.LeviathanGigaCarrier:
+                    return configData.customVehicles.leviathanGigaCarrier.NoCollisionDamage;
+                case CustomVehicleType.Kamikaze:
+                    return configData.customVehicles.kamikaze.NoCollisionDamage;
+                case CustomVehicleType.OppressorCopter:
+                    return configData.customVehicles.oppressorCopter.NoCollisionDamage;
+                case CustomVehicleType.Skycrane:
+                    return configData.customVehicles.skycrane.NoCollisionDamage;
+                case CustomVehicleType.HoverRacer:
+                    return configData.customVehicles.hoverRacer.NoCollisionDamage;
+                case CustomVehicleType.EggMobile:
+                    return configData.customVehicles.eggMobile.NoCollisionDamage;
+                case CustomVehicleType.EggKart:
+                    return configData.customVehicles.eggKart.NoCollisionDamage;
+                case CustomVehicleType.Drillcar:
+                    return configData.customVehicles.drillcar.NoCollisionDamage;
+                case CustomVehicleType.Jetson:
+                    return configData.customVehicles.jetson.NoCollisionDamage;
+                case CustomVehicleType.ScoutSpeeder:
+                    return configData.customVehicles.scoutSpeeder.NoCollisionDamage;
+                case CustomVehicleType.MiniBike:
+                    return configData.customVehicles.miniBike.NoCollisionDamage;
+                case CustomVehicleType.MiniTrike:
+                    return configData.customVehicles.miniTrike.NoCollisionDamage;
+                case CustomVehicleType.SuperBikeBlack:
+                    return configData.customVehicles.superBikeBlack.NoCollisionDamage;
+                case CustomVehicleType.SuperBikeBlue:
+                    return configData.customVehicles.superBikeBlue.NoCollisionDamage;
+                case CustomVehicleType.SuperBikeGreen:
+                    return configData.customVehicles.superBikeGreen.NoCollisionDamage;
+                case CustomVehicleType.SuperBikeOrange:
+                    return configData.customVehicles.superBikeOrange.NoCollisionDamage;
+                case CustomVehicleType.SuperBikeRed:
+                    return configData.customVehicles.superBikeRed.NoCollisionDamage;
+                case CustomVehicleType.TowTruck:
+                    return configData.customVehicles.towTruck.NoCollisionDamage;
+                case CustomVehicleType.BM21:
+                    return configData.customVehicles.bM21.NoCollisionDamage;
+                case CustomVehicleType.Predator_Y:
+                    return configData.customVehicles.predator_Y.NoCollisionDamage;
+                case CustomVehicleType.Predator_X:
+                    return configData.customVehicles.predator_X.NoCollisionDamage;
+                case CustomVehicleType.Predator_RP:
+                    return configData.customVehicles.predator_RP.NoCollisionDamage;
+                case CustomVehicleType.Spookopter:
+                    return configData.customVehicles.spookopter.NoCollisionDamage;
+                case CustomVehicleType.MIG17:
+                    return configData.customVehicles.mIG17.NoCollisionDamage;
+                case CustomVehicleType.Harrier:
+                    return configData.customVehicles.harrier.NoCollisionDamage;
+                case CustomVehicleType.SU47:
+                    return configData.customVehicles.sU47.NoCollisionDamage;
+                case CustomVehicleType.SU47_QT:
+                    return configData.customVehicles.sU47_QT.NoCollisionDamage;
+                case CustomVehicleType.SU47_Bling:
+                    return configData.customVehicles.sU47_Bling.NoCollisionDamage;
+                case CustomVehicleType.Tornado_Grey:
+                    return configData.customVehicles.tornado_Grey.NoCollisionDamage;
+                case CustomVehicleType.Tornado_Tan:
+                    return configData.customVehicles.tornado_Tan.NoCollisionDamage;
+                case CustomVehicleType.CF105:
+                    return configData.customVehicles.cF105.NoCollisionDamage;
+                case CustomVehicleType.ShifterKart1:
+                    return configData.customVehicles.shifterKart1.NoCollisionDamage;
+                case CustomVehicleType.ShifterKart2:
+                    return configData.customVehicles.shifterKart2.NoCollisionDamage;
+                case CustomVehicleType.ShifterKart3:
+                    return configData.customVehicles.shifterKart3.NoCollisionDamage;
+                case CustomVehicleType.ShifterKart4:
+                    return configData.customVehicles.shifterKart4.NoCollisionDamage;
+                case CustomVehicleType.ShifterKart5:
+                    return configData.customVehicles.shifterKart5.NoCollisionDamage;
+                case CustomVehicleType.ShifterKart6:
+                    return configData.customVehicles.shifterKart6.NoCollisionDamage;
+                case CustomVehicleType.MH60X:
+                    return configData.customVehicles.mh60x.NoCollisionDamage;
+                case CustomVehicleType.AH001:
+                    return configData.customVehicles.ah001.NoCollisionDamage;
+                case CustomVehicleType.BoltBucket:
+                    return configData.customVehicles.boltBucket.NoCollisionDamage;
+                case CustomVehicleType.CrudeBird:
+                    return configData.customVehicles.crudeBird.NoCollisionDamage;
+                case CustomVehicleType.Stretch_Black:
+                    return configData.customVehicles.stretch_Black.NoCollisionDamage;
+                case CustomVehicleType.Stretch_White:
+                    return configData.customVehicles.stretch_White.NoCollisionDamage;
+                case CustomVehicleType.Stretch_Pink:
+                    return configData.customVehicles.stretch_Pink.NoCollisionDamage;
+                case CustomVehicleType.Motorhome:
+                    return configData.customVehicles.motorhome.NoCollisionDamage;
+                case CustomVehicleType.Cybertruck:
+                    return configData.customVehicles.cybertruck.NoCollisionDamage;
+                case CustomVehicleType.Cyberkart:
+                    return configData.customVehicles.cyberkart.NoCollisionDamage;
+                case CustomVehicleType.KartToy:
+                    return configData.customVehicles.kartToy.NoCollisionDamage;
+                case CustomVehicleType.KartUFO:
+                    return configData.customVehicles.kartUFO.NoCollisionDamage;
+                case CustomVehicleType.KartSemi:
+                    return configData.customVehicles.kartSemi.NoCollisionDamage;
+                case CustomVehicleType.KartSedan:
+                    return configData.customVehicles.kartSedan.NoCollisionDamage;
+                case CustomVehicleType.KartRaceBed:
+                    return configData.customVehicles.kartRaceBed.NoCollisionDamage;
+                case CustomVehicleType.KartPinata:
+                    return configData.customVehicles.kartPinata.NoCollisionDamage;
+                case CustomVehicleType.KartPie:
+                    return configData.customVehicles.kartPie.NoCollisionDamage;
+                case CustomVehicleType.KartCoop:
+                    return configData.customVehicles.kartCoop.NoCollisionDamage;
+                case CustomVehicleType.KartCatapult:
+                    return configData.customVehicles.kartCatapult.NoCollisionDamage;
+                case CustomVehicleType.KartCake:
+                    return configData.customVehicles.kartCake.NoCollisionDamage;
+                case CustomVehicleType.KartBradley:
+                    return configData.customVehicles.kartBradley.NoCollisionDamage;
+                case CustomVehicleType.ScrapBuggy:
+                    return configData.customVehicles.scrapBuggy.NoCollisionDamage;
+                case CustomVehicleType.ScrapCar:
+                    return configData.customVehicles.scrapCar.NoCollisionDamage;
+                case CustomVehicleType.ScrapTruck:
+                    return configData.customVehicles.scrapTruck.NoCollisionDamage;
+                case CustomVehicleType.Diablo_Black:
+                    return configData.customVehicles.diabloBlack.NoCollisionDamage;
+                case CustomVehicleType.Diablo_Blue:
+                    return configData.customVehicles.diabloBlue.NoCollisionDamage;
+                case CustomVehicleType.Diablo_Gold:
+                    return configData.customVehicles.diabloGold.NoCollisionDamage;
+                case CustomVehicleType.Diablo_Green:
+                    return configData.customVehicles.diabloGreen.NoCollisionDamage;
+                case CustomVehicleType.Diablo_Orange:
+                    return configData.customVehicles.diabloOrange.NoCollisionDamage;
+                case CustomVehicleType.Diablo_Police:
+                    return configData.customVehicles.diabloPolice.NoCollisionDamage;
+                case CustomVehicleType.Diablo_Purple:
+                    return configData.customVehicles.diabloPurple.NoCollisionDamage;
+                case CustomVehicleType.Diablo_Red:
+                    return configData.customVehicles.diabloRed.NoCollisionDamage;
+                case CustomVehicleType.Diablo_White:
+                    return configData.customVehicles.diabloWhite.NoCollisionDamage;
+                case CustomVehicleType.Diablo_Yellow:
+                    return configData.customVehicles.diabloYellow.NoCollisionDamage;
+                case CustomVehicleType.Diablo_Pink:
+                    return configData.customVehicles.diabloPink.NoCollisionDamage;
+                case CustomVehicleType.Jetpack:
+                    return configData.customVehicles.jetpack.NoCollisionDamage;
+                case CustomVehicleType.JetpackUnarmed:
+                    return configData.customVehicles.jetpackUnarmed.NoCollisionDamage;
+                case CustomVehicleType._126pBlue:
+                    return configData.customVehicles._126pBlue.NoCollisionDamage;
+                case CustomVehicleType._126pBrown:
+                    return configData.customVehicles._126pBrown.NoCollisionDamage;
+                case CustomVehicleType._126pPurple:
+                    return configData.customVehicles._126pPurple.NoCollisionDamage;
+                case CustomVehicleType._126pGreen:
+                    return configData.customVehicles._126pGreen.NoCollisionDamage;
+                case CustomVehicleType._126pLime:
+                    return configData.customVehicles._126pLime.NoCollisionDamage;
+                case CustomVehicleType.Tuktuk:
+                    return configData.customVehicles.tuktuk.NoCollisionDamage;
+                case CustomVehicleType.SantaSled:
+                    return configData.customVehicles.santaSled.NoCollisionDamage;
+                case CustomVehicleType.PortaPotty:
+                    return configData.customVehicles.portaPotty.NoCollisionDamage;
+                case CustomVehicleType.SpaceBuggy:
+                    return configData.customVehicles.spaceBuggy.NoCollisionDamage;
+                case CustomVehicleType.SpaceHeli:
+                    return configData.customVehicles.spaceHeli.NoCollisionDamage;
+                case CustomVehicleType.SpaceHeliArmed:
+                    return configData.customVehicles.spaceHeliArmed.NoCollisionDamage;
+                case CustomVehicleType.Viperwing:
+                    return configData.customVehicles.viperwing.NoCollisionDamage;
+                case CustomVehicleType.Nightwing:
+                    return configData.customVehicles.nightwing.NoCollisionDamage;
+                case CustomVehicleType.AssaultDrone:
+                    return configData.customVehicles.assaultDrone.NoCollisionDamage;
+                case CustomVehicleType.ChairCar:
+                    return configData.customVehicles.chairCar.NoCollisionDamage;
+                case CustomVehicleType.RockingChairCar:
+                    return configData.customVehicles.rockingChairCar.NoCollisionDamage;
+                case CustomVehicleType.BeanBagCar:
+                    return configData.customVehicles.beanBagCar.NoCollisionDamage;
+                case CustomVehicleType.BeanBagCarDuo:
+                    return configData.customVehicles.beanBagCarDuo.NoCollisionDamage;
+                case CustomVehicleType.BeachChairCar:
+                    return configData.customVehicles.beachChairCar.NoCollisionDamage;
+                case CustomVehicleType.BeachChairCarDuo:
+                    return configData.customVehicles.beachChairCarDuo.NoCollisionDamage;
+                case CustomVehicleType.HoverThrone:
+                    return configData.customVehicles.hoverThrone.NoCollisionDamage;
+                case CustomVehicleType.RocketSeat:
+                    return configData.customVehicles.rocketSeat.NoCollisionDamage;
+                case CustomVehicleType.DeskCar:
+                    return configData.customVehicles.deskCar.NoCollisionDamage;
+                case CustomVehicleType.UmbrellaCopter:
+                    return configData.customVehicles.umbrellaCopter.NoCollisionDamage;
+                case CustomVehicleType.DeskCopter:
+                    return configData.customVehicles.deskCopter.NoCollisionDamage;
+                case CustomVehicleType.UtilityTruck:
+                    return configData.customVehicles.utilityTruck.NoCollisionDamage;
+                case CustomVehicleType.UtilityTruck2:
+                    return configData.customVehicles.utilityTruck2.NoCollisionDamage;
+                case CustomVehicleType.UtilityTruck3:
+                    return configData.customVehicles.utilityTruck3.NoCollisionDamage;
+                case CustomVehicleType.SemiTandemAxle:
+                    return configData.customVehicles.semiTandemAxle.NoCollisionDamage;
+                case CustomVehicleType.ARES_T:
+                    return configData.customVehicles.aresT.NoCollisionDamage;
+                case CustomVehicleType.ARES_AA:
+                    return configData.customVehicles.aresAA.NoCollisionDamage;
+                case CustomVehicleType.ARES_HC:
+                    return configData.customVehicles.aresHC.NoCollisionDamage;
+                case CustomVehicleType.FarmTrailer:
+                    return configData.customVehicles.farmTrailer.NoCollisionDamage;
+                case CustomVehicleType.ATV_Blue:
+                    return configData.customVehicles.atvBlue.NoCollisionDamage;
+                case CustomVehicleType.ATV_Camo:
+                    return configData.customVehicles.atvCamo.NoCollisionDamage;
+                case CustomVehicleType.ATV_Red:
+                    return configData.customVehicles.atvRed.NoCollisionDamage;
+                case CustomVehicleType.ATV_Yellow:
+                    return configData.customVehicles.atvYellow.NoCollisionDamage;
+                case CustomVehicleType.BeeVan:
+                    return configData.customVehicles.beeVan.NoCollisionDamage;
+                case CustomVehicleType.FoodTruck:
+                    return configData.customVehicles.foodTruck.NoCollisionDamage;
+                case CustomVehicleType.GunTruck:
+                    return configData.customVehicles.gunTruck.NoCollisionDamage;
+                case CustomVehicleType.VaultVan:
+                    return configData.customVehicles.vaultVan.NoCollisionDamage;
+                case CustomVehicleType.DeliveryVan:
+                    return configData.customVehicles.deliveryVan.NoCollisionDamage;
+                case CustomVehicleType.Rustlux:
+                    return configData.customVehicles.rustlux.NoCollisionDamage;
+                case CustomVehicleType.Rustlux_50cal:
+                    return configData.customVehicles.rustlux50cal.NoCollisionDamage;
+                case CustomVehicleType.Rustlux_Armor:
+                    return configData.customVehicles.rustluxArmor.NoCollisionDamage;
+                case CustomVehicleType.Rustlux_HE:
+                    return configData.customVehicles.rustluxHE.NoCollisionDamage;
+                case CustomVehicleType.Rustlux_HV:
+                    return configData.customVehicles.rustluxHV.NoCollisionDamage;
+                case CustomVehicleType.Rustlux_MLRS:
+                    return configData.customVehicles.rustluxMLRS.NoCollisionDamage;
+                case CustomVehicleType.FireAmbulance:
+                    return configData.customVehicles.fireAmbulance.NoCollisionDamage;
+                case CustomVehicleType.FireTruck:
+                    return configData.customVehicles.fireTruck.NoCollisionDamage;
+                case CustomVehicleType.FireLightRescue:
+                    return configData.customVehicles.fireLightRescue.NoCollisionDamage;
+                case CustomVehicleType.FirePickupTruck:
+                    return configData.customVehicles.firePickupTruck.NoCollisionDamage;
+                case CustomVehicleType.Apache:
+                    return configData.customVehicles.apache.NoCollisionDamage;
+                case CustomVehicleType.PodRacerSky:
+                    return configData.customVehicles.podRacerSky.NoCollisionDamage;
+                case CustomVehicleType.Wedge:
+                    return configData.customVehicles.wedge.NoCollisionDamage;
+                case CustomVehicleType.CannonCar:
+                    return configData.customVehicles.cannonCar.NoCollisionDamage;
+                case CustomVehicleType.SharkSuit:
+                    return configData.customVehicles.sharkSuit.NoCollisionDamage;
+                case CustomVehicleType.SharkSuitArmed:
+                    return configData.customVehicles.sharkSuitArmed.NoCollisionDamage;
+                case CustomVehicleType.SharkBoat:
+                    return configData.customVehicles.sharkBoat.NoCollisionDamage;
+                case CustomVehicleType.SharkBoatArmed:
+                    return configData.customVehicles.sharkBoatArmed.NoCollisionDamage;
+                case CustomVehicleType.SharkBoatHuge:
+                    return configData.customVehicles.sharkBoatHuge.NoCollisionDamage;
+                case CustomVehicleType.StandSki:
+                    return configData.customVehicles.standSki.NoCollisionDamage;
+                case CustomVehicleType.StandSki2:
+                    return configData.customVehicles.standSki2.NoCollisionDamage;
+                case CustomVehicleType.StandSki3:
+                    return configData.customVehicles.standSki3.NoCollisionDamage;
+                case CustomVehicleType.StandSki4:
+                    return configData.customVehicles.standSki4.NoCollisionDamage;
+                case CustomVehicleType.StandSki5:
+                    return configData.customVehicles.standSki5.NoCollisionDamage;
+                case CustomVehicleType.StandSki6:
+                    return configData.customVehicles.standSki6.NoCollisionDamage;
+                case CustomVehicleType.JetSkiBlack:
+                    return configData.customVehicles.jetSkiBlack.NoCollisionDamage;
+                case CustomVehicleType.JetSkiBlue:
+                    return configData.customVehicles.jetSkiBlue.NoCollisionDamage;
+                case CustomVehicleType.JetSkiBlueRedStriped:
+                    return configData.customVehicles.jetSkiBlueRedStriped.NoCollisionDamage;
+                case CustomVehicleType.JetSkiBlueYellowStriped:
+                    return configData.customVehicles.jetSkiBlueYellowStriped.NoCollisionDamage;
+                case CustomVehicleType.JetSkiCamo:
+                    return configData.customVehicles.jetSkiCamo.NoCollisionDamage;
+                case CustomVehicleType.JetSkiGold:
+                    return configData.customVehicles.jetSkiGold.NoCollisionDamage;
+                case CustomVehicleType.JetSkiGreen:
+                    return configData.customVehicles.jetSkiGreen.NoCollisionDamage;
+                case CustomVehicleType.JetSkiPink:
+                    return configData.customVehicles.jetSkiPink.NoCollisionDamage;
+                case CustomVehicleType.JetSkiPolice:
+                    return configData.customVehicles.jetSkiPolice.NoCollisionDamage;
+                case CustomVehicleType.JetSkiPurple:
+                    return configData.customVehicles.jetSkiPurple.NoCollisionDamage;
+                case CustomVehicleType.JetSkiRed:
+                    return configData.customVehicles.jetSkiRed.NoCollisionDamage;
+                case CustomVehicleType.JetSkiYellow:
+                    return configData.customVehicles.jetSkiYellow.NoCollisionDamage;
+                case CustomVehicleType.WeedVan:
+                    return configData.customVehicles.weedVan.NoCollisionDamage;
+                case CustomVehicleType.WarthogBlack:
+                    return configData.customVehicles.warthogBlack.NoCollisionDamage;
+                case CustomVehicleType.Transit:
+                    return configData.customVehicles.transit.NoCollisionDamage;
+                case CustomVehicleType.TransitDropside:
+                    return configData.customVehicles.transitDropside.NoCollisionDamage;
+                case CustomVehicleType.TransitRecycling:
+                    return configData.customVehicles.transitRecycling.NoCollisionDamage;
+                case CustomVehicleType.TransitBox:
+                    return configData.customVehicles.transitBox.NoCollisionDamage;
+                case CustomVehicleType.SentryCar:
+                    return configData.customVehicles.sentryCar.NoCollisionDamage;
+                case CustomVehicleType.SentryCar2:
+                    return configData.customVehicles.sentryCar2.NoCollisionDamage;
+                case CustomVehicleType.BarrelCarThing:
+                    return configData.customVehicles.barrelCarThing.NoCollisionDamage;
+                case CustomVehicleType.HumanCar:
+                    return configData.customVehicles.humanCar.NoCollisionDamage;
+                case CustomVehicleType.HumanKart:
+                    return configData.customVehicles.humanKart.NoCollisionDamage;
+                case CustomVehicleType.MonsterBike:
+                    return configData.customVehicles.monsterBike.NoCollisionDamage;
+                case CustomVehicleType.Tire:
+                    return configData.customVehicles.tire.NoCollisionDamage;
+                case CustomVehicleType.Zergatron:
+                    return configData.customVehicles.zergatron.NoCollisionDamage;
+                case CustomVehicleType.OxideMan:
+                    return configData.customVehicles.oxideMan.NoCollisionDamage;
+                case CustomVehicleType.CoffinCar:
+                    return configData.customVehicles.coffinCar.NoCollisionDamage;
+                case CustomVehicleType.Stormwing:
+                    return configData.customVehicles.stormwing.NoCollisionDamage;
+                case CustomVehicleType.MiniRHIB:
+                    return configData.customVehicles.miniRHIB.NoCollisionDamage;
+                case CustomVehicleType.MiniPTBoat:
+                    return configData.customVehicles.miniPTBoat.NoCollisionDamage;
+                case CustomVehicleType.MiniSub:
+                    return configData.customVehicles.miniSub.NoCollisionDamage;
+                case CustomVehicleType.MiniSub2:
+                    return configData.customVehicles.miniSub2.NoCollisionDamage;
+                case CustomVehicleType.CPV_Grey:
+                    return configData.customVehicles.cpvGrey.NoCollisionDamage;
+                case CustomVehicleType.CPV_Green:
+                    return configData.customVehicles.cpvGreen.NoCollisionDamage;
                 default:
                     return false;
             }
@@ -1499,8 +3805,6 @@ namespace Oxide.Plugins
                     return configData.normalVehicles.submarineDuo.NoDamage;
                 case NormalVehicleType.Snowmobile:
                     return configData.normalVehicles.snowmobile.NoDamage;
-                case NormalVehicleType.TomahaSnowmobile:
-                    return configData.normalVehicles.tomahaSnowmobile.NoDamage;
                 case NormalVehicleType.PedalBike:
                     return configData.normalVehicles.pedalBike.NoDamage;
                 case NormalVehicleType.PedalTrike:
@@ -1511,6 +3815,18 @@ namespace Oxide.Plugins
                     return configData.normalVehicles.motorBikeSidecar.NoDamage;
                 case NormalVehicleType.Kayak:
                     return configData.normalVehicles.Kayak.NoDamage;
+                case NormalVehicleType.Dpv:
+                    return configData.normalVehicles.dpv.NoDamage;
+                case NormalVehicleType.SiegeTower:
+                    return configData.normalVehicles.siegeTower.NoDamage;
+                case NormalVehicleType.Catapult:
+                    return configData.normalVehicles.catapult.NoDamage;
+                case NormalVehicleType.Batteringram:
+                    return configData.normalVehicles.batteringram.NoDamage;
+                case NormalVehicleType.Ballista:
+                    return configData.normalVehicles.ballista.NoDamage;
+                case NormalVehicleType.PtBoat:
+                    return configData.normalVehicles.pTBoat.NoDamage;
                 default:
                     return false;
             }
@@ -1524,8 +3840,8 @@ namespace Oxide.Plugins
                     return configData.customVehicles.atv.NoDamage;
                 case CustomVehicleType.RaceSofa:
                     return configData.customVehicles.raceSofa.NoDamage;
-                case CustomVehicleType.WaterBird:
-                    return configData.customVehicles.waterBird.NoDamage;
+                case CustomVehicleType.WaterHeli:
+                    return configData.customVehicles.waterHeli.NoDamage;
                 case CustomVehicleType.WarBird:
                     return configData.customVehicles.warBird.NoDamage;
                 case CustomVehicleType.LittleBird:
@@ -1596,12 +3912,754 @@ namespace Oxide.Plugins
                     return configData.customVehicles.doomsDayDiscoVan.NoDamage;
                 case CustomVehicleType.ForkLift:
                     return configData.customVehicles.forkLift.NoDamage;
-                case CustomVehicleType.LawnMower:
-                    return configData.customVehicles.lawnMower.NoDamage;
+                case CustomVehicleType.LawnMowerRed:
+                    return configData.customVehicles.lawnMowerRed.NoDamage;
+                case CustomVehicleType.LawnMowerGreen:
+                    return configData.customVehicles.lawnMowerGreen.NoDamage;
                 case CustomVehicleType.Chariot:
                     return configData.customVehicles.chariot.NoDamage;
                 case CustomVehicleType.SoulHarvester:
                     return configData.customVehicles.soulHarvester.NoDamage;
+                case CustomVehicleType.F1:
+                    return configData.customVehicles.f1.NoDamage;
+                case CustomVehicleType.Rustlerg:
+                    return configData.customVehicles.rustlerg.NoDamage;
+                case CustomVehicleType.Rustlers:
+                    return configData.customVehicles.rustlers.NoDamage;
+                case CustomVehicleType.SemiTruck_Blue:
+                    return configData.customVehicles.semitruck_Blue.NoDamage;
+                case CustomVehicleType.SemiTruck_Green:
+                    return configData.customVehicles.semitruck_Green.NoDamage;
+                case CustomVehicleType.SemiTruck_Red:
+                    return configData.customVehicles.semitruck_Red.NoDamage;
+                case CustomVehicleType.SemiTruck_White:
+                    return configData.customVehicles.semitruck_White.NoDamage;
+                case CustomVehicleType.SemiTruck_Yellow:
+                    return configData.customVehicles.semitruck_Yellow.NoDamage;
+                case CustomVehicleType.SemiTrailer_Blue:
+                    return configData.customVehicles.semitrailer_Blue.NoDamage;
+                case CustomVehicleType.SemiTrailer_Fuel:
+                    return configData.customVehicles.semitrailer_Fuel.NoDamage;
+                case CustomVehicleType.SemiTrailer_Green:
+                    return configData.customVehicles.semitrailer_Green.NoDamage;
+                case CustomVehicleType.SemiTrailer_Orange:
+                    return configData.customVehicles.semitrailer_Orange.NoDamage;
+                case CustomVehicleType.SemiTrailer_Yellow:
+                    return configData.customVehicles.semitrailer_Yellow.NoDamage;
+                case CustomVehicleType.Wheelchair:
+                    return configData.customVehicles.wheelchair.NoDamage;
+                case CustomVehicleType.CobraGreen:
+                    return configData.customVehicles.cobraGreen.NoDamage;
+                case CustomVehicleType.CobraGrey:
+                    return configData.customVehicles.cobraGrey.NoDamage;
+                case CustomVehicleType.CobraBlack:
+                    return configData.customVehicles.cobraBlack.NoDamage;
+                case CustomVehicleType.MobileCasino:
+                    return configData.customVehicles.mobileCasino.NoDamage;
+                case CustomVehicleType.DreadNought:
+                    return configData.customVehicles.dreadNought.NoDamage;
+                case CustomVehicleType.DreadTrailer:
+                    return configData.customVehicles.dreadTrailer.NoDamage;
+                case CustomVehicleType.ONYX:
+                    return configData.customVehicles.oNYX.NoDamage;
+                case CustomVehicleType.ONYX_AA:
+                    return configData.customVehicles.oNYX_AA.NoDamage;
+                case CustomVehicleType.ONYX_IFV:
+                    return configData.customVehicles.oNYX_IFV.NoDamage;
+                case CustomVehicleType.LandBeetle:
+                    return configData.customVehicles.landBeetle.NoDamage;
+                case CustomVehicleType.WingFighter:
+                    return configData.customVehicles.wingFighter.NoDamage;
+                case CustomVehicleType.WingBomber:
+                    return configData.customVehicles.wingBomber.NoDamage;
+                case CustomVehicleType.TimberWing:
+                    return configData.customVehicles.timberWing.NoDamage;
+                case CustomVehicleType.PartyTrailer:
+                    return configData.customVehicles.partyTrailer.NoDamage;
+                case CustomVehicleType.Tractor:
+                    return configData.customVehicles.tractor.NoDamage;
+                case CustomVehicleType.FarmTractor:
+                    return configData.customVehicles.farmTractor.NoDamage;
+                case CustomVehicleType.Jet:
+                    return configData.customVehicles.jet.NoDamage;
+                case CustomVehicleType.BoatMobile:
+                    return configData.customVehicles.boatMobile.NoDamage;
+                case CustomVehicleType.Tricycle:
+                    return configData.customVehicles.tricycle.NoDamage;
+                case CustomVehicleType.ShoppingCart:
+                    return configData.customVehicles.shoppingCart.NoDamage;
+                case CustomVehicleType.ShoppingCartBlue:
+                    return configData.customVehicles.shoppingCartBlue.NoDamage;
+                case CustomVehicleType.SpookyShoppingCart:
+                    return configData.customVehicles.spookyShoppingCart.NoDamage;
+                case CustomVehicleType.BatBike:
+                    return configData.customVehicles.batBike.NoDamage;
+                case CustomVehicleType.SpookyBatBike:
+                    return configData.customVehicles.spookyBatBike.NoDamage;
+                case CustomVehicleType.SportsBikeBlack:
+                    return configData.customVehicles.sportsBikeBlack.NoDamage;
+                case CustomVehicleType.SportsBikeBlue:
+                    return configData.customVehicles.sportsBikeBlue.NoDamage;
+                case CustomVehicleType.SportsBikeGreen:
+                    return configData.customVehicles.sportsBikeGreen.NoDamage;
+                case CustomVehicleType.SportsBikeOrange:
+                    return configData.customVehicles.sportsBikeOrange.NoDamage;
+                case CustomVehicleType.SportsBikeRed:
+                    return configData.customVehicles.sportsBikeRed.NoDamage;
+                case CustomVehicleType.UfoDuo:
+                    return configData.customVehicles.ufoDuo.NoDamage;
+                case CustomVehicleType.UfoMotherShip:
+                    return configData.customVehicles.ufoMotherShip.NoDamage;
+                case CustomVehicleType.UfoSolo:
+                    return configData.customVehicles.ufoSolo.NoDamage;
+                case CustomVehicleType.UfoSpooky:
+                    return configData.customVehicles.ufoSpooky.NoDamage;
+                case CustomVehicleType.Tardis:
+                    return configData.customVehicles.tardis.NoDamage;
+                case CustomVehicleType.Driftwood:
+                    return configData.customVehicles.driftwood.NoDamage;
+                case CustomVehicleType.HailFireBike:
+                    return configData.customVehicles.hailFireBike.NoDamage;
+                case CustomVehicleType.HoverSled:
+                    return configData.customVehicles.hoverSled.NoDamage;
+                case CustomVehicleType.MoonBuggy:
+                    return configData.customVehicles.moonBuggy.NoDamage;
+                case CustomVehicleType.MandoSpeeder:
+                    return configData.customVehicles.mandoSpeeder.NoDamage;
+                case CustomVehicleType.PodSpeeder:
+                    return configData.customVehicles.podSpeeder.NoDamage;
+                case CustomVehicleType.Glider:
+                    return configData.customVehicles.glider.NoDamage;
+                case CustomVehicleType.GliderArmed:
+                    return configData.customVehicles.gliderArmed.NoDamage;
+                case CustomVehicleType.UAP_Duo:
+                    return configData.customVehicles.uAP_Duo.NoDamage;
+                case CustomVehicleType.UAP_Solo:
+                    return configData.customVehicles.uAP_Solo.NoDamage;
+                case CustomVehicleType.UAP_Prototype:
+                    return configData.customVehicles.uAP_Prototype.NoDamage;
+                case CustomVehicleType.UAP_Xmas:
+                    return configData.customVehicles.uAP_Xmas.NoDamage;
+                case CustomVehicleType.Starfighter:
+                    return configData.customVehicles.starfighter.NoDamage;
+                case CustomVehicleType.Warchair:
+                    return configData.customVehicles.warchair.NoDamage;
+                case CustomVehicleType.Raptor:
+                    return configData.customVehicles.raptor.NoDamage;
+                case CustomVehicleType.Talon:
+                    return configData.customVehicles.talon.NoDamage;
+                case CustomVehicleType.HoverBatBike:
+                    return configData.customVehicles.hoverBatBike.NoDamage;
+                case CustomVehicleType.FrostSled:
+                    return configData.customVehicles.frostSled.NoDamage;
+                case CustomVehicleType.Scooter:
+                    return configData.customVehicles.scooter.NoDamage;
+                case CustomVehicleType.HoverScooter:
+                    return configData.customVehicles.hoverScooter.NoDamage;
+                case CustomVehicleType.DroneBackpack:
+                    return configData.customVehicles.droneBackpack.NoDamage;
+                case CustomVehicleType.Hovercraft:
+                    return configData.customVehicles.hovercraft.NoDamage;
+                case CustomVehicleType.HovercraftArmed:
+                    return configData.customVehicles.hovercraftArmed.NoDamage;
+                case CustomVehicleType.Heelies:
+                    return configData.customVehicles.heelies.NoDamage;
+                case CustomVehicleType.Ehoverboard:
+                    return configData.customVehicles.ehoverboard.NoDamage;
+                case CustomVehicleType.Monocycle:
+                    return configData.customVehicles.monocycle.NoDamage;
+                case CustomVehicleType.SkyWing:
+                    return configData.customVehicles.skyWing.NoDamage;
+                case CustomVehicleType.MiniPlane:
+                    return configData.customVehicles.miniPlane.NoDamage;
+                case CustomVehicleType.WarPlane:
+                    return configData.customVehicles.warPlane.NoDamage;
+                case CustomVehicleType.RaidPlane:
+                    return configData.customVehicles.raidPlane.NoDamage;
+                case CustomVehicleType.BradleyVehicle:
+                    return configData.customVehicles.bradleyVehicle.NoDamage;
+                case CustomVehicleType.F15Solo:
+                    return configData.customVehicles.f15Solo.NoDamage;
+                case CustomVehicleType.F15Duo:
+                    return configData.customVehicles.f15Duo.NoDamage;
+                case CustomVehicleType.A10:
+                    return configData.customVehicles.a10.NoDamage;
+                case CustomVehicleType.GoblinGlider:
+                    return configData.customVehicles.goblinGlider.NoDamage;
+                case CustomVehicleType.DroneBoard:
+                    return configData.customVehicles.droneBoard.NoDamage;
+                case CustomVehicleType.HeliHat:
+                    return configData.customVehicles.heliHat.NoDamage;
+                case CustomVehicleType.HeliHatUnarmed:
+                    return configData.customVehicles.heliHatUnarmed.NoDamage;
+                case CustomVehicleType.M939:
+                    return configData.customVehicles.m939.NoDamage;
+                case CustomVehicleType.M939_Enclosed:
+                    return configData.customVehicles.m939enclosed.NoDamage;
+                case CustomVehicleType.M939_Desert:
+                    return configData.customVehicles.m939desert.NoDamage;
+                case CustomVehicleType.M939_Desert_Enclosed:
+                    return configData.customVehicles.m939encloseddesert.NoDamage;
+                case CustomVehicleType.Oppressor:
+                    return configData.customVehicles.oppressor.NoDamage;
+                case CustomVehicleType.Tumbler:
+                    return configData.customVehicles.tumbler.NoDamage;
+                case CustomVehicleType.TumblerArmed:
+                    return configData.customVehicles.tumblerArmed.NoDamage;
+                case CustomVehicleType.Falcon:
+                    return configData.customVehicles.falcon.NoDamage;
+                case CustomVehicleType.ImperialShuttle:
+                    return configData.customVehicles.imperialShuttle.NoDamage;
+                case CustomVehicleType.BallistaCar:
+                    return configData.customVehicles.ballistaCar.NoDamage;
+                case CustomVehicleType.AirSpeeder:
+                    return configData.customVehicles.airSpeeder.NoDamage;
+                case CustomVehicleType.GroundSpeeder:
+                    return configData.customVehicles.groundSpeeder.NoDamage;
+                case CustomVehicleType.RoadsterRp:
+                    return configData.customVehicles.roadsterRp.NoDamage;
+                case CustomVehicleType.Ambulance:
+                    return configData.customVehicles.ambulance.NoDamage;
+                case CustomVehicleType.Mamba:
+                    return configData.customVehicles.mamba.NoDamage;
+                case CustomVehicleType.BikeHellRider:
+                    return configData.customVehicles.bikeHellRider.NoDamage;
+                case CustomVehicleType.LandSpeeder:
+                    return configData.customVehicles.landSpeeder.NoDamage;
+                case CustomVehicleType.FlyingBoat:
+                    return configData.customVehicles.flyingBoat.NoDamage;
+                case CustomVehicleType.OppressorBike:
+                    return configData.customVehicles.oppressorBike.NoDamage;
+                case CustomVehicleType.Batwing:
+                    return configData.customVehicles.batWing.NoDamage;
+                case CustomVehicleType.BatwingDuo:
+                    return configData.customVehicles.batWingDuo.NoDamage;
+                case CustomVehicleType.MotorTrike:
+                    return configData.customVehicles.motorTrike.NoDamage;
+                case CustomVehicleType.SuperTrike:
+                    return configData.customVehicles.superTrike.NoDamage;
+                case CustomVehicleType.SithSpeeder:
+                    return configData.customVehicles.sithSpeeder.NoDamage;
+                case CustomVehicleType.Carriage1:
+                    return configData.customVehicles.carriage1.NoDamage;
+                case CustomVehicleType.Carriage2:
+                    return configData.customVehicles.carriage2.NoDamage;
+                case CustomVehicleType.Carriage3:
+                    return configData.customVehicles.carriage3.NoDamage;
+                case CustomVehicleType.Kart1:
+                    return configData.customVehicles.kart1.NoDamage;
+                case CustomVehicleType.Kart2:
+                    return configData.customVehicles.kart2.NoDamage;
+                case CustomVehicleType.Kart3:
+                    return configData.customVehicles.kart3.NoDamage;
+                case CustomVehicleType.Kart4:
+                    return configData.customVehicles.kart4.NoDamage;
+                case CustomVehicleType.Kart5:
+                    return configData.customVehicles.kart5.NoDamage;
+                case CustomVehicleType.Kart6:
+                    return configData.customVehicles.kart6.NoDamage;
+                case CustomVehicleType.Kart7:
+                    return configData.customVehicles.kart7.NoDamage;
+                case CustomVehicleType.Kart8:
+                    return configData.customVehicles.kart8.NoDamage;
+                case CustomVehicleType.HoverKart1:
+                    return configData.customVehicles.hoverKart1.NoDamage;
+                case CustomVehicleType.Mongoose:
+                    return configData.customVehicles.mongoose.NoDamage;
+                case CustomVehicleType.Warthog:
+                    return configData.customVehicles.warthog.NoDamage;
+                case CustomVehicleType.WarthogS:
+                    return configData.customVehicles.warthogs.NoDamage;
+                case CustomVehicleType.WarthogT:
+                    return configData.customVehicles.warthogt.NoDamage;
+                case CustomVehicleType.DrumCar:
+                    return configData.customVehicles.drumCar.NoDamage;
+                case CustomVehicleType.PianoCar:
+                    return configData.customVehicles.pianoCar.NoDamage;
+                case CustomVehicleType.BoneCar:
+                    return configData.customVehicles.boneCar.NoDamage;
+                case CustomVehicleType.TableCar:
+                    return configData.customVehicles.tableCar.NoDamage;
+                case CustomVehicleType.SlotsCar:
+                    return configData.customVehicles.slotsCar.NoDamage;
+                case CustomVehicleType.BeanCar:
+                    return configData.customVehicles.beanCar.NoDamage;
+                case CustomVehicleType.BallCar:
+                    return configData.customVehicles.ballCar.NoDamage;
+                case CustomVehicleType.PoliceCar:
+                    return configData.customVehicles.policeCar.NoDamage;
+                case CustomVehicleType.PoliceBike:
+                    return configData.customVehicles.policeBike.NoDamage;
+                case CustomVehicleType.SwatVan:
+                    return configData.customVehicles.swatVan.NoDamage;
+                case CustomVehicleType.AirBoat:
+                    return configData.customVehicles.airBoat.NoDamage;
+                case CustomVehicleType.AirBoat2:
+                    return configData.customVehicles.airBoat2.NoDamage;
+                case CustomVehicleType.FlintMobile:
+                    return configData.customVehicles.flintMobile.NoDamage;
+                case CustomVehicleType.Nighthawk:
+                    return configData.customVehicles.nighthawk.NoDamage;
+                case CustomVehicleType.MiniNighthawk:
+                    return configData.customVehicles.miniNighthawk.NoDamage;
+                case CustomVehicleType.HoverShark:
+                    return configData.customVehicles.hoverShark.NoDamage;
+                case CustomVehicleType.Jeep:
+                    return configData.customVehicles.jeep.NoDamage;
+                case CustomVehicleType.JeepJp:
+                    return configData.customVehicles.jeepJp.NoDamage;
+                case CustomVehicleType.JeepCamo:
+                    return configData.customVehicles.jeepCamo.NoDamage;
+                case CustomVehicleType.JeepDesert:
+                    return configData.customVehicles.jeepDesert.NoDamage;
+                case CustomVehicleType.JeepAa:
+                    return configData.customVehicles.jeepAa.NoDamage;
+                case CustomVehicleType.MonsterTruck:
+                    return configData.customVehicles.monsterTruck.NoDamage;
+                case CustomVehicleType.MonsterTruck2:
+                    return configData.customVehicles.monsterTruck2.NoDamage;
+                case CustomVehicleType.MonsterTruckBat:
+                    return configData.customVehicles.monsterTruckBat.NoDamage;
+                case CustomVehicleType.MonsterTruckBean:
+                    return configData.customVehicles.monsterTruckBean.NoDamage;
+                case CustomVehicleType.MonsterTruckSemi:
+                    return configData.customVehicles.monsterTruckSemi.NoDamage;
+                case CustomVehicleType.BumperBlue:
+                    return configData.customVehicles.bumperBlue.NoDamage;
+                case CustomVehicleType.BumperBlack:
+                    return configData.customVehicles.bumperBlack.NoDamage;
+                case CustomVehicleType.BumperRed:
+                    return configData.customVehicles.bumperRed.NoDamage;
+                case CustomVehicleType.BumperOrange:
+                    return configData.customVehicles.bumperOrange.NoDamage;
+                case CustomVehicleType.BumperGreen:
+                    return configData.customVehicles.bumperGreen.NoDamage;
+                case CustomVehicleType.LuggageCart:
+                    return configData.customVehicles.luggageCart.NoDamage;
+                case CustomVehicleType.LuggageTrailer:
+                    return configData.customVehicles.luggageTrailer.NoDamage;
+                case CustomVehicleType.LuggageTrailer2:
+                    return configData.customVehicles.luggageTrailer2.NoDamage;
+                case CustomVehicleType.LuggageTrailer3:
+                    return configData.customVehicles.luggageTrailer3.NoDamage;
+                case CustomVehicleType.LuggageTrailer4:
+                    return configData.customVehicles.luggageTrailer4.NoDamage;
+                case CustomVehicleType.Minesweeper:
+                    return configData.customVehicles.minesweeper.NoDamage;
+                case CustomVehicleType.MiniDozer:
+                    return configData.customVehicles.miniDozer.NoDamage;
+                case CustomVehicleType.MiniTipper:
+                    return configData.customVehicles.miniTipper.NoDamage;
+                case CustomVehicleType.Steamroller:
+                    return configData.customVehicles.steamroller.NoDamage;
+                case CustomVehicleType.BigDumpTruck:
+                    return configData.customVehicles.bigDumpTruck.NoDamage;
+                case CustomVehicleType.BigTractor:
+                    return configData.customVehicles.bigTractor.NoDamage;
+                case CustomVehicleType.Invader:
+                    return configData.customVehicles.invader.NoDamage;
+                case CustomVehicleType.Orlik:
+                    return configData.customVehicles.orlik.NoDamage;
+                case CustomVehicleType.Ah69g:
+                    return configData.customVehicles.ah69g.NoDamage;
+                case CustomVehicleType.SchoolBus1:
+                    return configData.customVehicles.schoolBus1.NoDamage;
+                case CustomVehicleType.SchoolBus2:
+                    return configData.customVehicles.schoolBus2.NoDamage;
+                case CustomVehicleType.SchoolBusShort:
+                    return configData.customVehicles.schoolBusShort.NoDamage;
+                case CustomVehicleType.PrisonBus:
+                    return configData.customVehicles.prisonBus.NoDamage;
+                case CustomVehicleType.ScrapJetA:
+                    return configData.customVehicles.scrapJetA.NoDamage;
+                case CustomVehicleType.ScrapJetB:
+                    return configData.customVehicles.scrapJetB.NoDamage;
+                case CustomVehicleType.Hoverscout:
+                    return configData.customVehicles.hoverscout.NoDamage;
+                case CustomVehicleType.Badcoppi_Intercettore:
+                    return configData.customVehicles.badcoppi_Intercettore.NoDamage;
+                case CustomVehicleType.Badcoppi_Strada_Black:
+                    return configData.customVehicles.badcoppi_Strada_Black.NoDamage;
+                case CustomVehicleType.Badcoppi_Strada_Blue:
+                    return configData.customVehicles.badcoppi_Strada_Blue.NoDamage;
+                case CustomVehicleType.Badcoppi_Strada_Gold:
+                    return configData.customVehicles.badcoppi_Strada_Gold.NoDamage;
+                case CustomVehicleType.Badcoppi_Strada_Green:
+                    return configData.customVehicles.badcoppi_Strada_Green.NoDamage;
+                case CustomVehicleType.Badcoppi_Strada_Pink:
+                    return configData.customVehicles.badcoppi_Strada_Pink.NoDamage;
+                case CustomVehicleType.Badcoppi_Strada_Yellow:
+                    return configData.customVehicles.badcoppi_Strada_Yellow.NoDamage;
+                case CustomVehicleType.Badcoppi_Sport_Red:
+                    return configData.customVehicles.badcoppi_Sport_Red.NoDamage;
+                case CustomVehicleType.Badcoppi_Sport_Blue:
+                    return configData.customVehicles.badcoppi_Sport_Blue.NoDamage;
+                case CustomVehicleType.Badcoppi_Sport_Black:
+                    return configData.customVehicles.badcoppi_Sport_Black.NoDamage;
+                case CustomVehicleType.Badcoppi_Sport_Green:
+                    return configData.customVehicles.badcoppi_Sport_Green.NoDamage;
+                case CustomVehicleType.Badcoppi_Sport_White:
+                    return configData.customVehicles.badcoppi_Sport_White.NoDamage;
+                case CustomVehicleType.Badcoppi_Sport_Pink:
+                    return configData.customVehicles.badcoppi_Sport_Pink.NoDamage;
+                case CustomVehicleType.Badcoppi_Sport_Yellow:
+                    return configData.customVehicles.badcoppi_Sport_Yellow.NoDamage;
+                case CustomVehicleType.Leviathan:
+                    return configData.customVehicles.leviathan.NoDamage;
+                case CustomVehicleType.LeviathanCarrier:
+                    return configData.customVehicles.leviathanCarrier.NoDamage;
+                case CustomVehicleType.LeviathanGigaCarrier:
+                    return configData.customVehicles.leviathanGigaCarrier.NoDamage;
+                case CustomVehicleType.Kamikaze:
+                    return configData.customVehicles.kamikaze.NoDamage;
+                case CustomVehicleType.OppressorCopter:
+                    return configData.customVehicles.oppressorCopter.NoDamage;
+                case CustomVehicleType.Skycrane:
+                    return configData.customVehicles.skycrane.NoDamage;
+                case CustomVehicleType.HoverRacer:
+                    return configData.customVehicles.hoverRacer.NoDamage;
+                case CustomVehicleType.EggMobile:
+                    return configData.customVehicles.eggMobile.NoDamage;
+                case CustomVehicleType.EggKart:
+                    return configData.customVehicles.eggKart.NoDamage;
+                case CustomVehicleType.Drillcar:
+                    return configData.customVehicles.drillcar.NoDamage;
+                case CustomVehicleType.Jetson:
+                    return configData.customVehicles.jetson.NoDamage;
+                case CustomVehicleType.ScoutSpeeder:
+                    return configData.customVehicles.scoutSpeeder.NoDamage;
+                case CustomVehicleType.MiniBike:
+                    return configData.customVehicles.miniBike.NoDamage;
+                case CustomVehicleType.MiniTrike:
+                    return configData.customVehicles.miniTrike.NoDamage;
+                case CustomVehicleType.SuperBikeBlack:
+                    return configData.customVehicles.superBikeBlack.NoDamage;
+                case CustomVehicleType.SuperBikeBlue:
+                    return configData.customVehicles.superBikeBlue.NoDamage;
+                case CustomVehicleType.SuperBikeGreen:
+                    return configData.customVehicles.superBikeGreen.NoDamage;
+                case CustomVehicleType.SuperBikeOrange:
+                    return configData.customVehicles.superBikeOrange.NoDamage;
+                case CustomVehicleType.SuperBikeRed:
+                    return configData.customVehicles.superBikeRed.NoDamage;
+                case CustomVehicleType.TowTruck:
+                    return configData.customVehicles.towTruck.NoDamage;
+                case CustomVehicleType.BM21:
+                    return configData.customVehicles.bM21.NoDamage;
+                case CustomVehicleType.Predator_Y:
+                    return configData.customVehicles.predator_Y.NoDamage;
+                case CustomVehicleType.Predator_X:
+                    return configData.customVehicles.predator_X.NoDamage;
+                case CustomVehicleType.Predator_RP:
+                    return configData.customVehicles.predator_RP.NoDamage;
+                case CustomVehicleType.Spookopter:
+                    return configData.customVehicles.spookopter.NoDamage;
+                case CustomVehicleType.MIG17:
+                    return configData.customVehicles.mIG17.NoDamage;
+                case CustomVehicleType.Harrier:
+                    return configData.customVehicles.harrier.NoDamage;
+                case CustomVehicleType.SU47:
+                    return configData.customVehicles.sU47.NoDamage;
+                case CustomVehicleType.SU47_QT:
+                    return configData.customVehicles.sU47_QT.NoDamage;
+                case CustomVehicleType.SU47_Bling:
+                    return configData.customVehicles.sU47_Bling.NoDamage;
+                case CustomVehicleType.Tornado_Grey:
+                    return configData.customVehicles.tornado_Grey.NoDamage;
+                case CustomVehicleType.Tornado_Tan:
+                    return configData.customVehicles.tornado_Tan.NoDamage;
+                case CustomVehicleType.CF105:
+                    return configData.customVehicles.cF105.NoDamage;
+                case CustomVehicleType.ShifterKart1:
+                    return configData.customVehicles.shifterKart1.NoDamage;
+                case CustomVehicleType.ShifterKart2:
+                    return configData.customVehicles.shifterKart2.NoDamage;
+                case CustomVehicleType.ShifterKart3:
+                    return configData.customVehicles.shifterKart3.NoDamage;
+                case CustomVehicleType.ShifterKart4:
+                    return configData.customVehicles.shifterKart4.NoDamage;
+                case CustomVehicleType.ShifterKart5:
+                    return configData.customVehicles.shifterKart5.NoDamage;
+                case CustomVehicleType.ShifterKart6:
+                    return configData.customVehicles.shifterKart6.NoDamage;
+                case CustomVehicleType.MH60X:
+                    return configData.customVehicles.mh60x.NoDamage;
+                case CustomVehicleType.AH001:
+                    return configData.customVehicles.ah001.NoDamage;
+                case CustomVehicleType.BoltBucket:
+                    return configData.customVehicles.boltBucket.NoDamage;
+                case CustomVehicleType.CrudeBird:
+                    return configData.customVehicles.crudeBird.NoDamage;
+                case CustomVehicleType.Stretch_Black:
+                    return configData.customVehicles.stretch_Black.NoDamage;
+                case CustomVehicleType.Stretch_White:
+                    return configData.customVehicles.stretch_White.NoDamage;
+                case CustomVehicleType.Stretch_Pink:
+                    return configData.customVehicles.stretch_Pink.NoDamage;
+                case CustomVehicleType.Motorhome:
+                    return configData.customVehicles.motorhome.NoDamage;
+                case CustomVehicleType.Cybertruck:
+                    return configData.customVehicles.cybertruck.NoDamage;
+                case CustomVehicleType.Cyberkart:
+                    return configData.customVehicles.cyberkart.NoDamage;
+                case CustomVehicleType.KartToy:
+                    return configData.customVehicles.kartToy.NoDamage;
+                case CustomVehicleType.KartUFO:
+                    return configData.customVehicles.kartUFO.NoDamage;
+                case CustomVehicleType.KartSemi:
+                    return configData.customVehicles.kartSemi.NoDamage;
+                case CustomVehicleType.KartSedan:
+                    return configData.customVehicles.kartSedan.NoDamage;
+                case CustomVehicleType.KartRaceBed:
+                    return configData.customVehicles.kartRaceBed.NoDamage;
+                case CustomVehicleType.KartPinata:
+                    return configData.customVehicles.kartPinata.NoDamage;
+                case CustomVehicleType.KartPie:
+                    return configData.customVehicles.kartPie.NoDamage;
+                case CustomVehicleType.KartCoop:
+                    return configData.customVehicles.kartCoop.NoDamage;
+                case CustomVehicleType.KartCatapult:
+                    return configData.customVehicles.kartCatapult.NoDamage;
+                case CustomVehicleType.KartCake:
+                    return configData.customVehicles.kartCake.NoDamage;
+                case CustomVehicleType.KartBradley:
+                    return configData.customVehicles.kartBradley.NoDamage;
+                case CustomVehicleType.ScrapBuggy:
+                    return configData.customVehicles.scrapBuggy.NoDamage;
+                case CustomVehicleType.ScrapCar:
+                    return configData.customVehicles.scrapCar.NoDamage;
+                case CustomVehicleType.ScrapTruck:
+                    return configData.customVehicles.scrapTruck.NoDamage;
+                case CustomVehicleType.Diablo_Black:
+                    return configData.customVehicles.diabloBlack.NoDamage;
+                case CustomVehicleType.Diablo_Blue:
+                    return configData.customVehicles.diabloBlue.NoDamage;
+                case CustomVehicleType.Diablo_Gold:
+                    return configData.customVehicles.diabloGold.NoDamage;
+                case CustomVehicleType.Diablo_Green:
+                    return configData.customVehicles.diabloGreen.NoDamage;
+                case CustomVehicleType.Diablo_Orange:
+                    return configData.customVehicles.diabloOrange.NoDamage;
+                case CustomVehicleType.Diablo_Police:
+                    return configData.customVehicles.diabloPolice.NoDamage;
+                case CustomVehicleType.Diablo_Purple:
+                    return configData.customVehicles.diabloPurple.NoDamage;
+                case CustomVehicleType.Diablo_Red:
+                    return configData.customVehicles.diabloRed.NoDamage;
+                case CustomVehicleType.Diablo_White:
+                    return configData.customVehicles.diabloWhite.NoDamage;
+                case CustomVehicleType.Diablo_Yellow:
+                    return configData.customVehicles.diabloYellow.NoDamage;
+                case CustomVehicleType.Diablo_Pink:
+                    return configData.customVehicles.diabloPink.NoDamage;
+                case CustomVehicleType.Jetpack:
+                    return configData.customVehicles.jetpack.NoDamage;
+                case CustomVehicleType.JetpackUnarmed:
+                    return configData.customVehicles.jetpackUnarmed.NoDamage;
+                case CustomVehicleType._126pBlue:
+                    return configData.customVehicles._126pBlue.NoDamage;
+                case CustomVehicleType._126pBrown:
+                    return configData.customVehicles._126pBrown.NoDamage;
+                case CustomVehicleType._126pPurple:
+                    return configData.customVehicles._126pPurple.NoDamage;
+                case CustomVehicleType._126pGreen:
+                    return configData.customVehicles._126pGreen.NoDamage;
+                case CustomVehicleType._126pLime:
+                    return configData.customVehicles._126pLime.NoDamage;
+                case CustomVehicleType.Tuktuk:
+                    return configData.customVehicles.tuktuk.NoDamage;
+                case CustomVehicleType.SantaSled:
+                    return configData.customVehicles.santaSled.NoDamage;
+                case CustomVehicleType.PortaPotty:
+                    return configData.customVehicles.portaPotty.NoDamage;
+                case CustomVehicleType.SpaceBuggy:
+                    return configData.customVehicles.spaceBuggy.NoDamage;
+                case CustomVehicleType.SpaceHeli:
+                    return configData.customVehicles.spaceHeli.NoDamage;
+                case CustomVehicleType.SpaceHeliArmed:
+                    return configData.customVehicles.spaceHeliArmed.NoDamage;
+                case CustomVehicleType.Viperwing:
+                    return configData.customVehicles.viperwing.NoDamage;
+                case CustomVehicleType.Nightwing:
+                    return configData.customVehicles.nightwing.NoDamage;
+                case CustomVehicleType.AssaultDrone:
+                    return configData.customVehicles.assaultDrone.NoDamage;
+                case CustomVehicleType.ChairCar:
+                    return configData.customVehicles.chairCar.NoDamage;
+                case CustomVehicleType.RockingChairCar:
+                    return configData.customVehicles.rockingChairCar.NoDamage;
+                case CustomVehicleType.BeanBagCar:
+                    return configData.customVehicles.beanBagCar.NoDamage;
+                case CustomVehicleType.BeanBagCarDuo:
+                    return configData.customVehicles.beanBagCarDuo.NoDamage;
+                case CustomVehicleType.BeachChairCar:
+                    return configData.customVehicles.beachChairCar.NoDamage;
+                case CustomVehicleType.BeachChairCarDuo:
+                    return configData.customVehicles.beachChairCarDuo.NoDamage;
+                case CustomVehicleType.HoverThrone:
+                    return configData.customVehicles.hoverThrone.NoDamage;
+                case CustomVehicleType.RocketSeat:
+                    return configData.customVehicles.rocketSeat.NoDamage;
+                case CustomVehicleType.DeskCar:
+                    return configData.customVehicles.deskCar.NoDamage;
+                case CustomVehicleType.UmbrellaCopter:
+                    return configData.customVehicles.umbrellaCopter.NoDamage;
+                case CustomVehicleType.DeskCopter:
+                    return configData.customVehicles.deskCopter.NoDamage;
+                case CustomVehicleType.UtilityTruck:
+                    return configData.customVehicles.utilityTruck.NoDamage;
+                case CustomVehicleType.UtilityTruck2:
+                    return configData.customVehicles.utilityTruck2.NoDamage;
+                case CustomVehicleType.UtilityTruck3:
+                    return configData.customVehicles.utilityTruck3.NoDamage;
+                case CustomVehicleType.SemiTandemAxle:
+                    return configData.customVehicles.semiTandemAxle.NoDamage;
+                case CustomVehicleType.ARES_T:
+                    return configData.customVehicles.aresT.NoDamage;
+                case CustomVehicleType.ARES_AA:
+                    return configData.customVehicles.aresAA.NoDamage;
+                case CustomVehicleType.ARES_HC:
+                    return configData.customVehicles.aresHC.NoDamage;
+                case CustomVehicleType.FarmTrailer:
+                    return configData.customVehicles.farmTrailer.NoDamage;
+                case CustomVehicleType.ATV_Blue:
+                    return configData.customVehicles.atvBlue.NoDamage;
+                case CustomVehicleType.ATV_Camo:
+                    return configData.customVehicles.atvCamo.NoDamage;
+                case CustomVehicleType.ATV_Red:
+                    return configData.customVehicles.atvRed.NoDamage;
+                case CustomVehicleType.ATV_Yellow:
+                    return configData.customVehicles.atvYellow.NoDamage;
+                case CustomVehicleType.BeeVan:
+                    return configData.customVehicles.beeVan.NoDamage;
+                case CustomVehicleType.FoodTruck:
+                    return configData.customVehicles.foodTruck.NoDamage;
+                case CustomVehicleType.GunTruck:
+                    return configData.customVehicles.gunTruck.NoDamage;
+                case CustomVehicleType.VaultVan:
+                    return configData.customVehicles.vaultVan.NoDamage;
+                case CustomVehicleType.DeliveryVan:
+                    return configData.customVehicles.deliveryVan.NoDamage;
+                case CustomVehicleType.Rustlux:
+                    return configData.customVehicles.rustlux.NoDamage;
+                case CustomVehicleType.Rustlux_50cal:
+                    return configData.customVehicles.rustlux50cal.NoDamage;
+                case CustomVehicleType.Rustlux_Armor:
+                    return configData.customVehicles.rustluxArmor.NoDamage;
+                case CustomVehicleType.Rustlux_HE:
+                    return configData.customVehicles.rustluxHE.NoDamage;
+                case CustomVehicleType.Rustlux_HV:
+                    return configData.customVehicles.rustluxHV.NoDamage;
+                case CustomVehicleType.Rustlux_MLRS:
+                    return configData.customVehicles.rustluxMLRS.NoDamage;
+                case CustomVehicleType.FireAmbulance:
+                    return configData.customVehicles.fireAmbulance.NoDamage;
+                case CustomVehicleType.FireTruck:
+                    return configData.customVehicles.fireTruck.NoDamage;
+                case CustomVehicleType.FireLightRescue:
+                    return configData.customVehicles.fireLightRescue.NoDamage;
+                case CustomVehicleType.FirePickupTruck:
+                    return configData.customVehicles.firePickupTruck.NoDamage;
+                case CustomVehicleType.Apache:
+                    return configData.customVehicles.apache.NoDamage;
+                case CustomVehicleType.PodRacerSky:
+                    return configData.customVehicles.podRacerSky.NoDamage;
+                case CustomVehicleType.Wedge:
+                    return configData.customVehicles.wedge.NoDamage;
+                case CustomVehicleType.CannonCar:
+                    return configData.customVehicles.cannonCar.NoDamage;
+                case CustomVehicleType.SharkSuit:
+                    return configData.customVehicles.sharkSuit.NoDamage;
+                case CustomVehicleType.SharkSuitArmed:
+                    return configData.customVehicles.sharkSuitArmed.NoDamage;
+                case CustomVehicleType.SharkBoat:
+                    return configData.customVehicles.sharkBoat.NoDamage;
+                case CustomVehicleType.SharkBoatArmed:
+                    return configData.customVehicles.sharkBoatArmed.NoDamage;
+                case CustomVehicleType.SharkBoatHuge:
+                    return configData.customVehicles.sharkBoatHuge.NoDamage;
+                case CustomVehicleType.StandSki:
+                    return configData.customVehicles.standSki.NoDamage;
+                case CustomVehicleType.StandSki2:
+                    return configData.customVehicles.standSki2.NoDamage;
+                case CustomVehicleType.StandSki3:
+                    return configData.customVehicles.standSki3.NoDamage;
+                case CustomVehicleType.StandSki4:
+                    return configData.customVehicles.standSki4.NoDamage;
+                case CustomVehicleType.StandSki5:
+                    return configData.customVehicles.standSki5.NoDamage;
+                case CustomVehicleType.StandSki6:
+                    return configData.customVehicles.standSki6.NoDamage;
+                case CustomVehicleType.JetSkiBlack:
+                    return configData.customVehicles.jetSkiBlack.NoDamage;
+                case CustomVehicleType.JetSkiBlue:
+                    return configData.customVehicles.jetSkiBlue.NoDamage;
+                case CustomVehicleType.JetSkiBlueRedStriped:
+                    return configData.customVehicles.jetSkiBlueRedStriped.NoDamage;
+                case CustomVehicleType.JetSkiBlueYellowStriped:
+                    return configData.customVehicles.jetSkiBlueYellowStriped.NoDamage;
+                case CustomVehicleType.JetSkiCamo:
+                    return configData.customVehicles.jetSkiCamo.NoDamage;
+                case CustomVehicleType.JetSkiGold:
+                    return configData.customVehicles.jetSkiGold.NoDamage;
+                case CustomVehicleType.JetSkiGreen:
+                    return configData.customVehicles.jetSkiGreen.NoDamage;
+                case CustomVehicleType.JetSkiPink:
+                    return configData.customVehicles.jetSkiPink.NoDamage;
+                case CustomVehicleType.JetSkiPolice:
+                    return configData.customVehicles.jetSkiPolice.NoDamage;
+                case CustomVehicleType.JetSkiPurple:
+                    return configData.customVehicles.jetSkiPurple.NoDamage;
+                case CustomVehicleType.JetSkiRed:
+                    return configData.customVehicles.jetSkiRed.NoDamage;
+                case CustomVehicleType.JetSkiYellow:
+                    return configData.customVehicles.jetSkiYellow.NoDamage;
+                case CustomVehicleType.WeedVan:
+                    return configData.customVehicles.weedVan.NoDamage;
+                case CustomVehicleType.WarthogBlack:
+                    return configData.customVehicles.warthogBlack.NoDamage;
+                case CustomVehicleType.Transit:
+                    return configData.customVehicles.transit.NoDamage;
+                case CustomVehicleType.TransitDropside:
+                    return configData.customVehicles.transitDropside.NoDamage;
+                case CustomVehicleType.TransitRecycling:
+                    return configData.customVehicles.transitRecycling.NoDamage;
+                case CustomVehicleType.TransitBox:
+                    return configData.customVehicles.transitBox.NoDamage;
+                case CustomVehicleType.SentryCar:
+                    return configData.customVehicles.sentryCar.NoDamage;
+                case CustomVehicleType.SentryCar2:
+                    return configData.customVehicles.sentryCar2.NoDamage;
+                case CustomVehicleType.BarrelCarThing:
+                    return configData.customVehicles.barrelCarThing.NoDamage;
+                case CustomVehicleType.HumanCar:
+                    return configData.customVehicles.humanCar.NoDamage;
+                case CustomVehicleType.HumanKart:
+                    return configData.customVehicles.humanKart.NoDamage;
+                case CustomVehicleType.MonsterBike:
+                    return configData.customVehicles.monsterBike.NoDamage;
+                case CustomVehicleType.Tire:
+                    return configData.customVehicles.tire.NoDamage;
+                case CustomVehicleType.Zergatron:
+                    return configData.customVehicles.zergatron.NoDamage;
+                case CustomVehicleType.OxideMan:
+                    return configData.customVehicles.oxideMan.NoDamage;
+                case CustomVehicleType.CoffinCar:
+                    return configData.customVehicles.coffinCar.NoDamage;
+                case CustomVehicleType.Stormwing:
+                    return configData.customVehicles.stormwing.NoDamage;
+                case CustomVehicleType.MiniRHIB:
+                    return configData.customVehicles.miniRHIB.NoDamage;
+                case CustomVehicleType.MiniPTBoat:
+                    return configData.customVehicles.miniPTBoat.NoDamage;
+                case CustomVehicleType.MiniSub:
+                    return configData.customVehicles.miniSub.NoDamage;
+                case CustomVehicleType.MiniSub2:
+                    return configData.customVehicles.miniSub2.NoDamage;
+                case CustomVehicleType.CPV_Grey:
+                    return configData.customVehicles.cpvGrey.NoDamage;
+                case CustomVehicleType.CPV_Green:
+                    return configData.customVehicles.cpvGreen.NoDamage;
                 default:
                     return false;
             }
@@ -1785,7 +4843,7 @@ namespace Oxide.Plugins
             {
                 return NormalVehicleType.Tugboat;
             }
-            if (baseVehicle is RidableHorse)
+            if (baseVehicle is BaseVehicle)
             {
                 return NormalVehicleType.RidableHorse;
             }
@@ -1821,6 +4879,7 @@ namespace Oxide.Plugins
             {
                 return NormalVehicleType.Kayak;
             }
+
             return null;
         }
 
@@ -1891,23 +4950,48 @@ namespace Oxide.Plugins
             }
         }
 
-        private static Vector3 GetGroundPositionLookingAt(BasePlayer player, float distance, bool needUp = true)
+        private static Vector3 GetGroundPositionLookingAt(BasePlayer player, float distance, bool isWaterVehicle, bool needUp = true)
         {
             RaycastHit hitInfo;
             var headRay = player.eyes.HeadRay();
+
             if (Physics.Raycast(headRay, out hitInfo, distance, LAYER_GROUND))
             {
-                return hitInfo.point;
+                float heightOffset = 0f;
+
+                if (hitInfo.collider.gameObject.layer == LayerMask.NameToLayer("Construction"))
+                {
+                    heightOffset = 3f;
+                }
+                else if (!isWaterVehicle)
+                {
+                    heightOffset = 2f;
+                }
+
+                return hitInfo.point + Vector3.up * heightOffset;
             }
-            return GetGroundPosition(headRay.origin + headRay.direction * distance, needUp);
+
+            Vector3 groundPosition = GetGroundPosition(headRay.origin + headRay.direction * distance, isWaterVehicle, needUp);
+
+            if (!isWaterVehicle)
+            {
+                groundPosition.y += 2f;
+            }
+
+            return groundPosition;
         }
 
-        private static Vector3 GetGroundPosition(Vector3 position, bool needUp = true)
+        private static Vector3 GetGroundPosition(Vector3 position, bool isWaterVehicle, bool needUp = true)
         {
             RaycastHit hitInfo;
             position.y = Physics.Raycast(needUp ? position + Vector3.up * 250 : position, Vector3.down, out hitInfo, needUp ? 400f : 50f, LAYER_GROUND)
-                    ? hitInfo.point.y
-                    : TerrainMeta.HeightMap.GetHeight(position);
+                ? hitInfo.point.y
+                : TerrainMeta.HeightMap.GetHeight(position);
+
+            if (!isWaterVehicle)
+            {
+                position.y += 2f;
+            }
             return position;
         }
 
@@ -1973,6 +5057,41 @@ namespace Oxide.Plugins
 
         #region API
 
+        [HookMethod(nameof(SpawnLicensedVehicle))] // added hooks
+        public bool SpawnLicensedVehicle(BasePlayer player, string vehicleType, string command, bool bypassCooldown = false)
+        {
+            SpawnVehicle(player, vehicleType, bypassCooldown, command);
+
+            if (!GetLicensedVehicle(player.userID.Get(), vehicleType)) return false;
+
+            return true;
+        }
+
+        [HookMethod(nameof(RecallLicensedVehicle))] // added hooks
+        public bool RecallLicensedVehicle(BasePlayer player, string vehicleType, string command, bool bypassCooldown = false)
+        {
+            RecallVehicle(player, vehicleType, bypassCooldown, command);
+            return true;
+        }
+
+        [HookMethod(nameof(KillLicensedVehicle))] // added hooks
+        public bool KillLicensedVehicle(BasePlayer player, string vehicleType, bool response = true)
+        {
+            KillVehicle(player, vehicleType, response);
+
+            if (GetLicensedVehicle(player.userID.Get(), vehicleType)) return false;
+
+            return true;
+        }
+
+        [HookMethod(nameof(BuyVehicleLicense))] // added hook
+        public bool BuyVehicleLicense(BasePlayer player, string vehicleType, bool response = true)
+        {
+            if (!BuyVehicle(player, vehicleType, response)) return false;
+
+            return true;
+        }
+
         [HookMethod(nameof(IsLicensedVehicle))]
         public bool IsLicensedVehicle(BaseEntity entity)
         {
@@ -2013,6 +5132,50 @@ namespace Oxide.Plugins
         public void PurchaseAllVehicles(ulong playerId)
         {
             storedData.PurchaseAllVehicles(playerId);
+        }
+
+        [HookMethod("ResetVehicleDeathState")]
+        public void ResetVehicleDeathState()
+        {
+            foreach (var playerData in storedData.playerData)
+            {
+                foreach (var vehicle in playerData.Value)
+                {
+                    vehicle.Value.LastDeath = 0;
+
+                    Puts($"Reset the lastDeath for vehicle {vehicle.Key} of player {playerData.Key}");
+                }
+            }
+            SaveData();
+        }
+
+        private Vehicle GetLicensedVehicle(string vehicleType)
+        {
+            foreach (var playerData in storedData.playerData)
+            {
+                if (playerData.Value.ContainsKey(vehicleType))
+                {
+                    return playerData.Value[vehicleType];
+                }
+            }
+            return null;
+        }
+
+        public bool IsLicensedVehicleType(string vehicleType)
+        {
+            string vehicleTypeLower = vehicleType.ToLower();
+
+            foreach (var playerData in storedData.playerData)
+            {
+                foreach (var vehicle in playerData.Value)
+                {
+                    if (vehicle.Key.ToLower() == vehicleTypeLower)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         #endregion API
@@ -2254,15 +5417,18 @@ namespace Oxide.Plugins
                             if (AddVehicleLicense(target.userID, vehicleType))
                             {
                                 Print(arg, $"You successfully purchased the vehicle({vehicleName}) for {target.displayName}");
+                                Interface.CallHook("OnLicensedVehiclePurchased", target, vehicleType);
                                 return;
                             }
 
                             Print(arg, $"{target.displayName} has purchased vehicle({vehicleName})");
+                            Interface.CallHook("OnLicensedVehiclePurchased", target, vehicleType);
                         }
                         return;
                 }
             }
             var player = arg.Player();
+
             if (player == null)
             {
                 Print(arg, $"The server console cannot use the '{arg.cmd.FullName}' command");
@@ -2304,6 +5470,7 @@ namespace Oxide.Plugins
                 return;
             }
             string vehicleType;
+
             if (IsValidOption(player, args[0], out vehicleType))
             {
                 BuyVehicle(player, vehicleType);
@@ -2332,6 +5499,7 @@ namespace Oxide.Plugins
             }
             vehicles.Add(vehicleType, Vehicle.Create(player.userID, vehicleType));
             SaveData();
+            Interface.CallHook("OnLicensedVehiclePurchased", player, vehicleType, response);
             if (response) Print(player, Lang("VehiclePurchased", player.UserIDString, settings.DisplayName, configData.chat.spawnCommand));
             return true;
         }
@@ -2485,6 +5653,12 @@ namespace Oxide.Plugins
             if (!configData.CanSpawnInZones && InZone(player))
             {
                 reason = Lang("NoSpawnInZone", player.UserIDString, settings.DisplayName);
+                return false;
+            }
+
+            if (player.IsInsideDeepSea() && !configData.CanSpawnInDeepSea)
+            {
+                reason = Lang("NoSpawnInDeepSea", player.UserIDString, settings.DisplayName);
                 return false;
             }
 
@@ -2656,6 +5830,12 @@ namespace Oxide.Plugins
                 reason = Lang("NoRecallInZone", player.UserIDString, settings.DisplayName);
                 return false;
             }
+
+            if (player.IsInsideDeepSea() && !configData.CanSpawnInDeepSea)
+            {
+                reason = Lang("NoSpawnInDeepSea", player.UserIDString, settings.DisplayName);
+                return false;
+            }
             reason = null;
             return true;
         }
@@ -2677,6 +5857,12 @@ namespace Oxide.Plugins
                 vehicleEntity.SetVelocity(Vector3.zero);
                 vehicleEntity.SetAngularVelocity(Vector3.zero);
             }
+
+            if (!(vehicleEntity is RidableHorse))
+            {
+                position.y += 2f;
+            }
+
             vehicleEntity.transform.SetPositionAndRotation(position, rotation);
             vehicleEntity.transform.hasChanged = true;
             vehicleEntity.UpdateNetworkGroup();
@@ -2762,7 +5948,8 @@ namespace Oxide.Plugins
             Vehicle vehicle;
             if (!storedData.IsVehiclePurchased(player.userID, vehicleType, out vehicle))
             {
-                Print(player, Lang("VehicleNotYetPurchased", player.UserIDString, settings.DisplayName, configData.chat.buyCommand));
+                if (player.IsConnected)
+                    Print(player, Lang("VehicleNotYetPurchased", player.UserIDString, settings.DisplayName, configData.chat.buyCommand));
                 return false;
             }
             if (vehicle.Entity != null && !vehicle.Entity.IsDestroyed)
@@ -2773,10 +5960,13 @@ namespace Oxide.Plugins
                 }
                 vehicle.Entity.Kill(BaseNetworkable.DestroyMode.Gib);
                 if (!response) return true;
-                Print(player, Lang("VehicleKilled", player.UserIDString, settings.DisplayName));
+                Interface.CallHook("OnLicensedVehicleKilled", player, vehicle.VehicleType, response);
+                if (player.IsConnected)
+                    Print(player, Lang("VehicleKilled", player.UserIDString, settings.DisplayName));
                 return true;
             }
-            Print(player, Lang("VehicleNotOut", player.UserIDString, settings.DisplayName, configData.chat.spawnCommand));
+            if (player.IsConnected)
+                Print(player, Lang("VehicleNotOut", player.UserIDString, settings.DisplayName, configData.chat.spawnCommand));
             return false;
         }
 
@@ -2986,6 +6176,8 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Zones to prevent users from spawning/recalled vehicles within.", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public List<string> AntiSpawnZones = new List<string> { "KeepVehiclesOut" };
 
+            [JsonProperty("Allow vehicles to be spawned/recalled in the deepsea")] public bool CanSpawnInDeepSea = false;
+
             [JsonProperty(PropertyName = "Normal Vehicle Settings")]
             public NormalVehicleSettings normalVehicles = new NormalVehicleSettings();
 
@@ -2994,7 +6186,7 @@ namespace Oxide.Plugins
             {
                 ["SmallCar"] = new ModularVehicleSettings
                 {
-                    Purchasable = true,
+                    Purchasable = false,
                     NoDamage = false,
                     NoCollisionDamage = false,
                     DisplayName = "Small Modular Car",
@@ -3064,7 +6256,7 @@ namespace Oxide.Plugins
                 },
                 ["MediumCar"] = new ModularVehicleSettings
                 {
-                    Purchasable = true,
+                    Purchasable = false,
                     NoDamage = false,
                     NoCollisionDamage = false,
                     DisplayName = "Medium Modular Car",
@@ -3138,7 +6330,7 @@ namespace Oxide.Plugins
                 },
                 ["LargeCar"] = new ModularVehicleSettings
                 {
-                    Purchasable = true,
+                    Purchasable = false,
                     NoDamage = false,
                     NoCollisionDamage = false,
                     DisplayName = "Large Modular Car",
@@ -3154,7 +6346,7 @@ namespace Oxide.Plugins
                     },
                     SpawnPrices = new Dictionary<string, PriceInfo>
                     {
-                        ["metal.refined"] = new PriceInfo { amount = 100, displayName = "High Quality Metal" }
+                        ["metal.refined"] = new PriceInfo { amount = 100, displayName = "High Quality Metal", }
                     },
                     RecallPrices = new Dictionary<string, PriceInfo>
                     {
@@ -3233,7 +6425,7 @@ namespace Oxide.Plugins
             {
                 ["WorkCartAboveGround"] = new TrainVehicleSettings
                 {
-                    Purchasable = true,
+                    Purchasable = false,
                     NoDamage = false,
                     NoCollisionDamage = false,
                     DisplayName = "Work Cart Above Ground",
@@ -3267,7 +6459,7 @@ namespace Oxide.Plugins
                 },
                 ["WorkCartCovered"] = new TrainVehicleSettings
                 {
-                    Purchasable = true,
+                    Purchasable = false,
                     NoDamage = false,
                     NoCollisionDamage = false,
                     DisplayName = "Covered Work Cart",
@@ -3301,7 +6493,7 @@ namespace Oxide.Plugins
                 },
                 ["CompleteTrain"] = new TrainVehicleSettings
                 {
-                    Purchasable = true,
+                    Purchasable = false,
                     NoDamage = false,
                     NoCollisionDamage = false,
                     DisplayName = "Complete Train",
@@ -3358,7 +6550,7 @@ namespace Oxide.Plugins
                 },
                 ["Locomotive"] = new TrainVehicleSettings
                 {
-                    Purchasable = true,
+                    Purchasable = false,
                     NoDamage = false,
                     NoCollisionDamage = false,
                     DisplayName = "Locomotive",
@@ -3391,7 +6583,7 @@ namespace Oxide.Plugins
                     }
                 }
             };
-            
+
             [DefaultValue(null)]
             [JsonProperty(PropertyName = "Custom Vehicle Settings", DefaultValueHandling = DefaultValueHandling.Ignore)]
             public CustomVehicleSettings customVehicles = null;
@@ -3530,6 +6722,8 @@ namespace Oxide.Plugins
 
             [JsonProperty(PropertyName = "Populate the config with Custom Vehicles (CANNOT BE UNDONE! Will make config much larger)")]
             public bool useCustomVehicles;
+
+            [JsonProperty(PropertyName = "Kill Players Owned Vehicles On Disconnect?")] public bool killOnDisconnect { get; set; } = false;
         }
 
         public class NormalVehicleSettings
@@ -3537,7 +6731,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Tugboat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public TugboatSettings tugboat = new TugboatSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Tugboat",
@@ -3571,7 +6765,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Sedan Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public SedanSettings sedan = new SedanSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Sedan",
@@ -3600,7 +6794,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Chinook Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public ChinookSettings chinook = new ChinookSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Chinook",
@@ -3629,7 +6823,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Rowboat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public RowboatSettings rowboat = new RowboatSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Row Boat",
@@ -3658,7 +6852,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "RHIB Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public RhibSettings rhib = new RhibSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Rigid Hulled Inflatable Boat",
@@ -3687,7 +6881,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Hot Air Balloon Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public HotAirBalloonSettings hotAirBalloon = new HotAirBalloonSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Hot Air Balloon",
@@ -3716,7 +6910,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Armored Hot Air Balloon Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public ArmoredHotAirBalloonSettings armoredHotAirBalloon = new ArmoredHotAirBalloonSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Armored Hot Air Balloon",
@@ -3745,10 +6939,11 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Ridable Horse Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public RidableHorseSettings ridableHorse = new RidableHorseSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 IsDoubleSaddle = false,
+                ArmorType = "",
                 DisplayName = "Ridable Horse",
                 Distance = 6,
                 MinDistanceForPlayers = 1,
@@ -3779,7 +6974,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Mini Copter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public MiniCopterSettings miniCopter = new MiniCopterSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Mini Copter",
@@ -3812,7 +7007,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Attack Helicopter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public AttackHelicopterSettings attackHelicopter = new AttackHelicopterSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Attack Helicopter",
@@ -3848,7 +7043,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Transport Helicopter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public TransportHelicopterSettings transportHelicopter = new TransportHelicopterSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Transport Copter",
@@ -3884,7 +7079,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Work Cart Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public WorkCartSettings workCart = new WorkCartSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Work Cart",
@@ -3916,7 +7111,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Sedan Rail Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public WorkCartSettings sedanRail = new WorkCartSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Sedan Rail",
@@ -3948,7 +7143,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Magnet Crane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public MagnetCraneSettings magnetCrane = new MagnetCraneSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Magnet Crane",
@@ -3980,7 +7175,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Submarine Solo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public SubmarineSoloSettings submarineSolo = new SubmarineSoloSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Submarine Solo",
@@ -4009,7 +7204,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Submarine Duo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public SubmarineDuoSettings submarineDuo = new SubmarineDuoSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Submarine Duo",
@@ -4038,7 +7233,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Snowmobile Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public SnowmobileSettings snowmobile = new SnowmobileSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Snowmobile",
@@ -4064,39 +7259,10 @@ namespace Oxide.Plugins
                 }
             };
 
-            [JsonProperty(PropertyName = "Tomaha Snowmobile Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public SnowmobileSettings tomahaSnowmobile = new SnowmobileSettings
-            {
-                Purchasable = true,
-                NoDamage = false,
-                NoCollisionDamage = false,
-                DisplayName = "Tomaha Snowmobile",
-                Distance = 5,
-                MinDistanceForPlayers = 2,
-                UsePermission = true,
-                Permission = "vehiclelicence.tomahasnowmobile",
-                BypassCostPermission = "vehiclelicence.tomahasnowmobilefree",
-                Commands = new List<string> { "tsnow", "tsnowmobile" },
-                PurchasePrices = new Dictionary<string, PriceInfo>
-                {
-                    ["scrap"] = new PriceInfo { amount = 1000, displayName = "Scrap" }
-                },
-                SpawnCooldown = 300,
-                RecallCooldown = 30,
-                CooldownPermissions = new Dictionary<string, CooldownPermission>
-                {
-                    ["vehiclelicence.vip"] = new CooldownPermission
-                    {
-                        spawnCooldown = 150,
-                        recallCooldown = 10
-                    }
-                }
-            };
-
             [JsonProperty(PropertyName = "Pedal Bike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public PedalBikeSettings pedalBike = new PedalBikeSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Pedal Bike",
@@ -4125,7 +7291,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Pedal Trike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public PedalTrikeSettings pedalTrike = new PedalTrikeSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Pedal Trike",
@@ -4154,7 +7320,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Motorbike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public MotorBikeSettings motorBike = new MotorBikeSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Motorbike",
@@ -4183,7 +7349,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Motorbike Sidecar Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public MotorBikeSidecarSettings motorBikeSidecar = new MotorBikeSidecarSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Motorbike Sidecar",
@@ -4208,11 +7374,11 @@ namespace Oxide.Plugins
                     }
                 }
             };
-            
+
             [JsonProperty(PropertyName = "Kayak Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public KayakSettings Kayak = new KayakSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Kayak",
@@ -4237,6 +7403,180 @@ namespace Oxide.Plugins
                     }
                 }
             };
+
+            [JsonProperty(PropertyName = "Driver Propulsion Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DpvSettings dpv = new DpvSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "DPV",
+                Distance = 5,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.dpv",
+                BypassCostPermission = "vehiclelicence.dpvfree",
+                Commands = new List<string> { "dpv" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Siege Tower Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SiegeTowerSettings siegeTower = new SiegeTowerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Siege Tower",
+                Distance = 15,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.siegetower",
+                BypassCostPermission = "vehiclelicence.siegetowerfree",
+                Commands = new List<string> { "siegetower", "tower" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Catapult Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public CatapultSettings catapult = new CatapultSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Catapult",
+                Distance = 15,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.catapult",
+                BypassCostPermission = "vehiclelicence.catapultfree",
+                Commands = new List<string> { "catapult" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Batteringram Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BatteringramSettings batteringram = new BatteringramSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Batteringram",
+                Distance = 15,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.batteringram",
+                BypassCostPermission = "vehiclelicence.batteringramfree",
+                Commands = new List<string> { "batteringram" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Ballista Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BallistaSettings ballista = new BallistaSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Ballista",
+                Distance = 15,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ballista",
+                BypassCostPermission = "vehiclelicence.ballistafree",
+                Commands = new List<string> { "ballista" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "PT Boat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public PTBoatSettings pTBoat = new PTBoatSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "PT Boat",
+                Distance = 15,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ptboat",
+                BypassCostPermission = "vehiclelicence.ptboatfree",
+                Commands = new List<string> { "ptb", "ptboat" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 10000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
         }
 
         public class CustomVehicleSettings
@@ -4244,7 +7584,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "ATV Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public AtvSettings atv = new AtvSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "ATV",
@@ -4273,7 +7613,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Race Sofa Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public RaceSofaSettings raceSofa = new RaceSofaSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Race Sofa",
@@ -4300,9 +7640,9 @@ namespace Oxide.Plugins
             };
 
             [JsonProperty(PropertyName = "Water Bird Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public WaterBirdSettings waterBird = new WaterBirdSettings
+            public WaterHeliSettings waterHeli = new WaterHeliSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Water Bird",
@@ -4331,10 +7671,10 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "War Bird Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public WarBirdSettings warBird = new WarBirdSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
-                DisplayName = "Water Bird",
+                DisplayName = "War Bird",
                 Distance = 7,
                 MinDistanceForPlayers = 2,
                 UsePermission = true,
@@ -4360,7 +7700,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Little Bird Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public LittleBirdSettings littleBird = new LittleBirdSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Little Bird",
@@ -4389,7 +7729,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Fighter Plane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public FighterSettings fighter = new FighterSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Fighter Plane",
@@ -4418,7 +7758,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Old Fighter Plane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public OldFighterSettings oldFighter = new OldFighterSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Old Fighter Plane",
@@ -4447,7 +7787,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Fighter Bus Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public FighterBusSettings fighterBus = new FighterBusSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Fighter Bus",
@@ -4476,7 +7816,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "War Bus Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public WarBusSettings warBus = new WarBusSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "War Bus",
@@ -4505,7 +7845,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Air Bus Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public AirBusSettings airBus = new AirBusSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Air Bus",
@@ -4534,7 +7874,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Patrol Helicopter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public PatrolHelicopterSettings patrolHeli = new PatrolHelicopterSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Patrol Helicopter",
@@ -4563,7 +7903,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Rust Wing Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public RustWingSettings rustWing = new RustWingSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Rust Wing",
@@ -4592,7 +7932,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Rust Wing Detailed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public RustWingDetailedSettings rustWingDetailed = new RustWingDetailedSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Rust Wing Detailed",
@@ -4621,7 +7961,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Rust Wing Detailed Old Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public RustWingDetailedOldSettings rustWingDetailedOld = new RustWingDetailedOldSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Rust Wing Detailed Old",
@@ -4650,7 +7990,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Tin Fighter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public TinFighterSettings tinFighter = new TinFighterSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Tie Fighter",
@@ -4679,7 +8019,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Tin Fighter Detailed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public TinFighterDetailedSettings tinFighterDetailed = new TinFighterDetailedSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Tie Fighter Detailed",
@@ -4708,7 +8048,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Tin Fighter Detailed Old Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public TinFighterDetailedOldSettings tinFighterDetailedOld = new TinFighterDetailedOldSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Tie Fighter Detailed Old",
@@ -4737,7 +8077,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Mars Fighter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public MarsFighterSettings marsFighter = new MarsFighterSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Mars Fighter",
@@ -4766,7 +8106,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Mars Fighter Detailed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public MarsFighterDetailedSettings marsFighterDetailed = new MarsFighterDetailedSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Mars Fighter Detailed",
@@ -4795,7 +8135,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Sky Plane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public SkyPlaneSettings skyPlane = new SkyPlaneSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Sky Plane",
@@ -4824,11 +8164,11 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Sky Boat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public SkyBoatSettings skyBoat = new SkyBoatSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Sky Boat",
-                Distance = 7,
+                Distance = 15,
                 MinDistanceForPlayers = 2,
                 UsePermission = true,
                 Permission = "vehiclelicence.skyboat",
@@ -4853,7 +8193,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Twisted Truck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public TwistedTruckSettings twistedTruck = new TwistedTruckSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Twisted Truck",
@@ -4882,7 +8222,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Train Wreck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public TrainWreckSettings trainWreck = new TrainWreckSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Train Wreck",
@@ -4911,7 +8251,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Train Wrecker Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public TrainWreckerSettings trainWrecker = new TrainWreckerSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Train Wrecker",
@@ -4940,7 +8280,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Santa Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public SantaSettings santa = new SantaSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Santa",
@@ -4969,7 +8309,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "War Santa Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public WarSantaSettings warSanta = new WarSantaSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "War Santa",
@@ -4998,7 +8338,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Witch Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public WitchSettings witch = new WitchSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Witch",
@@ -5027,7 +8367,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Magic Carpet Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public MagicCarpetSettings magicCarpet = new MagicCarpetSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Magic Carpet",
@@ -5056,7 +8396,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Ah69t Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public Ah69tSettings ah69t = new Ah69tSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Ah69t",
@@ -5085,7 +8425,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Ah69r Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public Ah69rSettings ah69r = new Ah69rSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Ah69r",
@@ -5114,10 +8454,10 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Ah69a Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public Ah69aSettings ah69a = new Ah69aSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
-                DisplayName = "Ah69r",
+                DisplayName = "Ah69a",
                 Distance = 7,
                 MinDistanceForPlayers = 2,
                 UsePermission = true,
@@ -5140,10 +8480,39 @@ namespace Oxide.Plugins
                 }
             };
 
+            [JsonProperty(PropertyName = "Ah69g Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Ah69gSettings ah69g = new Ah69gSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Ah69g",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ah69g",
+                BypassCostPermission = "vehiclelicence.ah69gfree",
+                Commands = new List<string> { "ah69g" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
             [JsonProperty(PropertyName = "Mavik Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public MavikSettings mavik = new MavikSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Cobat Drone",
@@ -5172,7 +8541,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Heavy Fighter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public HeavyFighterSettings heavyFighter = new HeavyFighterSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Heavy Fighter",
@@ -5201,7 +8570,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Porcelain Commander Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public PorcelainCommanderSettings porcelainCommander = new PorcelainCommanderSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Porcelain Commander",
@@ -5230,7 +8599,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Dune Buggie Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public DuneBuggieSettings duneBuggie = new DuneBuggieSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Dune Buggie",
@@ -5259,7 +8628,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Dune Truck Armed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public DuneTruckArmedSettings duneTruckArmed = new DuneTruckArmedSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Dune Truck Armed",
@@ -5288,7 +8657,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Dune Truck UnArmed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public DuneTruckUnArmedSettings duneTruckUnArmed = new DuneTruckUnArmedSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Dune Truck UnArmed",
@@ -5317,7 +8686,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Dooms Day Disco Van Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public DoomsDayDiscoVanSettings doomsDayDiscoVan = new DoomsDayDiscoVanSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Dooms Day Disco Van",
@@ -5341,21 +8710,50 @@ namespace Oxide.Plugins
                         recallCooldown = 10
                     }
                 }
-            }; 
-            
-            [JsonProperty(PropertyName = "Lawn Mower Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
-            public LawnMowerSettings lawnMower = new LawnMowerSettings
+            };
+
+            [JsonProperty(PropertyName = "Lawn Mower Red Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public LawnMowerSettings lawnMowerRed = new LawnMowerSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
-                DisplayName = "Lawn Mower",
+                DisplayName = "Lawn Mower Red",
                 Distance = 7,
                 MinDistanceForPlayers = 2,
                 UsePermission = true,
-                Permission = "vehiclelicence.lawnmower",
-                BypassCostPermission = "vehiclelicence.lawnmowerfree",
-                Commands = new List<string> { "lawnmower", "lm" },
+                Permission = "vehiclelicence.lawnmowerred",
+                BypassCostPermission = "vehiclelicence.lawnmowerredfree",
+                Commands = new List<string> { "lawnmowerred" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Lawn Mower Green Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public LawnMowerSettings lawnMowerGreen = new LawnMowerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Lawn Mower Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.lawnmowergreen",
+                BypassCostPermission = "vehiclelicence.lawnmowergreenfree",
+                Commands = new List<string> { "lawnmowergreen" },
                 PurchasePrices = new Dictionary<string, PriceInfo>
                 {
                     ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
@@ -5375,7 +8773,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Fork Lift Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public ForkLiftSettings forkLift = new ForkLiftSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Fork Lift",
@@ -5404,7 +8802,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Chariot Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public ChariotSettings chariot = new ChariotSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Chariot",
@@ -5433,7 +8831,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Soul Harvester Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public SoulHarvesterSettings soulHarvester = new SoulHarvesterSettings
             {
-                Purchasable = true,
+                Purchasable = false,
                 NoDamage = false,
                 NoCollisionDamage = false,
                 DisplayName = "Soul Harvester",
@@ -5458,8 +8856,10631 @@ namespace Oxide.Plugins
                     }
                 }
             };
-        }
 
+            [JsonProperty(PropertyName = "F1 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public F1Settings f1 = new F1Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "F1 Car",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.f1",
+                BypassCostPermission = "vehiclelicence.f1free",
+                Commands = new List<string> { "f1", "f1car" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Rustlerg Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public RustlergSettings rustlerg = new RustlergSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Rustlerg",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.rustlerg",
+                BypassCostPermission = "vehiclelicence.rustlergfree",
+                Commands = new List<string> { "rustlerg" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Rustlers Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public RustlersSettings rustlers = new RustlersSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Rustlers",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.rustlers",
+                BypassCostPermission = "vehiclelicence.rustlersfree",
+                Commands = new List<string> { "rustlers" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SemiTruck Red Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SemiTruck_RedSettings semitruck_Red = new SemiTruck_RedSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SemiTruck Red",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.semitruck_red",
+                BypassCostPermission = "vehiclelicence.semitruck_redfree",
+                Commands = new List<string> { "semired" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SemiTruck Yellow Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SemiTruck_YellowSettings semitruck_Yellow = new SemiTruck_YellowSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SemiTruck Yellow",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.semitruck_yellow",
+                BypassCostPermission = "vehiclelicence.semitruck_yellowfree",
+                Commands = new List<string> { "semiyellow" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SemiTruck Green Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SemiTruck_GreenSettings semitruck_Green = new SemiTruck_GreenSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SemiTruck Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.semitruck_green",
+                BypassCostPermission = "vehiclelicence.semitruck_greenfree",
+                Commands = new List<string> { "semigreen" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SemiTruck Blue Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SemiTruck_BlueSettings semitruck_Blue = new SemiTruck_BlueSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SemiTruck Blue",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.semitruck_blue",
+                BypassCostPermission = "vehiclelicence.semitruck_bluefree",
+                Commands = new List<string> { "semiblue" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SemiTruck White Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SemiTruck_WhiteSettings semitruck_White = new SemiTruck_WhiteSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SemiTruck White",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.semitruck_white",
+                BypassCostPermission = "vehiclelicence.semitruck_whitefree",
+                Commands = new List<string> { "semiwhite" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SemiTrailer Orange Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SemiTrailer_OrangeSettings semitrailer_Orange = new SemiTrailer_OrangeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SemiTrailer Orange",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.semitrailer_orange",
+                BypassCostPermission = "vehiclelicence.semitrailer_orangefree",
+                Commands = new List<string> { "trailerorange" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SemiTrailer Green Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SemiTrailer_GreenSettings semitrailer_Green = new SemiTrailer_GreenSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SemiTrailer Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.semitrailer_green",
+                BypassCostPermission = "vehiclelicence.semitrailer_greenfree",
+                Commands = new List<string> { "trailergreen" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SemiTrailer Yellow Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SemiTrailer_YellowSettings semitrailer_Yellow = new SemiTrailer_YellowSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SemiTrailer Yellow",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.semitrailer_yellow",
+                BypassCostPermission = "vehiclelicence.semitrailer_yellowfree",
+                Commands = new List<string> { "traileryellow" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SemiTrailer Blue Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SemiTrailer_BlueSettings semitrailer_Blue = new SemiTrailer_BlueSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SemiTrailer Blue",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.semitrailer_blue",
+                BypassCostPermission = "vehiclelicence.semitrailer_bluefree",
+                Commands = new List<string> { "trailerblue" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SemiTrailer Fuel Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SemiTrailer_FuelSettings semitrailer_Fuel = new SemiTrailer_FuelSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SemiTrailer Fuel",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.semitrailer_fuel",
+                BypassCostPermission = "vehiclelicence.semitrailer_fuelfree",
+                Commands = new List<string> { "trailerfuel" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Wheelchair Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public WheelchairSettings wheelchair = new WheelchairSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Wheelchair",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.wheelchair",
+                BypassCostPermission = "vehiclelicence.wheelchairfree",
+                Commands = new List<string> { "wheelchair" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Cobra Green Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public CobraSettings cobraGreen = new CobraSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Cobra Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.cobragreen",
+                BypassCostPermission = "vehiclelicence.cobragreenfree",
+                Commands = new List<string> { "cobragreen" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Cobra Grey Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public CobraSettings cobraGrey = new CobraSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Cobra Grey",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.cobragrey",
+                BypassCostPermission = "vehiclelicence.cobragreyfree",
+                Commands = new List<string> { "cobragrey" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Cobra Black Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public CobraSettings cobraBlack = new CobraSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Cobra Black",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.cobrablack",
+                BypassCostPermission = "vehiclelicence.cobrablackfree",
+                Commands = new List<string> { "cobrablack" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mobile Casino Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MobileCasinoSettings mobileCasino = new MobileCasinoSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mobile Casino",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.mobilecasino",
+                BypassCostPermission = "vehiclelicence.mobilecasinofree",
+                Commands = new List<string> { "mobilecasino" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "DreadNought Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DreadNoughtSettings dreadNought = new DreadNoughtSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "DreadNought",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.dreadnought",
+                BypassCostPermission = "vehiclelicence.dreadnoughtfree",
+                Commands = new List<string> { "dreadnought" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "DreadTrailer Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DreadTrailerSettings dreadTrailer = new DreadTrailerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "DreadTrailer",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.dreadtrailer",
+                BypassCostPermission = "vehiclelicence.dreadtrailerfree",
+                Commands = new List<string> { "dreadtrailer" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "ONYX Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ONYXSettings oNYX = new ONYXSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "ONYX",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.onyx",
+                BypassCostPermission = "vehiclelicence.onyxfree",
+                Commands = new List<string> { "onyx" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "ONYX_AA Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ONYXAASettings oNYX_AA = new ONYXAASettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "ONYX_AA",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.onyxaa",
+                BypassCostPermission = "vehiclelicence.onyxaafree",
+                Commands = new List<string> { "onyxaa" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "ONYX_IFV Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ONYXIFVSettings oNYX_IFV = new ONYXIFVSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "ONYX_IFV",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.onyxifv",
+                BypassCostPermission = "vehiclelicence.onyxifvfree",
+                Commands = new List<string> { "onyxifv" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "LandBeetle Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public LandBeetleSettings landBeetle = new LandBeetleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Land Beetle",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.landbeetle",
+                BypassCostPermission = "vehiclelicence.landbeetlefree",
+                Commands = new List<string> { "landbeetle" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "WingFighter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public WingFighterSettings wingFighter = new WingFighterSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Wing Fighter",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.wingfighter",
+                BypassCostPermission = "vehiclelicence.wingfighterfree",
+                Commands = new List<string> { "wingfighter" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "WingBomber Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public WingBomberSettings wingBomber = new WingBomberSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Wing Bomber",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.wingbomber",
+                BypassCostPermission = "vehiclelicence.wingbomberfree",
+                Commands = new List<string> { "wingbomber" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "TimberWing Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TimberWingSettings timberWing = new TimberWingSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Timber Wing",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.timberwing",
+                BypassCostPermission = "vehiclelicence.timberwingfree",
+                Commands = new List<string> { "timberwing" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "PartyTrailer Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public PartyTrailerSettings partyTrailer = new PartyTrailerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Party Trailer",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.partytrailer",
+                BypassCostPermission = "vehiclelicence.partytrailerfree",
+                Commands = new List<string> { "partytrailer" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Tractor Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TractorSettings tractor = new TractorSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Tractor",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.tractor",
+                BypassCostPermission = "vehiclelicence.tractorfree",
+                Commands = new List<string> { "tractor" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Farm Tractor Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TractorSettings farmTractor = new TractorSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Farm Tractor",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.farmtractor",
+                BypassCostPermission = "vehiclelicence.farmtractorfree",
+                Commands = new List<string> { "farmtractor" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Jet Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSettings jet = new JetSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jet",
+                BypassCostPermission = "vehiclelicence.jetfree",
+                Commands = new List<string> { "jet" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Boat Mobile Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BoatMobileSettings boatMobile = new BoatMobileSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Boat Mobile",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.boatmobile",
+                BypassCostPermission = "vehiclelicence.boatmobilefree",
+                Commands = new List<string> { "boatmobile" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Tricycle Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TricycleSettings tricycle = new TricycleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Tricycle",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.tricycle",
+                BypassCostPermission = "vehiclelicence.tricyclefree",
+                Commands = new List<string> { "tricycle" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Shopping Cart Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ShoppingCartSettings shoppingCart = new ShoppingCartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Shopping Cart",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.shoppingcart",
+                BypassCostPermission = "vehiclelicence.shoppingcartfree",
+                Commands = new List<string> { "shoppingcart" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Blue Shopping Cart Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ShoppingCartBlueSettings shoppingCartBlue = new ShoppingCartBlueSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Blue Shopping Cart",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.shoppingcartblue",
+                BypassCostPermission = "vehiclelicence.shoppingcartbluefree",
+                Commands = new List<string> { "shoppingcartblue", "bluecart", "bcart" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Spooky Shopping Cart Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SpookyShoppingCartSettings spookyShoppingCart = new SpookyShoppingCartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Spooky Shopping Cart",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.spookyshoppingcart",
+                BypassCostPermission = "vehiclelicence.spookyshoppingcartfree",
+                Commands = new List<string> { "spookyshoppingcart", "spookycart" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Bat Bike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BatBikeSettings batBike = new BatBikeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Bat Bike",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.batbike",
+                BypassCostPermission = "vehiclelicence.batbikefree",
+                Commands = new List<string> { "batbike", "bat" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Spooky Bat Bike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SpookyBatBikeSettings spookyBatBike = new SpookyBatBikeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Spooky Bat Bike",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.spookybatbike",
+                BypassCostPermission = "vehiclelicence.spookybatbikefree",
+                Commands = new List<string> { "spookybatbike" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Sports Bike Black Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SportsBikeBlackSettings sportsBikeBlack = new SportsBikeBlackSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Sports Bike Black",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sportsbikeblack",
+                BypassCostPermission = "vehiclelicence.sportsbikeblackfree",
+                Commands = new List<string> { "sportsbikeblack" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Sports Bike Blue Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SportsBikeBlueSettings sportsBikeBlue = new SportsBikeBlueSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Sports Bike Blue",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sportsbikeblue",
+                BypassCostPermission = "vehiclelicence.sportsbikebluefree",
+                Commands = new List<string> { "sportsbikeblue" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Sports Bike Green Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SportsBikeGreenSettings sportsBikeGreen = new SportsBikeGreenSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Sports Bike Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sportsbikegreen",
+                BypassCostPermission = "vehiclelicence.sportsbikegreenfree",
+                Commands = new List<string> { "sportsbikegreen" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Sports Bike Orange Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SportsBikeOrangeSettings sportsBikeOrange = new SportsBikeOrangeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Sports Bike Orange",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sportsbikeorange",
+                BypassCostPermission = "vehiclelicence.sportsbikeorangefree",
+                Commands = new List<string> { "sportsbikeorange" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Sports Bike Red Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SportsBikeRedSettings sportsBikeRed = new SportsBikeRedSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Sports Bike Red",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sportsbikered",
+                BypassCostPermission = "vehiclelicence.sportsbikeredfree",
+                Commands = new List<string> { "sportsbikered" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "UFO Duo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public UfoDuoSettings ufoDuo = new UfoDuoSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "UFO Duo",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ufoduo",
+                BypassCostPermission = "vehiclelicence.ufoduofree",
+                Commands = new List<string> { "ufoduo" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "UFO Mothership Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public UfoMotherShipSettings ufoMotherShip = new UfoMotherShipSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "UFO Mothership",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ufomothership",
+                BypassCostPermission = "vehiclelicence.ufomothershipfree",
+                Commands = new List<string> { "ufomothership" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "UFO Solo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public UfoSoloSettings ufoSolo = new UfoSoloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "UFO Solo",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ufosolo",
+                BypassCostPermission = "vehiclelicence.ufosolofree",
+                Commands = new List<string> { "ufosolo" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "UFO Spooky Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public UfoSpookySettings ufoSpooky = new UfoSpookySettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "UFO Spooky",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ufospooky",
+                BypassCostPermission = "vehiclelicence.ufospookyfree",
+                Commands = new List<string> { "ufospooky" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Tardis Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TardisSettings tardis = new TardisSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Tardis",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.tardis",
+                BypassCostPermission = "vehiclelicence.tardisfree",
+                Commands = new List<string> { "tardis" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Driftwood Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DriftwoodSettings driftwood = new DriftwoodSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Driftwood",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.driftwood",
+                BypassCostPermission = "vehiclelicence.driftwoodfree",
+                Commands = new List<string> { "driftwood" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "HailFire Bike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HailFireBikeSettings hailFireBike = new HailFireBikeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "HailFire Bike",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.hailfirebike",
+                BypassCostPermission = "vehiclelicence.hailfirebikefree",
+                Commands = new List<string> { "hailfire" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Hover Sled Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HoverSledSettings hoverSled = new HoverSledSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Hover Sled",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.hoversled",
+                BypassCostPermission = "vehiclelicence.hoversledfree",
+                Commands = new List<string> { "hoversled" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Moon Buggy Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MoonBuggySettings moonBuggy = new MoonBuggySettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Moon Buggy",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.moonbuggy",
+                BypassCostPermission = "vehiclelicence.moonbuggyfree",
+                Commands = new List<string> { "moonbuggy" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mando Speeder Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MandoSpeederSettings mandoSpeeder = new MandoSpeederSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mando Speeder",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.mandospeeder",
+                BypassCostPermission = "vehiclelicence.mandospeederfree",
+                Commands = new List<string> { "mandospeeder" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Pod Speeder Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public PodSpeederSettings podSpeeder = new PodSpeederSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Pod Speeder",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.podspeeder",
+                BypassCostPermission = "vehiclelicence.podspeederfree",
+                Commands = new List<string> { "podspeeder" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Glider Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public GliderSettings glider = new GliderSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Glider",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.glider",
+                BypassCostPermission = "vehiclelicence.gliderfree",
+                Commands = new List<string> { "glider" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Glider Armed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public GliderArmedSettings gliderArmed = new GliderArmedSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Glider Armed",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.gliderarmed",
+                BypassCostPermission = "vehiclelicence.gliderarmedfree",
+                Commands = new List<string> { "gliderarmed" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "UAP_Duo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public UAP_DuoSettings uAP_Duo = new UAP_DuoSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "UAP_Duo",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.uapduo",
+                BypassCostPermission = "vehiclelicence.uapduofree",
+                Commands = new List<string> { "uapduo" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "UAP_Solo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public UAP_SoloSettings uAP_Solo = new UAP_SoloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "UAP_Solo",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.uapsolo",
+                BypassCostPermission = "vehiclelicence.uapsolofree",
+                Commands = new List<string> { "uapsolo" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "UAP_Prototype Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public UAP_PrototypeSettings uAP_Prototype = new UAP_PrototypeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "UAP_Prototype",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.uapprototype",
+                BypassCostPermission = "vehiclelicence.uapprototypefree",
+                Commands = new List<string> { "uapprototype" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "UAP_Xmas Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public UAP_XmasSettings uAP_Xmas = new UAP_XmasSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "UAP_Xmas",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.uapxmas",
+                BypassCostPermission = "vehiclelicence.uapxmasfree",
+                Commands = new List<string> { "uapxmas" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Starfighter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public StarfighterSettings starfighter = new StarfighterSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Starfighter",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.starfighter",
+                BypassCostPermission = "vehiclelicence.starfighterfree",
+                Commands = new List<string> { "starfighter" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Warchair Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public WarchairSettings warchair = new WarchairSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Warchair",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.warchair",
+                BypassCostPermission = "vehiclelicence.warchairfree",
+                Commands = new List<string> { "warchair" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Raptor Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public RaptorSettings raptor = new RaptorSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Raptor",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.raptor",
+                BypassCostPermission = "vehiclelicence.raptorfree",
+                Commands = new List<string> { "raptor" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Talon Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TalonSettings talon = new TalonSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Talon",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.talon",
+                BypassCostPermission = "vehiclelicence.talonfree",
+                Commands = new List<string> { "talon" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Hover Bat Bike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HoverBatBikeSettings hoverBatBike = new HoverBatBikeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Hover Bat Bike",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.hoverbatbike",
+                BypassCostPermission = "vehiclelicence.hoverbatbikefree",
+                Commands = new List<string> { "hoverbatbike" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Frost Sled Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FrostSledSettings frostSled = new FrostSledSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Frost Sled",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.frostsled",
+                BypassCostPermission = "vehiclelicence.frostsledfree",
+                Commands = new List<string> { "frostsled" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Scooter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ScooterSettings scooter = new ScooterSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Scooter",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.scooter",
+                BypassCostPermission = "vehiclelicence.scooterfree",
+                Commands = new List<string> { "scooter" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Hover Scooter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HoverScooterSettings hoverScooter = new HoverScooterSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Hover Scooter",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.hoverscooter",
+                BypassCostPermission = "vehiclelicence.hoverscooterfree",
+                Commands = new List<string> { "hoverscooter" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Drone Backpack Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DroneBackpackSettings droneBackpack = new DroneBackpackSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Drone Backpack",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.dronebackpack",
+                BypassCostPermission = "vehiclelicence.dronebackpackfree",
+                Commands = new List<string> { "dronebackpack" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+
+
+            [JsonProperty(PropertyName = "Hovercraft Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HovercraftSettings hovercraft = new HovercraftSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Hovercraft",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.hovercraft",
+                BypassCostPermission = "vehiclelicence.hovercraftfree",
+                Commands = new List<string> { "hovercraft" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Hovercraft Armed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HovercraftArmedSettings hovercraftArmed = new HovercraftArmedSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Hovercraft Armed",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.hovercraftarmed",
+                BypassCostPermission = "vehiclelicence.hovercraftarmedfree",
+                Commands = new List<string> { "hovercraftarmed", "hovergun" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Heelies Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HeeliesSettings heelies = new HeeliesSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Heelies",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.heelies",
+                BypassCostPermission = "vehiclelicence.heeliesfree",
+                Commands = new List<string> { "heelies" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "eHoverboard Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public EhoverboardSettings ehoverboard = new EhoverboardSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Ehoverboard",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ehoverboard",
+                BypassCostPermission = "vehiclelicence.ehoverboardfree",
+                Commands = new List<string> { "hoverboard" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Monocycle Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MonocycleSettings monocycle = new MonocycleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Monocycle",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.monocycle",
+                BypassCostPermission = "vehiclelicence.monocyclefree",
+                Commands = new List<string> { "monocycle" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Skywing Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SkyWingSettings skyWing = new SkyWingSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Skywing",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.skywing",
+                BypassCostPermission = "vehiclelicence.skywingfree",
+                Commands = new List<string> { "ywing", "skywing" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "MiniPlane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MiniPlaneSettings miniPlane = new MiniPlaneSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "MiniPlane",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.miniplane",
+                BypassCostPermission = "vehiclelicence.miniplanefree",
+                Commands = new List<string> { "miniplane", "myplane" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "WarPlane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public WarPlaneSettings warPlane = new WarPlaneSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "WarPlane",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.warplane",
+                BypassCostPermission = "vehiclelicence.warplanefree",
+                Commands = new List<string> { "warplane", "wplane" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "RaidPlane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public RaidPlaneSettings raidPlane = new RaidPlaneSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "RaidPlane",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.raidplane",
+                BypassCostPermission = "vehiclelicence.raidplanefree",
+                Commands = new List<string> { "raidplane", "rplane" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Bradley Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BradleyVehicleSettings bradleyVehicle = new BradleyVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Bradley",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.bradley",
+                BypassCostPermission = "vehiclelicence.bradleyfree",
+                Commands = new List<string> { "bradley" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "F15 Solo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public F15SoloSettings f15Solo = new F15SoloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "F15 Solo",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.f15s",
+                BypassCostPermission = "vehiclelicence.f15sfree",
+                Commands = new List<string> { "f15s" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "F15 Duo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public F15DuoSettings f15Duo = new F15DuoSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "F15 Duo",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.f15d",
+                BypassCostPermission = "vehiclelicence.f15dfree",
+                Commands = new List<string> { "f15_duo", "f15d" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "A10 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public A10Settings a10 = new A10Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "A10",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.a10",
+                BypassCostPermission = "vehiclelicence.a10free",
+                Commands = new List<string> { "a10" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Goblin Glider Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public GoblinGliderSettings goblinGlider = new GoblinGliderSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Goblin Glider",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.goblinglider",
+                BypassCostPermission = "vehiclelicence.goblingliderfree",
+                Commands = new List<string> { "goblinglider" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Drone Board Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DroneBoardSettings droneBoard = new DroneBoardSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Drone Board",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.droneboard",
+                BypassCostPermission = "vehiclelicence.droneboardfree",
+                Commands = new List<string> { "droneboard" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Heli Hat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HeliHatSettings heliHat = new HeliHatSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Heli Hat",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.helihat",
+                BypassCostPermission = "vehiclelicence.helihatfree",
+                Commands = new List<string> { "helihat" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Heli Hat Unarmed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HeliHatUnarmedSettings heliHatUnarmed = new HeliHatUnarmedSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Heli Hat Unarmed",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.helihatunarmed",
+                BypassCostPermission = "vehiclelicence.helihatunarmedfree",
+                Commands = new List<string> { "helihatunarmed" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "M939 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public M939Settings m939 = new M939Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "M939",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.m939",
+                BypassCostPermission = "vehiclelicence.m939free",
+                Commands = new List<string> { "m939" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "M939 Enclosed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public M939EnclosedSettings m939enclosed = new M939EnclosedSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "M939 Enclosed",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.m939enclosed",
+                BypassCostPermission = "vehiclelicence.m939enclosedfree",
+                Commands = new List<string> { "m939enclosed" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "M939 Desert Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public M939DesertSettings m939desert = new M939DesertSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "M939 Desert",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.m939desert",
+                BypassCostPermission = "vehiclelicence.m939desertfree",
+                Commands = new List<string> { "m939desert" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "M939 Desert Enclosed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public M939EnclosedDesertSettings m939encloseddesert = new M939EnclosedDesertSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "M939 Desert Enclosed",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.m939encloseddesert",
+                BypassCostPermission = "vehiclelicence.m939encloseddesertfree",
+                Commands = new List<string> { "m939encloseddesert" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Oppressor Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public OppressorSettings oppressor = new OppressorSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Oppressor MK2",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.oppressor",
+                BypassCostPermission = "vehiclelicence.oppressorfree",
+                Commands = new List<string> { "mk2", "oppressor" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Tumbler Batmobile Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TumblerSettings tumbler = new TumblerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Tumbler Batmobile",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.tumbler",
+                BypassCostPermission = "vehiclelicence.tumblerfree",
+                Commands = new List<string> { "tumbler" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Tumbler Armed Batmobile Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TumblerArmedSettings tumblerArmed = new TumblerArmedSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "TumblerArmned Batmobile",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.tumblerarmed",
+                BypassCostPermission = "vehiclelicence.tumblerarmedfree",
+                Commands = new List<string> { "batmobile", "tumblerarmed" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Falcon Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FalconSettings falcon = new FalconSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Falcon",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.falcon",
+                BypassCostPermission = "vehiclelicence.falconfree",
+                Commands = new List<string> { "falcon" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Imperial Shuttle Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ImperialShuttleSettings imperialShuttle = new ImperialShuttleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Imperial Shuttle",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.imperialshuttle",
+                BypassCostPermission = "vehiclelicence.imperialshuttlefree",
+                Commands = new List<string> { "shuttle", "imperialshuttle" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Ballista Car Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BallistaCarSettings ballistaCar = new BallistaCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Ballista Car",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ballistacar",
+                BypassCostPermission = "vehiclelicence.ballistacarfree",
+                Commands = new List<string> { "ballistacar", "bcar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "AirSpeeder Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public AirSpeederSettings airSpeeder = new AirSpeederSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "AirSpeeder",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.airspeeder",
+                BypassCostPermission = "vehiclelicence.airspeederfree",
+                Commands = new List<string> { "airspeeder", "aspeeder" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "GroundSpeeder Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public GroundSpeederSettings groundSpeeder = new GroundSpeederSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "GroundSpeeder",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.groundspeeder",
+                BypassCostPermission = "vehiclelicence.groundspeederfree",
+                Commands = new List<string> { "groundspeeder" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Roadster RP Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public RoadsterRPSettings roadsterRp = new RoadsterRPSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "RoadsterRP",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.roadsterrp",
+                BypassCostPermission = "vehiclelicence.roadsterrpfree",
+                Commands = new List<string> { "roadsterrp" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Ambulance Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public AmbulanceSettings ambulance = new AmbulanceSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Ambulance",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ambulance",
+                BypassCostPermission = "vehiclelicence.ambulancefree",
+                Commands = new List<string> { "ambulance" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mamba Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MambaSettings mamba = new MambaSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mamba",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.mamba",
+                BypassCostPermission = "vehiclelicence.mambafree",
+                Commands = new List<string> { "mamba" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Hell Fire Bike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HailFireBikeSettings bikeHellRider = new HailFireBikeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Hell Fire Bike",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.hellfirebike",
+                BypassCostPermission = "vehiclelicence.hellfirebikefree",
+                Commands = new List<string> { "bikehellfire", "hfbike" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Land Speeder Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public LandSpeederSettings landSpeeder = new LandSpeederSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Land Speeder",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.landspeeder",
+                BypassCostPermission = "vehiclelicence.landspeederfree",
+                Commands = new List<string> { "landspeeder" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Oppressor Bike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public OppressorBikeSettings oppressorBike = new OppressorBikeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Oppressor Bike",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.oppressorbike",
+                BypassCostPermission = "vehiclelicence.oppressorbikefree",
+                Commands = new List<string> { "oppressorbike" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Flying Boat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FlyingBoatSettings flyingBoat = new FlyingBoatSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Flying Boat",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.flyingboat",
+                BypassCostPermission = "vehiclelicence.flyingboatfree",
+                Commands = new List<string> { "flyingboat" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Batwing Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BatwingSettings batWing = new BatwingSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Batwing",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.batwing",
+                BypassCostPermission = "vehiclelicence.batwingfree",
+                Commands = new List<string> { "batwing" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Batwing Duo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BatwingDuoSettings batWingDuo = new BatwingDuoSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Batwing Duo",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.batwingduo",
+                BypassCostPermission = "vehiclelicence.batwingduofree",
+                Commands = new List<string> { "batwingduo" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Motor Trike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MotorTrikeSettings motorTrike = new MotorTrikeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Motor Trike",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.motortrike",
+                BypassCostPermission = "vehiclelicence.motortrikefree",
+                Commands = new List<string> { "motortrike" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Super Trike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SuperTrikeSettings superTrike = new SuperTrikeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Super Trike",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.supertrike",
+                BypassCostPermission = "vehiclelicence.supertrikefree",
+                Commands = new List<string> { "supertrike" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Sith Speeder Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SithSpeederSettings sithSpeeder = new SithSpeederSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Sith Speeder",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sithspeeder",
+                BypassCostPermission = "vehiclelicence.sithspeederfree",
+                Commands = new List<string> { "sithspeeder" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Carriage 1 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Carriage1Settings carriage1 = new Carriage1Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Carriage 1",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.carriage1",
+                BypassCostPermission = "vehiclelicence.carriage1free",
+                Commands = new List<string> { "carriage1" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Carriage 2 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Carriage2Settings carriage2 = new Carriage2Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Carriage 2",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.carriage2",
+                BypassCostPermission = "vehiclelicence.carriage2free",
+                Commands = new List<string> { "carriage2" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Carriage 3 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Carriage3Settings carriage3 = new Carriage3Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Carriage 3",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.carriage3",
+                BypassCostPermission = "vehiclelicence.carriage3free",
+                Commands = new List<string> { "carriage3" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart 1 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Kart1Settings kart1 = new Kart1Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart 1",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kart1",
+                BypassCostPermission = "vehiclelicence.kart1free",
+                Commands = new List<string> { "kart1" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart 2 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Kart2Settings kart2 = new Kart2Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart 2",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kart2",
+                BypassCostPermission = "vehiclelicence.kart2free",
+                Commands = new List<string> { "kart2" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart 3 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Kart3Settings kart3 = new Kart3Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart 3",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kart3",
+                BypassCostPermission = "vehiclelicence.kart3free",
+                Commands = new List<string> { "kart3" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart 4 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Kart4Settings kart4 = new Kart4Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart 4",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kart4",
+                BypassCostPermission = "vehiclelicence.kart4free",
+                Commands = new List<string> { "kart4" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart 5 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Kart5Settings kart5 = new Kart5Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart 5",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kart5",
+                BypassCostPermission = "vehiclelicence.kart5free",
+                Commands = new List<string> { "kart5" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart 6 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Kart6Settings kart6 = new Kart6Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart 6",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kart6",
+                BypassCostPermission = "vehiclelicence.kart6free",
+                Commands = new List<string> { "kart6" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart 7 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Kart7Settings kart7 = new Kart7Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart 7",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kart7",
+                BypassCostPermission = "vehiclelicence.kart7free",
+                Commands = new List<string> { "kart7" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart 8 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Kart8Settings kart8 = new Kart8Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart 8",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kart8",
+                BypassCostPermission = "vehiclelicence.kart8free",
+                Commands = new List<string> { "kart8" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Hover Kart 1 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HoverKart1Settings hoverKart1 = new HoverKart1Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Hover Kart 1",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.hoverkart1",
+                BypassCostPermission = "vehiclelicence.hoverkart1free",
+                Commands = new List<string> { "hoverkart1" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mongoose Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MongooseSettings mongoose = new MongooseSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mongoose",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.mongoose",
+                BypassCostPermission = "vehiclelicence.mongoosefree",
+                Commands = new List<string> { "mongoose" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Warthog Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public WarthogSettings warthog = new WarthogSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Warthog",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.warthog",
+                BypassCostPermission = "vehiclelicence.warthogfree",
+                Commands = new List<string> { "warthog" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Warthog-S Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public WarthogSSettings warthogs = new WarthogSSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "WarthogS",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.warthogs",
+                BypassCostPermission = "vehiclelicence.warthogsfree",
+                Commands = new List<string> { "warthogs" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Warthog-T Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public WarthogTSettings warthogt = new WarthogTSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "WarthogT",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.warthogt",
+                BypassCostPermission = "vehiclelicence.warthogtfree",
+                Commands = new List<string> { "warthogt" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "DrumCar Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DrumCarSettings drumCar = new DrumCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "DrumCar",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.drumcar",
+                BypassCostPermission = "vehiclelicence.drumcarfree",
+                Commands = new List<string> { "drumcar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "PianoCar Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public PianoCarSettings pianoCar = new PianoCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "PianoCar",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.pianocar",
+                BypassCostPermission = "vehiclelicence.pianocarfree",
+                Commands = new List<string> { "pianocar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "BoneCar Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BoneCarSettings boneCar = new BoneCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "BoneCar",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.bonecar",
+                BypassCostPermission = "vehiclelicence.bonecarfree",
+                Commands = new List<string> { "bonecar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "TableCar Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TableCarSettings tableCar = new TableCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "TableCar",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.tablecar",
+                BypassCostPermission = "vehiclelicence.tablecarfree",
+                Commands = new List<string> { "tablecar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SlotsCar Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SlotsCarSettings slotsCar = new SlotsCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SlotsCar",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.slotscar",
+                BypassCostPermission = "vehiclelicence.slotscarfree",
+                Commands = new List<string> { "slotscar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "BeanCar Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BeanCarSettings beanCar = new BeanCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "BeanCar",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.beancar",
+                BypassCostPermission = "vehiclelicence.beancarfree",
+                Commands = new List<string> { "beancar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "BallCar Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BallCarSettings ballCar = new BallCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "BallCar",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ballcar",
+                BypassCostPermission = "vehiclelicence.ballcarfree",
+                Commands = new List<string> { "ballcar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Police Car Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public PoliceCarSettings policeCar = new PoliceCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Police Car",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.policecar",
+                BypassCostPermission = "vehiclelicence.policecarfree",
+                Commands = new List<string> { "policecar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Police Bike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public PoliceBikeSettings policeBike = new PoliceBikeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Police Bike",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.policebike",
+                BypassCostPermission = "vehiclelicence.policebikefree",
+                Commands = new List<string> { "policebike" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Swat Van Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SwatVanSettings swatVan = new SwatVanSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Swat Van",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.swatvan",
+                BypassCostPermission = "vehiclelicence.swatvanfree",
+                Commands = new List<string> { "swatvan" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Air Boat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public AirBoatSettings airBoat = new AirBoatSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Air Boat",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.airboat",
+                BypassCostPermission = "vehiclelicence.airboatfree",
+                Commands = new List<string> { "airboat" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Air Boat 2 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public AirBoat2Settings airBoat2 = new AirBoat2Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Air Boat 2",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.airboat2",
+                BypassCostPermission = "vehiclelicence.airboat2free",
+                Commands = new List<string> { "airboat2" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Flint Mobile Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FlintMobileSettings flintMobile = new FlintMobileSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Flint Mobile",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.flintmobile",
+                BypassCostPermission = "vehiclelicence.flintmobilefree",
+                Commands = new List<string> { "flintmobile" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Nighthawk Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public NighthawkSettings nighthawk = new NighthawkSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Nighthawk",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.nighthawk",
+                BypassCostPermission = "vehiclelicence.nighthawkfree",
+                Commands = new List<string> { "nighthawk" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mini Nighthawk Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MiniNighthawkSettings miniNighthawk = new MiniNighthawkSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mini Nighthawk",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.mininighthawk",
+                BypassCostPermission = "vehiclelicence.mininighthawkfree",
+                Commands = new List<string> { "mininighthawk" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "HoverShark Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HoverSharkSettings hoverShark = new HoverSharkSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "HoverShark",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.hovershark",
+                BypassCostPermission = "vehiclelicence.hoversharkfree",
+                Commands = new List<string> { "hovershark" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Jeep Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JeepSettings jeep = new JeepSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jeep",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jeep",
+                BypassCostPermission = "vehiclelicence.jeepfree",
+                Commands = new List<string> { "jeep" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Jeep Jp Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JeepJpSettings jeepJp = new JeepJpSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jeep Jp",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jeepjp",
+                BypassCostPermission = "vehiclelicence.jeepjpfree",
+                Commands = new List<string> { "jeepjp" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Jeep Camo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JeepCamoSettings jeepCamo = new JeepCamoSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jeep Camo",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jeepcamo",
+                BypassCostPermission = "vehiclelicence.jeepcamofree",
+                Commands = new List<string> { "jeepcamo" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Jeep Desert Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JeepDesertSettings jeepDesert = new JeepDesertSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jeep Desert",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jeepdesert",
+                BypassCostPermission = "vehiclelicence.jeepdesertfree",
+                Commands = new List<string> { "jeepdesert" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Jeep Aa Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JeepAaSettings jeepAa = new JeepAaSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jeep Aa",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jeepaa",
+                BypassCostPermission = "vehiclelicence.jeepaafree",
+                Commands = new List<string> { "jeepaa" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Monster Truck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MonsterTruckSettings monsterTruck = new MonsterTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Monster Truck",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.monstertruck",
+                BypassCostPermission = "vehiclelicence.monstertruckfree",
+                Commands = new List<string> { "monstertruck" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Monster Truck 2 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MonsterTruck2Settings monsterTruck2 = new MonsterTruck2Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Monster Truck 2",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.monstertruck2",
+                BypassCostPermission = "vehiclelicence.monstertruck2free",
+                Commands = new List<string> { "monstertruck2" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Monster Truck Bat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MonsterTruckBatSettings monsterTruckBat = new MonsterTruckBatSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Monster Truck Bat",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.monstertruckbat",
+                BypassCostPermission = "vehiclelicence.monstertruckbatfree",
+                Commands = new List<string> { "monstertruckbat" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Monster Truck Bean Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MonsterTruckBeanSettings monsterTruckBean = new MonsterTruckBeanSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Monster Truck Bean",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.monstertruckbean",
+                BypassCostPermission = "vehiclelicence.monstertruckbeanfree",
+                Commands = new List<string> { "monstertruckbean" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Monster Truck Semi Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MonsterTruckSemiSettings monsterTruckSemi = new MonsterTruckSemiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Monster Truck Semi",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.monstertrucksemi",
+                BypassCostPermission = "vehiclelicence.monstertrucksemifree",
+                Commands = new List<string> { "monstertrucksemi" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Bumper Blue Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BumperBlueSettings bumperBlue = new BumperBlueSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Bumper Blue",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.bumperblue",
+                BypassCostPermission = "vehiclelicence.bumperbluefree",
+                Commands = new List<string> { "bumperblue" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Bumper Black Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BumperBlackSettings bumperBlack = new BumperBlackSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Bumper Black",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.bumperblack",
+                BypassCostPermission = "vehiclelicence.bumperblackfree",
+                Commands = new List<string> { "bumperblack" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Bumper Red Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BumperRedSettings bumperRed = new BumperRedSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Bumper Red",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.bumperred",
+                BypassCostPermission = "vehiclelicence.bumperredfree",
+                Commands = new List<string> { "bumperred" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Bumper Orange Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BumperOrangeSettings bumperOrange = new BumperOrangeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Bumper Orange",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.bumperorange",
+                BypassCostPermission = "vehiclelicence.bumperorangefree",
+                Commands = new List<string> { "bumperorange" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Bumper Green Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BumperGreenSettings bumperGreen = new BumperGreenSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Bumper Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.bumpergreen",
+                BypassCostPermission = "vehiclelicence.bumpergreenfree",
+                Commands = new List<string> { "bumpergreen" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Luggage Cart Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public LuggageCartSettings luggageCart = new LuggageCartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Luggage Cart",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.luggagecart",
+                BypassCostPermission = "vehiclelicence.luggagecartfree",
+                Commands = new List<string> { "luggagecart" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Luggage Trailer Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public LuggageTrailerSettings luggageTrailer = new LuggageTrailerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Luggage Trailer",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.luggagetrailer",
+                BypassCostPermission = "vehiclelicence.luggagetrailerfree",
+                Commands = new List<string> { "luggagetrailer" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Luggage Trailer 2 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public LuggageTrailerSettings luggageTrailer2 = new LuggageTrailerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Luggage Trailer 2",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.luggagetrailer2",
+                BypassCostPermission = "vehiclelicence.luggagetrailer2free",
+                Commands = new List<string> { "luggagetrailer2" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Luggage Trailer 3 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public LuggageTrailerSettings luggageTrailer3 = new LuggageTrailerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Luggage Trailer 3",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.luggagetrailer3",
+                BypassCostPermission = "vehiclelicence.luggagetrailer3free",
+                Commands = new List<string> { "luggagetrailer3" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Luggage Trailer 4 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public LuggageTrailerSettings luggageTrailer4 = new LuggageTrailerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Luggage Trailer 4",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.luggagetrailer4",
+                BypassCostPermission = "vehiclelicence.luggagetrailer4free",
+                Commands = new List<string> { "luggagetrailer4" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Minesweeper Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MinesweeperSettings minesweeper = new MinesweeperSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Minesweeper",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.minesweeper",
+                BypassCostPermission = "vehiclelicence.minesweeperfree",
+                Commands = new List<string> { "minesweeper" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mini Dozer Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MiniDozerSettings miniDozer = new MiniDozerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mini Dozer",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.minidozer",
+                BypassCostPermission = "vehiclelicence.minidozerfree",
+                Commands = new List<string> { "minidozer" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mini Tipper Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MiniTipperSettings miniTipper = new MiniTipperSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mini Tipper",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.minitipper",
+                BypassCostPermission = "vehiclelicence.minitipperfree",
+                Commands = new List<string> { "minitipper" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Steamroller Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SteamrollerSettings steamroller = new SteamrollerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Steamroller",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.steamroller",
+                BypassCostPermission = "vehiclelicence.steamrollerfree",
+                Commands = new List<string> { "steamroller" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Big Dump Truck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BigDumpTruckSettings bigDumpTruck = new BigDumpTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Big Dump Truck",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.bigdumptruck",
+                BypassCostPermission = "vehiclelicence.bigdumptruckfree",
+                Commands = new List<string> { "bigdumptruck" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Big Tractor Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BigTractorSettings bigTractor = new BigTractorSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Big Tractor",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.bigtractor",
+                BypassCostPermission = "vehiclelicence.bigtractorfree",
+                Commands = new List<string> { "bigtractor" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Invader Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public InvaderSettings invader = new InvaderSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Invader",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.invader",
+                BypassCostPermission = "vehiclelicence.invaderfree",
+                Commands = new List<string> { "invader" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Orlik Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public OrlikSettings orlik = new OrlikSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Orlik",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.orlik",
+                BypassCostPermission = "vehiclelicence.orlikfree",
+                Commands = new List<string> { "orlik" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "School Bus 1 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SchoolBus1Settings schoolBus1 = new SchoolBus1Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "School Bus 1",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.schoolbus1",
+                BypassCostPermission = "vehiclelicence.schoolbus1free",
+                Commands = new List<string> { "schoolbus1" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "School Bus 2 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SchoolBus2Settings schoolBus2 = new SchoolBus2Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "School Bus 2",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.schoolbus2",
+                BypassCostPermission = "vehiclelicence.schoolbus2free",
+                Commands = new List<string> { "schoolbus2" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "School Bus Short Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SchoolBusShortSettings schoolBusShort = new SchoolBusShortSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "School Bus Short",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.schoolbusshort",
+                BypassCostPermission = "vehiclelicence.schoolbusshortfree",
+                Commands = new List<string> { "schoolbusshort" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Prison Bus Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public PrisonBusSettings prisonBus = new PrisonBusSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Prison Bus",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.prisonbus",
+                BypassCostPermission = "vehiclelicence.prisonbusfree",
+                Commands = new List<string> { "prisonbus" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "ScrapJetA Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ScrapJetSettings scrapJetA = new ScrapJetSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "ScrapJetA",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.scrapjeta",
+                BypassCostPermission = "vehiclelicence.scrapjetafree",
+                Commands = new List<string> { "scrapjeta" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "ScrapJetB Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ScrapJetSettings scrapJetB = new ScrapJetSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "ScrapJetB",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.scrapjetb",
+                BypassCostPermission = "vehiclelicence.scrapjetbfree",
+                Commands = new List<string> { "scrapjetb" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Hoverscout Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HoverscoutSettings hoverscout = new HoverscoutSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Hoverscout",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.hoverscout",
+                BypassCostPermission = "vehiclelicence.hoverscoutfree",
+                Commands = new List<string> { "hoverscout" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Intercettore Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Intercettore = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Intercettore",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppiintercettore",
+                BypassCostPermission = "vehiclelicence.badcoppiintercettorefree",
+                Commands = new List<string> { "badcoppiintercettore" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Strada Black Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Strada_Black = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Strada Black",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppistradablack",
+                BypassCostPermission = "vehiclelicence.badcoppistradablackfree",
+                Commands = new List<string> { "badcoppistradablack" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Strada Blue Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Strada_Blue = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Strada Blue",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppistradablue",
+                BypassCostPermission = "vehiclelicence.badcoppistradabluefree",
+                Commands = new List<string> { "badcoppistradablue" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Strada Gold Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Strada_Gold = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Strada Gold",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppistradagold",
+                BypassCostPermission = "vehiclelicence.badcoppistradagoldfree",
+                Commands = new List<string> { "badcoppistradagold" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Strada Green Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Strada_Green = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Strada Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppistradagreen",
+                BypassCostPermission = "vehiclelicence.badcoppistradagreenfree",
+                Commands = new List<string> { "badcoppistradagreen" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Strada Pink Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Strada_Pink = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Strada Pink",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppistradapink",
+                BypassCostPermission = "vehiclelicence.badcoppistradapinkfree",
+                Commands = new List<string> { "badcoppistradapink" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Strada Yellow Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Strada_Yellow = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Strada Yelow",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppistradayellow",
+                BypassCostPermission = "vehiclelicence.badcoppistradayellowfree",
+                Commands = new List<string> { "badcoppistradayellow" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Sport Red Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Sport_Red = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Sport Red",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppisportred",
+                BypassCostPermission = "vehiclelicence.badcoppisportredfree",
+                Commands = new List<string> { "badcoppisportred" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Sport Blue Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Sport_Blue = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Sport Blue",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppisportblue",
+                BypassCostPermission = "vehiclelicence.badcoppisportbluefree",
+                Commands = new List<string> { "badcoppisportblue" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Sport Black Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Sport_Black = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Sport Black",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppisportblack",
+                BypassCostPermission = "vehiclelicence.badcoppisportblackfree",
+                Commands = new List<string> { "badcoppisportblack" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Sport Green Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Sport_Green = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Sport Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppisportgreen",
+                BypassCostPermission = "vehiclelicence.badcoppisportgreenfree",
+                Commands = new List<string> { "badcoppisportgreen" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Sport White Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Sport_White = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Sport White",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppisportwhite",
+                BypassCostPermission = "vehiclelicence.badcoppisportwhitefree",
+                Commands = new List<string> { "badcoppisportwhite" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Sport Pink Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Sport_Pink = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Sport Pink",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppisportpink",
+                BypassCostPermission = "vehiclelicence.badcoppisportpinkfree",
+                Commands = new List<string> { "badcoppisportpink" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Badcoppi Sport Yellow Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BadcoppiSettings badcoppi_Sport_Yellow = new BadcoppiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Badcoppi Sport Yellow",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.badcoppisportyellow",
+                BypassCostPermission = "vehiclelicence.badcoppisportyellowfree",
+                Commands = new List<string> { "badcoppisportyellow" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Leviathan Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public LeviathanSettings leviathan = new LeviathanSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Leviathan",
+                Distance = 15,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.leviathan",
+                BypassCostPermission = "vehiclelicence.leviathanfree",
+                Commands = new List<string> { "leviathan" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Leviathan Carrier Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public LeviathanSettings leviathanCarrier = new LeviathanSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Leviathan Carrier",
+                Distance = 15,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.leviathancarrier",
+                BypassCostPermission = "vehiclelicence.leviathancarrierfree",
+                Commands = new List<string> { "leviathancarrier" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Leviathan Giga Carrier Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public LeviathanSettings leviathanGigaCarrier = new LeviathanSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Leviathan Giga Carrier",
+                Distance = 15,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.leviathangigacarrier",
+                BypassCostPermission = "vehiclelicence.leviathangigacarrierfree",
+                Commands = new List<string> { "leviathangigacarrier" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kamikaze Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public KamikazeSettings kamikaze = new KamikazeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kamikaze",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kamikaze",
+                BypassCostPermission = "vehiclelicence.kamikazefree",
+                Commands = new List<string> { "kamikaze" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Oppressor Copter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public OppressorCopterSettings oppressorCopter = new OppressorCopterSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Oppressor Copter",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.oppressorcopter",
+                BypassCostPermission = "vehiclelicence.oppressorcopterfree",
+                Commands = new List<string> { "oppressorcopter" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Skycrane Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SkycraneSettings skycrane = new SkycraneSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Skycrane",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.skycrane",
+                BypassCostPermission = "vehiclelicence.skycranefree",
+                Commands = new List<string> { "skycrane" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Hover Racer Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HoverRacerSettings hoverRacer = new HoverRacerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Hover Racer",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.hoverracer",
+                BypassCostPermission = "vehiclelicence.hoverracerfree",
+                Commands = new List<string> { "hoverracer" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Egg Mobile Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public EggMobileSettings eggMobile = new EggMobileSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Egg Mobile",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.eggmobile",
+                BypassCostPermission = "vehiclelicence.eggmobilefree",
+                Commands = new List<string> { "eggmobile" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Egg Kart Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public EggKartSettings eggKart = new EggKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Egg Kart",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.eggkart",
+                BypassCostPermission = "vehiclelicence.eggkartfree",
+                Commands = new List<string> { "eggkart" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Drillcar Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DrillcarSettings drillcar = new DrillcarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Drillcar",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.drillcar",
+                BypassCostPermission = "vehiclelicence.drillcarfree",
+                Commands = new List<string> { "drillcar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Jetson Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetsonSettings jetson = new JetsonSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jetson",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetson",
+                BypassCostPermission = "vehiclelicence.jetsonfree",
+                Commands = new List<string> { "jetson" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Scout Speeder Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ScoutSpeederSettings scoutSpeeder = new ScoutSpeederSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Scout Speeder",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.scoutspeeder",
+                BypassCostPermission = "vehiclelicence.scoutspeederfree",
+                Commands = new List<string> { "scoutspeeder" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mini Bike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MiniBikesSettings miniBike = new MiniBikesSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mini Bike",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.minibike",
+                BypassCostPermission = "vehiclelicence.minibikefree",
+                Commands = new List<string> { "minibike" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mini Trike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MiniBikesSettings miniTrike = new MiniBikesSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mini Trike",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.minitrike",
+                BypassCostPermission = "vehiclelicence.minitrikefree",
+                Commands = new List<string> { "minitrike" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Super Bike Black Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SuperBikesSettings superBikeBlack = new SuperBikesSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Super Bike Black",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.superbikeblack",
+                BypassCostPermission = "vehiclelicence.superbikeblackfree",
+                Commands = new List<string> { "superbikeblack" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Super Bike Blue Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SuperBikesSettings superBikeBlue = new SuperBikesSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Super Bike Blue",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.superbikeblue",
+                BypassCostPermission = "vehiclelicence.superbikebluefree",
+                Commands = new List<string> { "superbikeblue" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Super Bike Green Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SuperBikesSettings superBikeGreen = new SuperBikesSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Super Bike Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.superbikegreen",
+                BypassCostPermission = "vehiclelicence.superbikegreenfree",
+                Commands = new List<string> { "superbikegreen" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Super Bike Orange Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SuperBikesSettings superBikeOrange = new SuperBikesSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Super Bike Orange",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.superbikeorange",
+                BypassCostPermission = "vehiclelicence.superbikeorangefree",
+                Commands = new List<string> { "superbikeorange" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Super Bike Red Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SuperBikesSettings superBikeRed = new SuperBikesSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Super Bike Red",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.superbikered",
+                BypassCostPermission = "vehiclelicence.superbikeredfree",
+                Commands = new List<string> { "superbikered" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Tow Truck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TowTruckSettings towTruck = new TowTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Tow Truck",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.towtruck",
+                BypassCostPermission = "vehiclelicence.towtruckfree",
+                Commands = new List<string> { "towtruck" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "BM21 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BM21Settings bM21 = new BM21Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "BM21",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.bm21",
+                BypassCostPermission = "vehiclelicence.bm21free",
+                Commands = new List<string> { "bm21" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Predator_Y Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public PredatorSettings predator_Y = new PredatorSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Predator_Y",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.predator_y",
+                BypassCostPermission = "vehiclelicence.predator_yfree",
+                Commands = new List<string> { "predator_y" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Predator_X Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public PredatorSettings predator_X = new PredatorSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Predator_X",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.predator_x",
+                BypassCostPermission = "vehiclelicence.predator_xfree",
+                Commands = new List<string> { "predator_x" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Predator_RP Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public PredatorSettings predator_RP = new PredatorSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Predator_RP",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.predator_rp",
+                BypassCostPermission = "vehiclelicence.predator_rpfree",
+                Commands = new List<string> { "predator_rp" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Spookopter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SpookopterSettings spookopter = new SpookopterSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Spookopter",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.spookopter",
+                BypassCostPermission = "vehiclelicence.spookopterfree",
+                Commands = new List<string> { "spookopter" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "MIG17 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MIG17Settings mIG17 = new MIG17Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "MIG17",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.mig17",
+                BypassCostPermission = "vehiclelicence.mig17free",
+                Commands = new List<string> { "mig17" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Harrier Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public HarrierSettings harrier = new HarrierSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Harrier",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.harrier",
+                BypassCostPermission = "vehiclelicence.harrierfree",
+                Commands = new List<string> { "harrier" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SU47 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SU47Settings sU47 = new SU47Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SU47",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.su47",
+                BypassCostPermission = "vehiclelicence.su47free",
+                Commands = new List<string> { "su47" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SU47_QT Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SU47Settings sU47_QT = new SU47Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SU47_QT",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.su47_qt",
+                BypassCostPermission = "vehiclelicence.su47_qtfree",
+                Commands = new List<string> { "su47qt" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SU47_Bling Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SU47Settings sU47_Bling = new SU47Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "SU47_Bling",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.su47_bling",
+                BypassCostPermission = "vehiclelicence.su47_blingfree",
+                Commands = new List<string> { "su47bling" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Tornado Tan Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TornadoSettings tornado_Tan = new TornadoSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Tornado Tan",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.tornadotan",
+                BypassCostPermission = "vehiclelicence.tornadotanfree",
+                Commands = new List<string> { "tornadotan" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Tornado Grey Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TornadoSettings tornado_Grey = new TornadoSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Tornado Grey",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.tornadogrey",
+                BypassCostPermission = "vehiclelicence.tornadogreyfree",
+                Commands = new List<string> { "tornadogrey" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "CF105 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public CF105Settings cF105 = new CF105Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "CF105",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.cf105",
+                BypassCostPermission = "vehiclelicence.cf105free",
+                Commands = new List<string> { "cf105" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Shifter Kart 1 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ShifterKartSettings shifterKart1 = new ShifterKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Shifter Kart 1",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.shifterkart1",
+                BypassCostPermission = "vehiclelicence.shifterkart1free",
+                Commands = new List<string> { "shifterkart1" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Shifter Kart 2 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ShifterKartSettings shifterKart2 = new ShifterKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Shifter Kart 2",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.shifterkart2",
+                BypassCostPermission = "vehiclelicence.shifterkart2free",
+                Commands = new List<string> { "shifterkart2" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Shifter Kart 3 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ShifterKartSettings shifterKart3 = new ShifterKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Shifter Kart 3",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.shifterkart3",
+                BypassCostPermission = "vehiclelicence.shifterkart3free",
+                Commands = new List<string> { "shifterkart3" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Shifter Kart 4 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ShifterKartSettings shifterKart4 = new ShifterKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Shifter Kart 4",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.shifterkart4",
+                BypassCostPermission = "vehiclelicence.shifterkart4free",
+                Commands = new List<string> { "shifterkart4" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Shifter Kart 5 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ShifterKartSettings shifterKart5 = new ShifterKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Shifter Kart 5",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.shifterkart5",
+                BypassCostPermission = "vehiclelicence.shifterkart5free",
+                Commands = new List<string> { "shifterkart5" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Shifter Kart 6 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ShifterKartSettings shifterKart6 = new ShifterKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Shifter Kart 6",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.shifterkart6",
+                BypassCostPermission = "vehiclelicence.shifterkart6free",
+                Commands = new List<string> { "shifterkart6" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "MH60X Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MH60XSettings mh60x = new MH60XSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "MH60X",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.mh60x",
+                BypassCostPermission = "vehiclelicence.mh60xfree",
+                Commands = new List<string> { "mh60x" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 15000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "AH001 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public AH001Settings ah001 = new AH001Settings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "AH001",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ah001",
+                BypassCostPermission = "vehiclelicence.ah001free",
+                Commands = new List<string> { "ah001" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 20000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Bolt Bucket Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public BoltBucketSettings boltBucket = new BoltBucketSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Bolt Bucket",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.boltbucket",
+                BypassCostPermission = "vehiclelicence.boltbucketfree",
+                Commands = new List<string> { "boltbucket" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Crude Bird Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public CrudeBirdSettings crudeBird = new CrudeBirdSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Crude Bird",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.crudebird",
+                BypassCostPermission = "vehiclelicence.crudebirdfree",
+                Commands = new List<string> { "crudebird" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Stretch Black Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Stretch_BlackSettings stretch_Black = new Stretch_BlackSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Stretch Black",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.stretch_black",
+                BypassCostPermission = "vehiclelicence.stretch_blackfree",
+                Commands = new List<string> { "stretchblack" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Stretch White Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Stretch_WhiteSettings stretch_White = new Stretch_WhiteSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Stretch White",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.stretch_white",
+                BypassCostPermission = "vehiclelicence.stretch_whitefree",
+                Commands = new List<string> { "stretchwhite" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Stretch Pink Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Stretch_PinkSettings stretch_Pink = new Stretch_PinkSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Stretch Pink",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.stretch_pink",
+                BypassCostPermission = "vehiclelicence.stretch_pinkfree",
+                Commands = new List<string> { "stretchpink" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Motorhome Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public MotorhomeSettings motorhome = new MotorhomeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Motorhome",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.motorhome",
+                BypassCostPermission = "vehiclelicence.motorhomefree",
+                Commands = new List<string> { "motorhome" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 6000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Cybertruck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public CybertruckSettings cybertruck = new CybertruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Cybertruck",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.cybertruck",
+                BypassCostPermission = "vehiclelicence.cybertruckfree",
+                Commands = new List<string> { "cybertruck" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 7500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Cyberkart Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunKartSettings cyberkart = new FunKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Cyberkart",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.cyberkart",
+                BypassCostPermission = "vehiclelicence.cyberkartfree",
+                Commands = new List<string> { "cyberkart" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart Toy Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunKartSettings kartToy = new FunKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart Toy",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.karttoy",
+                BypassCostPermission = "vehiclelicence.karttoyfree",
+                Commands = new List<string> { "karttoy" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart UFO Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunKartSettings kartUFO = new FunKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart UFO",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kartufo",
+                BypassCostPermission = "vehiclelicence.kartufree",
+                Commands = new List<string> { "kartufo" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart Semi Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunKartSettings kartSemi = new FunKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart Semi",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kartsemi",
+                BypassCostPermission = "vehiclelicence.kartsemifree",
+                Commands = new List<string> { "kartsemi" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart Sedan Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunKartSettings kartSedan = new FunKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart Sedan",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kartsedan",
+                BypassCostPermission = "vehiclelicence.kartsedanfree",
+                Commands = new List<string> { "kartsedan" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart Race Bed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunKartSettings kartRaceBed = new FunKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart Race Bed",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kartracebed",
+                BypassCostPermission = "vehiclelicence.kartracebedfree",
+                Commands = new List<string> { "kartracebed" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart Pinata Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunKartSettings kartPinata = new FunKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart Pinata",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kartpinata",
+                BypassCostPermission = "vehiclelicence.kartpinatafree",
+                Commands = new List<string> { "kartpinata" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart Pie Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunKartSettings kartPie = new FunKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart Pie",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kartpie",
+                BypassCostPermission = "vehiclelicence.kartpiefree",
+                Commands = new List<string> { "kartpie" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart Coop Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunKartSettings kartCoop = new FunKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart Coop",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kartcoop",
+                BypassCostPermission = "vehiclelicence.kartcoopfree",
+                Commands = new List<string> { "kartcoop" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart Catapult Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunKartSettings kartCatapult = new FunKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart Catapult",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kartcatapult",
+                BypassCostPermission = "vehiclelicence.kartcatapultfree",
+                Commands = new List<string> { "kartcatapult" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart Cake Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunKartSettings kartCake = new FunKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart Cake",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kartcake",
+                BypassCostPermission = "vehiclelicence.kartcakefree",
+                Commands = new List<string> { "kartcake" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Kart Bradley Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunKartSettings kartBradley = new FunKartSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Kart Bradley",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.kartbradley",
+                BypassCostPermission = "vehiclelicence.kartbradleyfree",
+                Commands = new List<string> { "kartbradley" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Scrap Buggy Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ScrapBuggySettings scrapBuggy = new ScrapBuggySettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Scrap Buggy",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.scrapbuggy",
+                BypassCostPermission = "vehiclelicence.scrapbuggyfree",
+                Commands = new List<string> { "scrapbuggy" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Scrap Car Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ScrapCarSettings scrapCar = new ScrapCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Scrap Car",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.scrapcar",
+                BypassCostPermission = "vehiclelicence.scrapcarfree",
+                Commands = new List<string> { "scrapcar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Scrap Truck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ScrapTruckSettings scrapTruck = new ScrapTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Scrap Truck",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.scraptruck",
+                BypassCostPermission = "vehiclelicence.scraptruckfree",
+                Commands = new List<string> { "scraptruck" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Diablo Black Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DiabloSettings diabloBlack = new DiabloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Diablo Black",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.diablo_black",
+                BypassCostPermission = "vehiclelicence.diablo_blackfree",
+                Commands = new List<string> { "diabloblack" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Diablo Blue Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DiabloSettings diabloBlue = new DiabloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Diablo Blue",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.diablo_blue",
+                BypassCostPermission = "vehiclelicence.diablo_bluefree",
+                Commands = new List<string> { "diabloblue" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Diablo Gold Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DiabloSettings diabloGold = new DiabloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Diablo Gold",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.diablo_gold",
+                BypassCostPermission = "vehiclelicence.diablo_goldfree",
+                Commands = new List<string> { "diablogold" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Diablo Green Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DiabloSettings diabloGreen = new DiabloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Diablo Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.diablo_green",
+                BypassCostPermission = "vehiclelicence.diablo_greenfree",
+                Commands = new List<string> { "diablogreen" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Diablo Orange Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DiabloSettings diabloOrange = new DiabloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Diablo Orange",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.diablo_orange",
+                BypassCostPermission = "vehiclelicence.diablo_orangefree",
+                Commands = new List<string> { "diabloorange" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Diablo Police Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DiabloSettings diabloPolice = new DiabloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Diablo Police",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.diablo_police",
+                BypassCostPermission = "vehiclelicence.diablo_policefree",
+                Commands = new List<string> { "diablopolice" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Diablo Purple Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DiabloSettings diabloPurple = new DiabloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Diablo Purple",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.diablo_purple",
+                BypassCostPermission = "vehiclelicence.diablo_purplefree",
+                Commands = new List<string> { "diablopurple" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Diablo Red Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DiabloSettings diabloRed = new DiabloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Diablo Red",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.diablo_red",
+                BypassCostPermission = "vehiclelicence.diablo_redfree",
+                Commands = new List<string> { "diablored" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Diablo White Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DiabloSettings diabloWhite = new DiabloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Diablo White",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.diablo_white",
+                BypassCostPermission = "vehiclelicence.diablo_whitefree",
+                Commands = new List<string> { "diablowhite" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Diablo Yellow Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DiabloSettings diabloYellow = new DiabloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Diablo Yellow",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.diablo_yellow",
+                BypassCostPermission = "vehiclelicence.diablo_yellowfree",
+                Commands = new List<string> { "diabloyellow" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Diablo Pink Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DiabloSettings diabloPink = new DiabloSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Diablo Pink",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.diablo_pink",
+                BypassCostPermission = "vehiclelicence.diablo_pinkfree",
+                Commands = new List<string> { "diablopink" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Jetpack Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetpackSettings jetpack = new JetpackSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jetpack",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetpack",
+                BypassCostPermission = "vehiclelicence.jetpackfree",
+                Commands = new List<string> { "jetpack" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Jetpack Unarmed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetpackSettings jetpackUnarmed = new JetpackSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jetpack Unarmed",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetpackunarmed",
+                BypassCostPermission = "vehiclelicence.jetpackunarmedfree",
+                Commands = new List<string> { "jetpackunarmed" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "126P Blue Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Vehicle126PSettings _126pBlue = new Vehicle126PSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "126P Blue",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.126p_blue",
+                BypassCostPermission = "vehiclelicence.126p_bluefree",
+                Commands = new List<string> { "126pblue" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "126P Brown Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Vehicle126PSettings _126pBrown = new Vehicle126PSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "126P Brown",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.126p_brown",
+                BypassCostPermission = "vehiclelicence.126p_brownfree",
+                Commands = new List<string> { "126pbrown" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "126P Purple Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Vehicle126PSettings _126pPurple = new Vehicle126PSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "126P Purple",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.126p_purple",
+                BypassCostPermission = "vehiclelicence.126p_purplefree",
+                Commands = new List<string> { "126ppurple" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "126P Green Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Vehicle126PSettings _126pGreen = new Vehicle126PSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "126P Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.126p_green",
+                BypassCostPermission = "vehiclelicence.126p_greenfree",
+                Commands = new List<string> { "126pgreen" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "126P Lime Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public Vehicle126PSettings _126pLime = new Vehicle126PSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "126P Lime",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.126p_lime",
+                BypassCostPermission = "vehiclelicence.126p_limefree",
+                Commands = new List<string> { "126plime" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Tuktuk Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TuktukSettings tuktuk = new TuktukSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Tuktuk",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.tuktuk",
+                BypassCostPermission = "vehiclelicence.tuktukfree",
+                Commands = new List<string> { "tuktuk" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Santa Sled Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SantaSledSettings santaSled = new SantaSledSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Santa Sled",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.santasled",
+                BypassCostPermission = "vehiclelicence.santasledfree",
+                Commands = new List<string> { "santasled" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Porta Potty Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public PortaPottySettings portaPotty = new PortaPottySettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Porta Potty",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.portapotty",
+                BypassCostPermission = "vehiclelicence.portapottyfree",
+                Commands = new List<string> { "portapotty" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30
+            };
+
+            [JsonProperty(PropertyName = "Space Buggy Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SpaceBuggySettings spaceBuggy = new SpaceBuggySettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Space Buggy",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.spacebuggy",
+                BypassCostPermission = "vehiclelicence.spacebuggyfree",
+                Commands = new List<string> { "spacebuggy" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30
+            };
+
+            [JsonProperty(PropertyName = "Space Helicopter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SpaceHeliSettings spaceHeli = new SpaceHeliSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Space Helicopter",
+                Distance = 10,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.spaceheli",
+                BypassCostPermission = "vehiclelicence.spacehelifree",
+                Commands = new List<string> { "spaceheli" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 600,
+                RecallCooldown = 60
+            };
+
+            [JsonProperty(PropertyName = "Space Helicopter Armed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SpaceHeliArmedSettings spaceHeliArmed = new SpaceHeliArmedSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Space Helicopter Armed",
+                Distance = 10,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.spaceheliarmed",
+                BypassCostPermission = "vehiclelicence.spaceheliarmedfree",
+                Commands = new List<string> { "spaceheliarmed" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 900,
+                RecallCooldown = 90
+            };
+
+            [JsonProperty(PropertyName = "Viperwing Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ViperwingSettings viperwing = new ViperwingSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Viperwing",
+                Distance = 10,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.viperwing",
+                BypassCostPermission = "vehiclelicence.viperwingfree",
+                Commands = new List<string> { "viperwing" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 600,
+                RecallCooldown = 60
+            };
+
+            [JsonProperty(PropertyName = "Nightwing Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public NightwingSettings nightwing = new NightwingSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Nightwing",
+                Distance = 10,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.nightwing",
+                BypassCostPermission = "vehiclelicence.nightwingfree",
+                Commands = new List<string> { "nightwing" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 600,
+                RecallCooldown = 60
+            };
+
+            [JsonProperty(PropertyName = "Assault Drone Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public AssaultDroneSettings assaultDrone = new AssaultDroneSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Assault Drone",
+                Distance = 6,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.assaultdrone",
+                BypassCostPermission = "vehiclelicence.assaultdronefree",
+                Commands = new List<string> { "assaultdrone" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30
+            };
+
+            [JsonProperty(PropertyName = "Chair Car Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ChairCarSettings chairCar = new ChairCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Chair Car",
+                Distance = 6,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.chaircar",
+                BypassCostPermission = "vehiclelicence.chaircarfree",
+                Commands = new List<string> { "chaircar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 750, displayName = "Scrap" }
+                },
+                SpawnCooldown = 180,
+                RecallCooldown = 20
+            };
+
+            [JsonProperty(PropertyName = "Rocking Chair Car Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ChairCarSettings rockingChairCar = new ChairCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Rocking Chair Car",
+                Distance = 6,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.rockingchaircar",
+                BypassCostPermission = "vehiclelicence.rockingchaircarfree",
+                Commands = new List<string> { "rockingchaircar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 750, displayName = "Scrap" }
+                },
+                SpawnCooldown = 180,
+                RecallCooldown = 20
+            };
+
+            [JsonProperty(PropertyName = "Bean Bag Car Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ChairCarSettings beanBagCar = new ChairCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Bean Bag Car",
+                Distance = 6,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.beanbagcar",
+                BypassCostPermission = "vehiclelicence.beanbagcarfree",
+                Commands = new List<string> { "beanbagcar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 750, displayName = "Scrap" }
+                },
+                SpawnCooldown = 180,
+                RecallCooldown = 20
+            };
+
+            [JsonProperty(PropertyName = "Bean Bag Car Duo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ChairCarSettings beanBagCarDuo = new ChairCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Bean Bag Car Duo",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.beanbagcarduo",
+                BypassCostPermission = "vehiclelicence.beanbagcarduofree",
+                Commands = new List<string> { "beanbagcarduo" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Beach Chair Car Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ChairCarSettings beachChairCar = new ChairCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Beach Chair Car",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.beachchaircar",
+                BypassCostPermission = "vehiclelicence.beachchaircarfree",
+                Commands = new List<string> { "beachchaircar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Beach Chair Car Duo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ChairCarSettings beachChairCarDuo = new ChairCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Beach Chair Car Duo",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.beachchaircarduo",
+                BypassCostPermission = "vehiclelicence.beachchaircarduofree",
+                Commands = new List<string> { "beachchaircarduo" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Hover Throne Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ChairCarSettings hoverThrone = new ChairCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Hover Throne",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.hoverthrone",
+                BypassCostPermission = "vehiclelicence.hoverthronefree",
+                Commands = new List<string> { "hoverthrone" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Rocket Seat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ChairCarSettings rocketSeat = new ChairCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Rocket Seat",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.rocketseat",
+                BypassCostPermission = "vehiclelicence.rocketseatfree",
+                Commands = new List<string> { "rocketseat" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Desk Car Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ChairCarSettings deskCar = new ChairCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Desk Car",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.deskcar",
+                BypassCostPermission = "vehiclelicence.deskcarfree",
+                Commands = new List<string> { "deskcar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Umbrella Copter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public UmbrellaCopterSettings umbrellaCopter = new UmbrellaCopterSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Umbrella Copter",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.umbrellacopter",
+                BypassCostPermission = "vehiclelicence.umbrellacopterfree",
+                Commands = new List<string> { "umbrellacopter" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Desk Copter Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public DeskCopterSettings deskCopter = new DeskCopterSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Desk Copter",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.deskcopter",
+                BypassCostPermission = "vehiclelicence.deskcopterfree",
+                Commands = new List<string> { "deskcopter" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Utility Truck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public UtilityTruckSettings utilityTruck = new UtilityTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Utility Truck",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.utilitytruck",
+                BypassCostPermission = "vehiclelicence.utilitytruckfree",
+                Commands = new List<string> { "utilitytruck" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Utility Truck 2 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public UtilityTruckSettings utilityTruck2 = new UtilityTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Utility Truck 2",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.utilitytruck2",
+                BypassCostPermission = "vehiclelicence.utilitytruck2free",
+                Commands = new List<string> { "utilitytruck2" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Utility Truck 3 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public UtilityTruckSettings utilityTruck3 = new UtilityTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Utility Truck 3",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.utilitytruck3",
+                BypassCostPermission = "vehiclelicence.utilitytruck3free",
+                Commands = new List<string> { "utilitytruck3" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Semi Tandem Axle Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SemiTandemAxleSettings semiTandemAxle = new SemiTandemAxleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Semi Tandem Axle",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.semitandemaxle",
+                BypassCostPermission = "vehiclelicence.semitandemaxlefree",
+                Commands = new List<string> { "semitandemaxle" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "ARES Transport Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ARESSettings aresT = new ARESSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "ARES Transport",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ares_t",
+                BypassCostPermission = "vehiclelicence.ares_t_free",
+                Commands = new List<string> { "ares_t" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 7000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "ARES Anti-Air Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ARESSettings aresAA = new ARESSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "ARES Anti-Air",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ares_aa",
+                BypassCostPermission = "vehiclelicence.ares_aa_free",
+                Commands = new List<string> { "ares_aa" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 9000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "ARES Heavy Combat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ARESSettings aresHC = new ARESSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "ARES Heavy Combat",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.ares_hc",
+                BypassCostPermission = "vehiclelicence.ares_hc_free",
+                Commands = new List<string> { "ares_hc" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 10000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Farm Trailer Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FarmTrailerSettings farmTrailer = new FarmTrailerSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Farm Trailer",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.farmtrailer",
+                BypassCostPermission = "vehiclelicence.farmtrailerfree",
+                Commands = new List<string> { "farmtrailer" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "ATV Blue Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public AtvSettings atvBlue = new AtvSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "ATV Blue",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.atvblue",
+                BypassCostPermission = "vehiclelicence.atvbluefree",
+                Commands = new List<string> { "atvblue" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "ATV Camo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public AtvSettings atvCamo = new AtvSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "ATV Camo",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.atvcamo",
+                BypassCostPermission = "vehiclelicence.atvcamofree",
+                Commands = new List<string> { "atvcamo" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "ATV Red Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public AtvSettings atvRed = new AtvSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "ATV Red",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.atvred",
+                BypassCostPermission = "vehiclelicence.atvredfree",
+                Commands = new List<string> { "atvred" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "ATV Yellow Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public AtvSettings atvYellow = new AtvSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "ATV Yellow",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.atvyellow",
+                BypassCostPermission = "vehiclelicence.atvyellowfree",
+                Commands = new List<string> { "atvyellow" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Bee Van Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FoodTruckSettings beeVan = new FoodTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Bee Van",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.beevan",
+                BypassCostPermission = "vehiclelicence.beevanfree",
+                Commands = new List<string> { "beevan" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Food Truck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FoodTruckSettings foodTruck = new FoodTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Food Truck",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.foodtruck",
+                BypassCostPermission = "vehiclelicence.foodtruckfree",
+                Commands = new List<string> { "foodtruck" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Gun Truck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FoodTruckSettings gunTruck = new FoodTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Gun Truck",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.guntruck",
+                BypassCostPermission = "vehiclelicence.guntruckfree",
+                Commands = new List<string> { "guntruck" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Vault Van Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FoodTruckSettings vaultVan = new FoodTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Vault Van",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.vaultvan",
+                BypassCostPermission = "vehiclelicence.vaultvanfree",
+                Commands = new List<string> { "vaultvan" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Delivery Van Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FoodTruckSettings deliveryVan = new FoodTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Delivery Van",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.deliveryvan",
+                BypassCostPermission = "vehiclelicence.deliveryvanfree",
+                Commands = new List<string> { "deliveryvan" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Rustlux Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public RustluxSettings rustlux = new RustluxSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Rustlux",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.rustlux",
+                BypassCostPermission = "vehiclelicence.rustluxfree",
+                Commands = new List<string> { "rustlux" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Rustlux 50cal Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public RustluxWeaponSettings rustlux50cal = new RustluxWeaponSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Rustlux 50 cal",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.rustlux50cal",
+                BypassCostPermission = "vehiclelicence.rustlux50calfree",
+                Commands = new List<string> { "rustlux50cal" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 6000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Rustlux Armor Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public RustluxWeaponSettings rustluxArmor = new RustluxWeaponSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Rustlux Armor",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.rustluxarmor",
+                BypassCostPermission = "vehiclelicence.rustluxarmorfree",
+                Commands = new List<string> { "rustluxarmor" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 6000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Rustlux HE Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public RustluxWeaponSettings rustluxHE = new RustluxWeaponSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Rustlux HE",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.rustluxhe",
+                BypassCostPermission = "vehiclelicence.rustluxhefree",
+                Commands = new List<string> { "rustluxhe" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 7000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Rustlux HV Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public RustluxWeaponSettings rustluxHV = new RustluxWeaponSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Rustlux HV",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.rustluxhv",
+                BypassCostPermission = "vehiclelicence.rustluxhvfree",
+                Commands = new List<string> { "rustluxhv" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 7000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Rustlux MLRS Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public RustluxWeaponSettings rustluxMLRS = new RustluxWeaponSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Rustlux MLRS",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.rustluxmlrs",
+                BypassCostPermission = "vehiclelicence.rustluxmlrsfree",
+                Commands = new List<string> { "rustluxmlrs" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 9000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Fire Ambulance Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FireVehicleSettings fireAmbulance = new FireVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Fire Ambulance",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.fireambulance",
+                BypassCostPermission = "vehiclelicence.fireambulancefree",
+                Commands = new List<string> { "fireambulance" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Fire Truck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FireVehicleSettings fireTruck = new FireVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Fire Truck",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.firetruck",
+                BypassCostPermission = "vehiclelicence.firetruckfree",
+                Commands = new List<string> { "firetruck" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Fire Light Rescue Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FireVehicleSettings fireLightRescue = new FireVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Fire Light Rescue",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.firelightrescue",
+                BypassCostPermission = "vehiclelicence.firelightrescuefree",
+                Commands = new List<string> { "firelightrescue" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Fire Pickup Truck Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FireVehicleSettings firePickupTruck = new FireVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Fire Pickup Truck",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.firepickup",
+                BypassCostPermission = "vehiclelicence.firepickupfree",
+                Commands = new List<string> { "firepickup" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Apache Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public ApacheSettings apache = new ApacheSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Apache",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.apache",
+                BypassCostPermission = "vehiclelicence.apachefree",
+                Commands = new List<string> { "apache" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 5000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "PodRacerSky Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public PodRacerSkySettings podRacerSky = new PodRacerSkySettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "PodRacer Sky",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.podracersky",
+                BypassCostPermission = "vehiclelicence.podracerskyfree",
+                Commands = new List<string> { "podracersky" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Wedge Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public WedgeSettings wedge = new WedgeSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Wedge",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.wedge",
+                BypassCostPermission = "vehiclelicence.wedgefree",
+                Commands = new List<string> { "wedge" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "CannonCar Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public CannonCarSettings cannonCar = new CannonCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Cannon Car",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.cannoncar",
+                BypassCostPermission = "vehiclelicence.cannoncarfree",
+                Commands = new List<string> { "cannoncar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SharkSuit Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SharkSettings sharkSuit = new SharkSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Shark Suit",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sharksuit",
+                BypassCostPermission = "vehiclelicence.sharksuitfree",
+                Commands = new List<string> { "sharksuit" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SharkSuitArmed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SharkSettings sharkSuitArmed = new SharkSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Shark Suit Armed",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sharksuitarmed",
+                BypassCostPermission = "vehiclelicence.sharksuitarmedfree",
+                Commands = new List<string> { "sharksuitarmed" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SharkBoat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SharkSettings sharkBoat = new SharkSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Shark Boat",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sharkboat",
+                BypassCostPermission = "vehiclelicence.sharkboatfree",
+                Commands = new List<string> { "sharkboat" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SharkBoatArmed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SharkSettings sharkBoatArmed = new SharkSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Shark Boat Armed",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sharkboatarmed",
+                BypassCostPermission = "vehiclelicence.sharkboatarmedfree",
+                Commands = new List<string> { "sharkboatarmed" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "SharkBoatHuge Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SharkSettings sharkBoatHuge = new SharkSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Shark Boat Huge",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sharkboathuge",
+                BypassCostPermission = "vehiclelicence.sharkboathugefree",
+                Commands = new List<string> { "sharkboathuge" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 6000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "StandSki Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public StandSkiSettings standSki = new StandSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Stand Ski",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.standski",
+                BypassCostPermission = "vehiclelicence.standskifree",
+                Commands = new List<string> { "standski" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "StandSki2 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public StandSkiSettings standSki2 = new StandSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Stand Ski 2",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.standski2",
+                BypassCostPermission = "vehiclelicence.standski2free",
+                Commands = new List<string> { "standski2" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "StandSki3 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public StandSkiSettings standSki3 = new StandSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Stand Ski 3",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.standski3",
+                BypassCostPermission = "vehiclelicence.standski3free",
+                Commands = new List<string> { "standski3" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "StandSki4 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public StandSkiSettings standSki4 = new StandSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Stand Ski 4",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.standski4",
+                BypassCostPermission = "vehiclelicence.standski4free",
+                Commands = new List<string> { "standski4" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "StandSki5 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public StandSkiSettings standSki5 = new StandSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Stand Ski 5",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.standski5",
+                BypassCostPermission = "vehiclelicence.standski5free",
+                Commands = new List<string> { "standski5" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "StandSki6 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public StandSkiSettings standSki6 = new StandSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Stand Ski 6",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.standski6",
+                BypassCostPermission = "vehiclelicence.standski6free",
+                Commands = new List<string> { "standski6" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "JetSkiBlack Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings jetSkiBlack = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet Ski Black",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetskiblack",
+                BypassCostPermission = "vehiclelicence.jetskiblackfree",
+                Commands = new List<string> { "jetskiblack" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "JetSkiBlue Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings jetSkiBlue = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet Ski Blue",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetskiblue",
+                BypassCostPermission = "vehiclelicence.jetskibluefree",
+                Commands = new List<string> { "jetskiblue" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "JetSkiRed Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings jetSkiRed = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet Ski Red",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetskired",
+                BypassCostPermission = "vehiclelicence.jetskiredfree",
+                Commands = new List<string> { "jetskired" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "JetSkiGreen Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings jetSkiGreen = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet Ski Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetskigreen",
+                BypassCostPermission = "vehiclelicence.jetskigreenfree",
+                Commands = new List<string> { "jetskigreen" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "JetSkiYellow Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings jetSkiYellow = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet Ski Yellow",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetskiyellow",
+                BypassCostPermission = "vehiclelicence.jetskiyellowfree",
+                Commands = new List<string> { "jetskiyellow" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "JetSkiBlueRedStriped Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings jetSkiBlueRedStriped = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet Ski Blue Red Striped",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetskiblueredstriped",
+                BypassCostPermission = "vehiclelicence.jetskiblueredstripedfree",
+                Commands = new List<string> { "jetskiblueredstriped" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "JetSkiBlueYellowStriped Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings jetSkiBlueYellowStriped = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet Ski Blue Yellow Striped",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetskiblueyellowstriped",
+                BypassCostPermission = "vehiclelicence.jetskiblueyellowstripedfree",
+                Commands = new List<string> { "jetskiblueyellowstriped" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "JetSkiCamo Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings jetSkiCamo = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet Ski Camo",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetskicamo",
+                BypassCostPermission = "vehiclelicence.jetskicamofree",
+                Commands = new List<string> { "jetskicamo" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "JetSkiGold Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings jetSkiGold = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet Ski Gold",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetskigold",
+                BypassCostPermission = "vehiclelicence.jetskigoldfree",
+                Commands = new List<string> { "jetskigold" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "JetSkiPink Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings jetSkiPink = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet Ski Pink",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetskipink",
+                BypassCostPermission = "vehiclelicence.jetskipinkfree",
+                Commands = new List<string> { "jetskipink" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "JetSkiPolice Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings jetSkiPolice = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet Ski Police",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetskipolice",
+                BypassCostPermission = "vehiclelicence.jetskipolicefree",
+                Commands = new List<string> { "jetskipolice" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "JetSkiPurple Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings jetSkiPurple = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Jet Ski Purple",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.jetskipurple",
+                BypassCostPermission = "vehiclelicence.jetskipurplefree",
+                Commands = new List<string> { "jetskipurple" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Weed Van Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FoodTruckSettings weedVan = new FoodTruckSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Weed Van",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.weedvan",
+                BypassCostPermission = "vehiclelicence.weedvanfree",
+                Commands = new List<string> { "weedvan" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Warthog Black Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public WarthogSettings warthogBlack = new WarthogSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Warthog Black",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.warthogblack",
+                BypassCostPermission = "vehiclelicence.warthogblackfree",
+                Commands = new List<string> { "warthogblack" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 6000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Transit Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TransitSettings transit = new TransitSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Transit",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.transit",
+                BypassCostPermission = "vehiclelicence.transitfree",
+                Commands = new List<string> { "transit" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Transit Dropside Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TransitSettings transitDropside = new TransitSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Transit Dropside",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.transitdropside",
+                BypassCostPermission = "vehiclelicence.transitdropsidefree",
+                Commands = new List<string> { "transitdropside" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3200, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Transit Recycling Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TransitSettings transitRecycling = new TransitSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Transit Recycling",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.transitrecycling",
+                BypassCostPermission = "vehiclelicence.transitrecyclingfree",
+                Commands = new List<string> { "transitrecycling" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3200, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Transit Box Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public TransitSettings transitBox = new TransitSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Transit Box",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.transitbox",
+                BypassCostPermission = "vehiclelicence.transitboxfree",
+                Commands = new List<string> { "transitbox" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3300, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Sentry Car Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SentryCarSettings sentryCar = new SentryCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Sentry Car",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sentrycar",
+                BypassCostPermission = "vehiclelicence.sentrycarfree",
+                Commands = new List<string> { "sentrycar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Sentry Car 2 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public SentryCarSettings sentryCar2 = new SentryCarSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Sentry Car 2",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.sentrycar2",
+                BypassCostPermission = "vehiclelicence.sentrycar2free",
+                Commands = new List<string> { "sentrycar2" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4200, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Barrel Car Thing Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunVehicleSettings barrelCarThing = new FunVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Barrel Car Thing",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.barrelcar",
+                BypassCostPermission = "vehiclelicence.barrelcarfree",
+                Commands = new List<string> { "barrelcar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Human Car Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunVehicleSettings humanCar = new FunVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Human Car",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.humancar",
+                BypassCostPermission = "vehiclelicence.humancarfree",
+                Commands = new List<string> { "humancar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Human Kart Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunVehicleSettings humanKart = new FunVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Human Kart",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.humankart",
+                BypassCostPermission = "vehiclelicence.humankartfree",
+                Commands = new List<string> { "humankart" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Monster Bike Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunVehicleSettings monsterBike = new FunVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Monster Bike",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.monsterbike",
+                BypassCostPermission = "vehiclelicence.monsterbikefree",
+                Commands = new List<string> { "monsterbike" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mini RHIB Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings miniRHIB = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mini RHIB",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.minirhib",
+                BypassCostPermission = "vehiclelicence.minirhibfree",
+                Commands = new List<string> { "minirhib" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Tire Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunVehicleSettings tire = new FunVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Tire",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.tire",
+                BypassCostPermission = "vehiclelicence.tirefree",
+                Commands = new List<string> { "tire" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 1000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Zergatron Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunVehicleSettings zergatron = new FunVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Zergatron",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.zergatron",
+                BypassCostPermission = "vehiclelicence.zergatronfree",
+                Commands = new List<string> { "zergatron" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Oxide Man Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunVehicleSettings oxideMan = new FunVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Oxide Man",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.oxideman",
+                BypassCostPermission = "vehiclelicence.oxidemanfree",
+                Commands = new List<string> { "oxideman" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Coffin Car Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public FunVehicleSettings coffinCar = new FunVehicleSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Coffin Car",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.coffincar",
+                BypassCostPermission = "vehiclelicence.coffincarfree",
+                Commands = new List<string> { "coffincar" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 2500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Stormwing Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public StormwingSettings stormwing = new StormwingSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Stormwing",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.stormwing",
+                BypassCostPermission = "vehiclelicence.stormwingfree",
+                Commands = new List<string> { "stormwing" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 7000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mini PT Boat Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings miniPTBoat = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mini PT Boat",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.miniptboat",
+                BypassCostPermission = "vehiclelicence.miniptboatfree",
+                Commands = new List<string> { "miniptboat" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 3500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mini Sub Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings miniSub = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mini Sub",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.minisub",
+                BypassCostPermission = "vehiclelicence.minisubfree",
+                Commands = new List<string> { "minisub" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "Mini Sub 2 Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public JetSkiSettings miniSub2 = new JetSkiSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "Mini Sub 2",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.minisub2",
+                BypassCostPermission = "vehiclelicence.minisub2free",
+                Commands = new List<string> { "minisub2" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4500, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "CPV Grey Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public CPVSettings cpvGrey = new CPVSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "CPV Grey",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.cpvgrey",
+                BypassCostPermission = "vehiclelicence.cpvgreyfree",
+                Commands = new List<string> { "cpvgrey" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+            [JsonProperty(PropertyName = "CPV Green Vehicle", ObjectCreationHandling = ObjectCreationHandling.Replace)]
+            public CPVSettings cpvGreen = new CPVSettings
+            {
+                Purchasable = false,
+                NoDamage = false,
+                NoCollisionDamage = false,
+                DisplayName = "CPV Green",
+                Distance = 7,
+                MinDistanceForPlayers = 2,
+                UsePermission = true,
+                Permission = "vehiclelicence.cpvgreen",
+                BypassCostPermission = "vehiclelicence.cpvgreenfree",
+                Commands = new List<string> { "cpvgreen" },
+                PurchasePrices = new Dictionary<string, PriceInfo>
+                {
+                    ["scrap"] = new PriceInfo { amount = 4000, displayName = "Scrap" }
+                },
+                SpawnCooldown = 300,
+                RecallCooldown = 30,
+                CooldownPermissions = new Dictionary<string, CooldownPermission>
+                {
+                    ["vehiclelicence.vip"] = new CooldownPermission
+                    {
+                        spawnCooldown = 30,
+                        recallCooldown = 10
+                    }
+                }
+            };
+
+        }
         #region BaseSettings
 
         [JsonObject(MemberSerialization.OptIn)]
@@ -5606,8 +19627,6 @@ namespace Oxide.Plugins
                             return PREFAB_SUBMARINE_DUO;
                         case NormalVehicleType.Snowmobile:
                             return PREFAB_SNOWMOBILE;
-                        case NormalVehicleType.TomahaSnowmobile:
-                            return PREFAB_SNOWMOBILE_TOMAHA;
                         case NormalVehicleType.PedalBike:
                             return PREFAB_PEDALBIKE;
                         case NormalVehicleType.PedalTrike:
@@ -5618,6 +19637,18 @@ namespace Oxide.Plugins
                             return PREFAB_MOTORBIKE_SIDECAR;
                         case NormalVehicleType.Kayak:
                             return PREFAB_KAYAK;
+                        case NormalVehicleType.Dpv:
+                            return PREFAB_DPV;
+                        case NormalVehicleType.SiegeTower:
+                            return PREFAB_SIEGETOWER;
+                        case NormalVehicleType.Catapult:
+                            return PREFAB_CATAPULT;
+                        case NormalVehicleType.Batteringram:
+                            return PREFAB_BATTERINGRAM;
+                        case NormalVehicleType.Ballista:
+                            return PREFAB_BALLISTA;
+                        case NormalVehicleType.PtBoat:
+                            return PREFAB_PTB;
                         default:
                             return null;
                     }
@@ -5637,8 +19668,8 @@ namespace Oxide.Plugins
                             return PREFAB_ATV;
                         case CustomVehicleType.RaceSofa:
                             return PREFAB_SOFA;
-                        case CustomVehicleType.WaterBird:
-                            return PREFAB_WATERBIRD;
+                        case CustomVehicleType.WaterHeli:
+                            return PREFAB_WATERHELI;
                         case CustomVehicleType.WarBird:
                             return PREFAB_WARBIRD;
                         case CustomVehicleType.LittleBird:
@@ -5711,12 +19742,754 @@ namespace Oxide.Plugins
                             return PREFAB_DOOMSDAYDISCOVAN;
                         case CustomVehicleType.ForkLift:
                             return PREFAB_FORKLIFT;
-                        case CustomVehicleType.LawnMower:
-                            return PREFAB_LAWNMOWER;
+                        case CustomVehicleType.LawnMowerRed:
+                            return PREFAB_LAWNMOWER_RED;
+                        case CustomVehicleType.LawnMowerGreen:
+                            return PREFAB_LAWNMOWER_GREEN;
                         case CustomVehicleType.Chariot:
                             return PREFAB_CHARIOT;
                         case CustomVehicleType.SoulHarvester:
                             return PREFAB_SOULHARVESTER;
+                        case CustomVehicleType.F1:
+                            return PREFAB_F1;
+                        case CustomVehicleType.Rustlerg:
+                            return PREFAB_RUSTLERG;
+                        case CustomVehicleType.Rustlers:
+                            return PREFAB_RUSTLERS;
+                        case CustomVehicleType.SemiTruck_Blue:
+                            return PREFAB_SEMITRUCK_BLUE;
+                        case CustomVehicleType.SemiTruck_Green:
+                            return PREFAB_SEMITRUCK_GREEN;
+                        case CustomVehicleType.SemiTruck_Red:
+                            return PREFAB_SEMITRUCK_RED;
+                        case CustomVehicleType.SemiTruck_White:
+                            return PREFAB_SEMITRUCK_WHITE;
+                        case CustomVehicleType.SemiTruck_Yellow:
+                            return PREFAB_SEMITRUCK_YELLOW;
+                        case CustomVehicleType.SemiTrailer_Blue:
+                            return PREFAB_SEMITRAILER_BLUE;
+                        case CustomVehicleType.SemiTrailer_Fuel:
+                            return PREFAB_SEMITRAILER_FUEL;
+                        case CustomVehicleType.SemiTrailer_Green:
+                            return PREFAB_SEMITRAILER_GREEN;
+                        case CustomVehicleType.SemiTrailer_Orange:
+                            return PREFAB_SEMITRAILER_ORANGE;
+                        case CustomVehicleType.SemiTrailer_Yellow:
+                            return PREFAB_SEMITRAILER_YELLOW;
+                        case CustomVehicleType.Wheelchair:
+                            return PREFAB_WHEELCHAIR;
+                        case CustomVehicleType.CobraGreen:
+                            return PREFAB_COBRA_GREEN;
+                        case CustomVehicleType.CobraGrey:
+                            return PREFAB_COBRA_GREY;
+                        case CustomVehicleType.CobraBlack:
+                            return PREFAB_COBRA_BLACK;
+                        case CustomVehicleType.MobileCasino:
+                            return PREFAB_MOBILECASINO;
+                        case CustomVehicleType.DreadNought:
+                            return PREFAB_DREADNOUGHT;
+                        case CustomVehicleType.DreadTrailer:
+                            return PREFAB_DREAD_TRAILER;
+                        case CustomVehicleType.ONYX:
+                            return PREFAB_ONYX;
+                        case CustomVehicleType.ONYX_AA:
+                            return PREFAB_ONYX_AA;
+                        case CustomVehicleType.ONYX_IFV:
+                            return PREFAB_ONYX_IFV;
+                        case CustomVehicleType.LandBeetle:
+                            return PREFAB_LANDBEETLE;
+                        case CustomVehicleType.WingFighter:
+                            return PREFAB_WINGFIGHTER;
+                        case CustomVehicleType.WingBomber:
+                            return PREFAB_WINGBOMBER;
+                        case CustomVehicleType.TimberWing:
+                            return PREFAB_TIMBERWING;
+                        case CustomVehicleType.PartyTrailer:
+                            return PREFAB_PARTYTRAILER;
+                        case CustomVehicleType.Tractor:
+                            return PREFAB_TRACTOR;
+                        case CustomVehicleType.FarmTractor:
+                            return PREFAB_FARM_TRACTOR;
+                        case CustomVehicleType.Jet:
+                            return PREFAB_JET;
+                        case CustomVehicleType.BoatMobile:
+                            return PREFAB_BOATMOBILE;
+                        case CustomVehicleType.Tricycle:
+                            return PREFAB_TRICYCLE;
+                        case CustomVehicleType.ShoppingCart:
+                            return PREFAB_SHOPPINGCART;
+                        case CustomVehicleType.ShoppingCartBlue:
+                            return PREFAB_SHOPPINGCART_BLUE;
+                        case CustomVehicleType.SpookyShoppingCart:
+                            return PREFAB_SPOOKY_SHOPPINGCART;
+                        case CustomVehicleType.BatBike:
+                            return PREFAB_BATBIKE;
+                        case CustomVehicleType.SpookyBatBike:
+                            return PREFAB_SPOOKY_BATBIKE;
+                        case CustomVehicleType.SportsBikeBlack:
+                            return PREFAB_SPORTSBIKE_BLACK;
+                        case CustomVehicleType.SportsBikeBlue:
+                            return PREFAB_SPORTSBIKE_BLUE;
+                        case CustomVehicleType.SportsBikeGreen:
+                            return PREFAB_SPORTSBIKE_GREEN;
+                        case CustomVehicleType.SportsBikeOrange:
+                            return PREFAB_SPORTSBIKE_ORANGE;
+                        case CustomVehicleType.SportsBikeRed:
+                            return PREFAB_SPORTSBIKE_RED;
+                        case CustomVehicleType.UfoDuo:
+                            return PREFAB_UFO_DUO;
+                        case CustomVehicleType.UfoMotherShip:
+                            return PREFAB_UFO_MOTHERSHIP;
+                        case CustomVehicleType.UfoSolo:
+                            return PREFAB_UFO_SOLO;
+                        case CustomVehicleType.UfoSpooky:
+                            return PREFAB_UFO_SPOOKY;
+                        case CustomVehicleType.Tardis:
+                            return PREFAB_TARDIS;
+                        case CustomVehicleType.Driftwood:
+                            return PREFAB_DRIFTWOOD;
+                        case CustomVehicleType.HailFireBike:
+                            return PREFAB_HAILFIRE_BIKE;
+                        case CustomVehicleType.HoverSled:
+                            return PREFAB_HOVER_SLED;
+                        case CustomVehicleType.MoonBuggy:
+                            return PREFAB_MOON_BUGGY;
+                        case CustomVehicleType.MandoSpeeder:
+                            return PREFAB_MANDO_SPEEDER;
+                        case CustomVehicleType.PodSpeeder:
+                            return PREFAB_POD_SPEEDER;
+                        case CustomVehicleType.Glider:
+                            return PREFAB_GLIDER;
+                        case CustomVehicleType.GliderArmed:
+                            return PREFAB_GLIDER_ARMED;
+                        case CustomVehicleType.UAP_Duo:
+                            return PREFAB_UAP_DUO;
+                        case CustomVehicleType.UAP_Solo:
+                            return PREFAB_UAP_SOLO;
+                        case CustomVehicleType.UAP_Prototype:
+                            return PREFAB_UAP_PROTOTYPE;
+                        case CustomVehicleType.UAP_Xmas:
+                            return PREFAB_UAP_XMAS;
+                        case CustomVehicleType.Starfighter:
+                            return PREFAB_STAR_FIGHTER;
+                        case CustomVehicleType.Warchair:
+                            return PREFAB_WAR_CHAIR;
+                        case CustomVehicleType.Raptor:
+                            return PREFAB_RAPTOR;
+                        case CustomVehicleType.Talon:
+                            return PREFAB_TALON;
+                        case CustomVehicleType.HoverBatBike:
+                            return PREFAB_HOVER_BAT_BIKE;
+                        case CustomVehicleType.FrostSled:
+                            return PREFAB_FROST_SLED;
+                        case CustomVehicleType.Scooter:
+                            return PREFAB_SCOOTER;
+                        case CustomVehicleType.HoverScooter:
+                            return PREFAB_HOVER_SCOOTER;
+                        case CustomVehicleType.DroneBackpack:
+                            return PREFAB_DRONE_BACKPACK;
+                        case CustomVehicleType.Hovercraft:
+                            return PREFAB_HOVERCRAFT;
+                        case CustomVehicleType.HovercraftArmed:
+                            return PREFAB_HOVERCRAFTARMED;
+                        case CustomVehicleType.Heelies:
+                            return PREFAB_HEELIES;
+                        case CustomVehicleType.Ehoverboard:
+                            return PREFAB_EHOVERBOARD;
+                        case CustomVehicleType.Monocycle:
+                            return PREFAB_MONOCYCLE;
+                        case CustomVehicleType.SkyWing:
+                            return PREFAB_SKYWING;
+                        case CustomVehicleType.MiniPlane:
+                            return PREFAB_MINIPLANE;
+                        case CustomVehicleType.WarPlane:
+                            return PREFAB_WARPLANE;
+                        case CustomVehicleType.RaidPlane:
+                            return PREFAB_RAIDPLANE;
+                        case CustomVehicleType.BradleyVehicle:
+                            return PREFAB_BRADLEY;
+                        case CustomVehicleType.F15Solo:
+                            return PREFAB_JET2;
+                        case CustomVehicleType.F15Duo:
+                            return PREFAB_JET2_DUO;
+                        case CustomVehicleType.A10:
+                            return PREFAB_A10;
+                        case CustomVehicleType.GoblinGlider:
+                            return PREFAB_GOBLIN_GLIDER;
+                        case CustomVehicleType.DroneBoard:
+                            return PREFAB_DRONE_BOARD;
+                        case CustomVehicleType.HeliHat:
+                            return PREFAB_HELIHAT;
+                        case CustomVehicleType.HeliHatUnarmed:
+                            return PREFAB_HELIHAT_UNARMED;
+                        case CustomVehicleType.M939:
+                            return PREFAB_M939;
+                        case CustomVehicleType.M939_Enclosed:
+                            return PREFAB_M939_ENCLOSED;
+                        case CustomVehicleType.M939_Desert:
+                            return PREFAB_M939_DESERT;
+                        case CustomVehicleType.M939_Desert_Enclosed:
+                            return PREFAB_M939_DESERT_ENCLOSED;
+                        case CustomVehicleType.Oppressor:
+                            return PREFAB_OPPRESSOR;
+                        case CustomVehicleType.Tumbler:
+                            return PREFAB_TUMBLER;
+                        case CustomVehicleType.TumblerArmed:
+                            return PREFAB_TUMBLERARMED;
+                        case CustomVehicleType.Falcon:
+                            return PREFAB_FALCON;
+                        case CustomVehicleType.ImperialShuttle:
+                            return PREFAB_IMPERIALSHUTTLE;
+                        case CustomVehicleType.BallistaCar:
+                            return PREFAB_BALLISTACAR;
+                        case CustomVehicleType.AirSpeeder:
+                            return PREFAB_AIRSPEEDER;
+                        case CustomVehicleType.GroundSpeeder:
+                            return PREFAB_GROUNDSPEEDER;
+                        case CustomVehicleType.RoadsterRp:
+                            return PREFAB_ROADSTER_RP;
+                        case CustomVehicleType.Ambulance:
+                            return PREFAB_AMBULANCE;
+                        case CustomVehicleType.Mamba:
+                            return PREFAB_MAMBA;
+                        case CustomVehicleType.BikeHellRider:
+                            return PREFAB_BIKE_HELL_RIDER;
+                        case CustomVehicleType.LandSpeeder:
+                            return PREFAB_LANDSPEEDER;
+                        case CustomVehicleType.FlyingBoat:
+                            return PREFAB_FLYINGBOAT;
+                        case CustomVehicleType.OppressorBike:
+                            return PREFAB_OPPRESSORBIKE;
+                        case CustomVehicleType.Batwing:
+                            return PREFAB_BATWING;
+                        case CustomVehicleType.BatwingDuo:
+                            return PREFAB_BATWING_DUO;
+                        case CustomVehicleType.MotorTrike:
+                            return PREFAB_MOTORTRIKE;
+                        case CustomVehicleType.SuperTrike:
+                            return PREFAB_SUPERTRIKE;
+                        case CustomVehicleType.SithSpeeder:
+                            return PREFAB_SITHSPEEDER;
+                        case CustomVehicleType.Carriage1:
+                            return PREFAB_CARRIAGE_1;
+                        case CustomVehicleType.Carriage2:
+                            return PREFAB_CARRIAGE_2;
+                        case CustomVehicleType.Carriage3:
+                            return PREFAB_CARRIAGE_3;
+                        case CustomVehicleType.Kart1:
+                            return PREFAB_KART1;
+                        case CustomVehicleType.Kart2:
+                            return PREFAB_KART2;
+                        case CustomVehicleType.Kart3:
+                            return PREFAB_KART3;
+                        case CustomVehicleType.Kart4:
+                            return PREFAB_KART4;
+                        case CustomVehicleType.Kart5:
+                            return PREFAB_KART5;
+                        case CustomVehicleType.Kart6:
+                            return PREFAB_KART6;
+                        case CustomVehicleType.Kart7:
+                            return PREFAB_KART7;
+                        case CustomVehicleType.Kart8:
+                            return PREFAB_KART8;
+                        case CustomVehicleType.HoverKart1:
+                            return PREFAB_HOVERKART1;
+                        case CustomVehicleType.Mongoose:
+                            return PREFAB_MONGOOSE;
+                        case CustomVehicleType.Warthog:
+                            return PREFAB_WARTHOG;
+                        case CustomVehicleType.WarthogS:
+                            return PREFAB_WARTHOGS;
+                        case CustomVehicleType.WarthogT:
+                            return PREFAB_WARTHOGT;
+                        case CustomVehicleType.DrumCar:
+                            return PREFAB_DRUMCAR;
+                        case CustomVehicleType.PianoCar:
+                            return PREFAB_PIANOCAR;
+                        case CustomVehicleType.BoneCar:
+                            return PREFAB_BONECAR;
+                        case CustomVehicleType.TableCar:
+                            return PREFAB_TABLECAR;
+                        case CustomVehicleType.SlotsCar:
+                            return PREFAB_SLOTSCAR;
+                        case CustomVehicleType.BeanCar:
+                            return PREFAB_BEANCAR;
+                        case CustomVehicleType.BallCar:
+                            return PREFAB_BALLCAR;
+                        case CustomVehicleType.PoliceCar:
+                            return PREFAB_POLICECAR;
+                        case CustomVehicleType.PoliceBike:
+                            return PREFAB_POLICEBIKE;
+                        case CustomVehicleType.SwatVan:
+                            return PREFAB_SWATVAN;
+                        case CustomVehicleType.AirBoat:
+                            return PREFAB_AIRBOAT;
+                        case CustomVehicleType.AirBoat2:
+                            return PREFAB_AIRBOAT2;
+                        case CustomVehicleType.FlintMobile:
+                            return PREFAB_FLINTMOBILE;
+                        case CustomVehicleType.Nighthawk:
+                            return PREFAB_NIGHTHAWK;
+                        case CustomVehicleType.MiniNighthawk:
+                            return PREFAB_MINI_NIGHTHAWK;
+                        case CustomVehicleType.HoverShark:
+                            return PREFAB_HOVERSHARK;
+                        case CustomVehicleType.Jeep:
+                            return PREFAB_JEEP;
+                        case CustomVehicleType.JeepJp:
+                            return PREFAB_JEEPJP;
+                        case CustomVehicleType.JeepCamo:
+                            return PREFAB_JEEPCAMO;
+                        case CustomVehicleType.JeepDesert:
+                            return PREFAB_JEEPDESERT;
+                        case CustomVehicleType.JeepAa:
+                            return PREFAB_JEEPAA;
+                        case CustomVehicleType.MonsterTruck:
+                            return PREFAB_MONSTERTRUCK;
+                        case CustomVehicleType.MonsterTruck2:
+                            return PREFAB_MONSTERTRUCK2;
+                        case CustomVehicleType.MonsterTruckBat:
+                            return PREFAB_MONSTERTRUCKBAT;
+                        case CustomVehicleType.MonsterTruckBean:
+                            return PREFAB_MONSTERTRUCKBEAN;
+                        case CustomVehicleType.MonsterTruckSemi:
+                            return PREFAB_MONSTERTRUCKSEMI;
+                        case CustomVehicleType.BumperBlue:
+                            return PREFAB_BUMPERBLUE;
+                        case CustomVehicleType.BumperBlack:
+                            return PREFAB_BUMPERBLACK;
+                        case CustomVehicleType.BumperRed:
+                            return PREFAB_BUMPERRED;
+                        case CustomVehicleType.BumperOrange:
+                            return PREFAB_BUMPERORANGE;
+                        case CustomVehicleType.BumperGreen:
+                            return PREFAB_BUMPERGREEN;
+                        case CustomVehicleType.LuggageCart:
+                            return PREFAB_LUGGAGECART;
+                        case CustomVehicleType.LuggageTrailer:
+                            return PREFAB_LUGGAGETRAILER;
+                        case CustomVehicleType.LuggageTrailer2:
+                            return PREFAB_LUGGAGETRAILER2;
+                        case CustomVehicleType.LuggageTrailer3:
+                            return PREFAB_LUGGAGETRAILER3;
+                        case CustomVehicleType.LuggageTrailer4:
+                            return PREFAB_LUGGAGETRAILER4;
+                        case CustomVehicleType.Minesweeper:
+                            return PREFAB_MINESWEEPER;
+                        case CustomVehicleType.MiniDozer:
+                            return PREFAB_MINIDOZER;
+                        case CustomVehicleType.MiniTipper:
+                            return PREFAB_MINITIPPER;
+                        case CustomVehicleType.Steamroller:
+                            return PREFAB_STEAMROLLER;
+                        case CustomVehicleType.BigDumpTruck:
+                            return PREFAB_BIGDUMPTRUCK;
+                        case CustomVehicleType.BigTractor:
+                            return PREFAB_BIGTRACTOR;
+                        case CustomVehicleType.Invader:
+                            return PREFAB_INVADER;
+                        case CustomVehicleType.Orlik:
+                            return PREFAB_ORLIK;
+                        case CustomVehicleType.Ah69g:
+                            return PREFAB_AH69G;
+                        case CustomVehicleType.SchoolBus1:
+                            return PREFAB_SCHOOLBUS1;
+                        case CustomVehicleType.SchoolBus2:
+                            return PREFAB_SCHOOLBUS2;
+                        case CustomVehicleType.SchoolBusShort:
+                            return PREFAB_SCHOOLBUSSHORT;
+                        case CustomVehicleType.PrisonBus:
+                            return PREFAB_PRISONBUS;
+                        case CustomVehicleType.ScrapJetA:
+                            return PREFAB_SCRAPJETA;
+                        case CustomVehicleType.ScrapJetB:
+                            return PREFAB_SCRAPJETB;
+                        case CustomVehicleType.Hoverscout:
+                            return PREFAB_HOVERSCOUT;
+                        case CustomVehicleType.Badcoppi_Intercettore:
+                            return PREFAB_BADCOPPI_INTERCETTORE;
+                        case CustomVehicleType.Badcoppi_Strada_Black:
+                            return PREFAB_BADCOPPI_STRADA_BLACK;
+                        case CustomVehicleType.Badcoppi_Strada_Blue:
+                            return PREFAB_BADCOPPI_STRADA_BLUE;
+                        case CustomVehicleType.Badcoppi_Strada_Gold:
+                            return PREFAB_BADCOPPI_STRADA_GOLD;
+                        case CustomVehicleType.Badcoppi_Strada_Green:
+                            return PREFAB_BADCOPPI_STRADA_GREEN;
+                        case CustomVehicleType.Badcoppi_Strada_Pink:
+                            return PREFAB_BADCOPPI_STRADA_PINK;
+                        case CustomVehicleType.Badcoppi_Strada_Yellow:
+                            return PREFAB_BADCOPPI_STRADA_YELLOW;
+                        case CustomVehicleType.Badcoppi_Sport_Red:
+                            return PREFAB_BADCOPPI_SPORT_RED;
+                        case CustomVehicleType.Badcoppi_Sport_Blue:
+                            return PREFAB_BADCOPPI_SPORT_BLUE;
+                        case CustomVehicleType.Badcoppi_Sport_Black:
+                            return PREFAB_BADCOPPI_SPORT_BLACK;
+                        case CustomVehicleType.Badcoppi_Sport_Green:
+                            return PREFAB_BADCOPPI_SPORT_GREEN;
+                        case CustomVehicleType.Badcoppi_Sport_White:
+                            return PREFAB_BADCOPPI_SPORT_WHITE;
+                        case CustomVehicleType.Badcoppi_Sport_Pink:
+                            return PREFAB_BADCOPPI_SPORT_PINK;
+                        case CustomVehicleType.Badcoppi_Sport_Yellow:
+                            return PREFAB_BADCOPPI_SPORT_YELLOW;
+                        case CustomVehicleType.Leviathan:
+                            return PREFAB_LEVIATHAN;
+                        case CustomVehicleType.LeviathanCarrier:
+                            return PREFAB_LEVIATHANCARRIER;
+                        case CustomVehicleType.LeviathanGigaCarrier:
+                            return PREFAB_LEVIATHANGIGACARRIER;
+                        case CustomVehicleType.Kamikaze:
+                            return PREFAB_KAMIKAZE;
+                        case CustomVehicleType.OppressorCopter:
+                            return PREFAB_OPPRESSORCOPTER;
+                        case CustomVehicleType.Skycrane:
+                            return PREFAB_SKYCRANE;
+                        case CustomVehicleType.HoverRacer:
+                            return PREFAB_HOVERRACER;
+                        case CustomVehicleType.EggMobile:
+                            return PREFAB_EGGMOBILE;
+                        case CustomVehicleType.EggKart:
+                            return PREFAB_EGGKART;
+                        case CustomVehicleType.Drillcar:
+                            return PREFAB_DRILLCAR;
+                        case CustomVehicleType.Jetson:
+                            return PREFAB_JETSON;
+                        case CustomVehicleType.ScoutSpeeder:
+                            return PREFAB_SCOUTSPEEDER;
+                        case CustomVehicleType.MiniBike:
+                            return PREFAB_MINIBIKE;
+                        case CustomVehicleType.MiniTrike:
+                            return PREFAB_MINITRIKE;
+                        case CustomVehicleType.SuperBikeBlack:
+                            return PREFAB_SUPERBIKE_BLACK;
+                        case CustomVehicleType.SuperBikeBlue:
+                            return PREFAB_SUPERBIKE_BLUE;
+                        case CustomVehicleType.SuperBikeGreen:
+                            return PREFAB_SUPERBIKE_GREEN;
+                        case CustomVehicleType.SuperBikeOrange:
+                            return PREFAB_SUPERBIKE_ORANGE;
+                        case CustomVehicleType.SuperBikeRed:
+                            return PREFAB_SUPERBIKE_RED;
+                        case CustomVehicleType.TowTruck:
+                            return PREFAB_TOWTRUCK;
+                        case CustomVehicleType.BM21:
+                            return PREFAB_BM21;
+                        case CustomVehicleType.Predator_X:
+                            return PREFAB_PREDATOR_X;
+                        case CustomVehicleType.Predator_RP:
+                            return PREFAB_PREDATOR_RP;
+                        case CustomVehicleType.Predator_Y:
+                            return PREFAB_PREDATOR_Y;
+                        case CustomVehicleType.Spookopter:
+                            return PREFAB_SPOOKOPTER;
+                        case CustomVehicleType.MIG17:
+                            return PREFAB_MIG17;
+                        case CustomVehicleType.Harrier:
+                            return PREFAB_HARRIER;
+                        case CustomVehicleType.SU47:
+                            return PREFAB_SU47;
+                        case CustomVehicleType.SU47_QT:
+                            return PREFAB_SU47_QT;
+                        case CustomVehicleType.SU47_Bling:
+                            return PREFAB_SU47_BLING;
+                        case CustomVehicleType.Tornado_Grey:
+                            return PREFAB_TORNADO_GREY;
+                        case CustomVehicleType.Tornado_Tan:
+                            return PREFAB_TORNADO_TAN;
+                        case CustomVehicleType.CF105:
+                            return PREFAB_CF105;
+                        case CustomVehicleType.ShifterKart1:
+                            return PREFAB_SHIFTERKART1;
+                        case CustomVehicleType.ShifterKart2:
+                            return PREFAB_SHIFTERKART2;
+                        case CustomVehicleType.ShifterKart3:
+                            return PREFAB_SHIFTERKART3;
+                        case CustomVehicleType.ShifterKart4:
+                            return PREFAB_SHIFTERKART4;
+                        case CustomVehicleType.ShifterKart5:
+                            return PREFAB_SHIFTERKART5;
+                        case CustomVehicleType.ShifterKart6:
+                            return PREFAB_SHIFTERKART6;
+                        case CustomVehicleType.MH60X:
+                            return PREFAB_MH60X;
+                        case CustomVehicleType.AH001:
+                            return PREFAB_AH001;
+                        case CustomVehicleType.BoltBucket:
+                            return PREFAB_BOLTBUCKET;
+                        case CustomVehicleType.CrudeBird:
+                            return PREFAB_CRUDEBIRD;
+                        case CustomVehicleType.Stretch_Black:
+                            return PREFAB_STRETCH_BLACK;
+                        case CustomVehicleType.Stretch_White:
+                            return PREFAB_STRETCH_WHITE;
+                        case CustomVehicleType.Stretch_Pink:
+                            return PREFAB_STRETCH_PINK;
+                        case CustomVehicleType.Motorhome:
+                            return PREFAB_MOTORHOME;
+                        case CustomVehicleType.Cybertruck:
+                            return PREFAB_CYBERTRUCK;
+                        case CustomVehicleType.Cyberkart:
+                            return PREFAB_CYBERKART;
+                        case CustomVehicleType.KartToy:
+                            return PREFAB_KARTTOY;
+                        case CustomVehicleType.KartUFO:
+                            return PREFAB_KARTUFO;
+                        case CustomVehicleType.KartSemi:
+                            return PREFAB_KARTSEMI;
+                        case CustomVehicleType.KartSedan:
+                            return PREFAB_KARTSEDAN;
+                        case CustomVehicleType.KartRaceBed:
+                            return PREFAB_KARTRACEBED;
+                        case CustomVehicleType.KartPinata:
+                            return PREFAB_KARTPINATA;
+                        case CustomVehicleType.KartPie:
+                            return PREFAB_KARTPIE;
+                        case CustomVehicleType.KartCoop:
+                            return PREFAB_KARTCOOP;
+                        case CustomVehicleType.KartCatapult:
+                            return PREFAB_KARTCATAPULT;
+                        case CustomVehicleType.KartCake:
+                            return PREFAB_KARTCAKE;
+                        case CustomVehicleType.KartBradley:
+                            return PREFAB_KARTBRADLEY;
+                        case CustomVehicleType.ScrapBuggy:
+                            return PREFAB_SCRAPBUGGY;
+                        case CustomVehicleType.ScrapCar:
+                            return PREFAB_SCRAPCAR;
+                        case CustomVehicleType.ScrapTruck:
+                            return PREFAB_SCRAPTRUCK;
+                        case CustomVehicleType.Diablo_Black:
+                            return PREFAB_DIABLO_BLACK;
+                        case CustomVehicleType.Diablo_Blue:
+                            return PREFAB_DIABLO_BLUE;
+                        case CustomVehicleType.Diablo_Gold:
+                            return PREFAB_DIABLO_GOLD;
+                        case CustomVehicleType.Diablo_Green:
+                            return PREFAB_DIABLO_GREEN;
+                        case CustomVehicleType.Diablo_Orange:
+                            return PREFAB_DIABLO_ORANGE;
+                        case CustomVehicleType.Diablo_Police:
+                            return PREFAB_DIABLO_POLICE;
+                        case CustomVehicleType.Diablo_Purple:
+                            return PREFAB_DIABLO_PURPLE;
+                        case CustomVehicleType.Diablo_Red:
+                            return PREFAB_DIABLO_RED;
+                        case CustomVehicleType.Diablo_White:
+                            return PREFAB_DIABLO_WHITE;
+                        case CustomVehicleType.Diablo_Yellow:
+                            return PREFAB_DIABLO_YELLOW;
+                        case CustomVehicleType.Diablo_Pink:
+                            return PREFAB_DIABLO_PINK;
+                        case CustomVehicleType.Jetpack:
+                            return PREFAB_JETPACK;
+                        case CustomVehicleType.JetpackUnarmed:
+                            return PREFAB_JETPACK_UNARMED;
+                        case CustomVehicleType._126pBlue:
+                            return PREFAB_126P_BLUE;
+                        case CustomVehicleType._126pBrown:
+                            return PREFAB_126P_BROWN;
+                        case CustomVehicleType._126pPurple:
+                            return PREFAB_126P_PURPLE;
+                        case CustomVehicleType._126pGreen:
+                            return PREFAB_126P_GREEN;
+                        case CustomVehicleType._126pLime:
+                            return PREFAB_126P_LIME;
+                        case CustomVehicleType.Tuktuk:
+                            return PREFAB_TUKTUK;
+                        case CustomVehicleType.SantaSled:
+                            return PREFAB_SANTASLED;
+                        case CustomVehicleType.PortaPotty:
+                            return PREFAB_PORTAPOTTY;
+                        case CustomVehicleType.SpaceBuggy:
+                            return PREFAB_SPACEBUGGY;
+                        case CustomVehicleType.SpaceHeli:
+                            return PREFAB_SPACEHELI;
+                        case CustomVehicleType.SpaceHeliArmed:
+                            return PREFAB_SPACEHELIARMED;
+                        case CustomVehicleType.Viperwing:
+                            return PREFAB_VIPERWING;
+                        case CustomVehicleType.Nightwing:
+                            return PREFAB_NIGHTWING;
+                        case CustomVehicleType.AssaultDrone:
+                            return PREFAB_ASSAULTDRONE;
+                        case CustomVehicleType.ChairCar:
+                            return PREFAB_CHAIRCAR;
+                        case CustomVehicleType.RockingChairCar:
+                            return PREFAB_ROCKINGCHAIRCAR;
+                        case CustomVehicleType.BeanBagCar:
+                            return PREFAB_BEANBAGCAR;
+                        case CustomVehicleType.BeanBagCarDuo:
+                            return PREFAB_BEANBAGCARDUO;
+                        case CustomVehicleType.BeachChairCar:
+                            return PREFAB_BEACHCHAIRCAR;
+                        case CustomVehicleType.BeachChairCarDuo:
+                            return PREFAB_BEACHCHAIRCARDUO;
+                        case CustomVehicleType.HoverThrone:
+                            return PREFAB_HOVERTHRONE;
+                        case CustomVehicleType.RocketSeat:
+                            return PREFAB_ROCKETSEAT;
+                        case CustomVehicleType.DeskCar:
+                            return PREFAB_DESKCAR;
+                        case CustomVehicleType.UmbrellaCopter:
+                            return PREFAB_UMBRELLACOPTER;
+                        case CustomVehicleType.DeskCopter:
+                            return PREFAB_DESKCOPTER;
+                        case CustomVehicleType.UtilityTruck:
+                            return PREFAB_UTILITYTRUCK;
+                        case CustomVehicleType.UtilityTruck2:
+                            return PREFAB_UTILITYTRUCK2;
+                        case CustomVehicleType.UtilityTruck3:
+                            return PREFAB_UTILITYTRUCK3;
+                        case CustomVehicleType.SemiTandemAxle:
+                            return PREFAB_SEMITANDEMAXLE;
+                        case CustomVehicleType.ARES_T:
+                            return PREFAB_ARES_T;
+                        case CustomVehicleType.ARES_AA:
+                            return PREFAB_ARES_AA;
+                        case CustomVehicleType.ARES_HC:
+                            return PREFAB_ARES_HC;
+                        case CustomVehicleType.FarmTrailer:
+                            return PREFAB_FARMTRAILER;
+                        case CustomVehicleType.ATV_Blue:
+                            return PREFAB_ATV_BLUE;
+                        case CustomVehicleType.ATV_Camo:
+                            return PREFAB_ATV_CAMO;
+                        case CustomVehicleType.ATV_Red:
+                            return PREFAB_ATV_RED;
+                        case CustomVehicleType.ATV_Yellow:
+                            return PREFAB_ATV_YELLOW;
+                        case CustomVehicleType.BeeVan:
+                            return PREFAB_BEEVAN;
+                        case CustomVehicleType.FoodTruck:
+                            return PREFAB_FOODTRUCK;
+                        case CustomVehicleType.GunTruck:
+                            return PREFAB_GUNTRUCK;
+                        case CustomVehicleType.VaultVan:
+                            return PREFAB_VAULTVAN;
+                        case CustomVehicleType.DeliveryVan:
+                            return PREFAB_DELIVERYVAN;
+                        case CustomVehicleType.Rustlux:
+                            return PREFAB_RUSTLUX;
+                        case CustomVehicleType.Rustlux_50cal:
+                            return PREFAB_RUSTLUX_50CAL;
+                        case CustomVehicleType.Rustlux_Armor:
+                            return PREFAB_RUSTLUX_ARMOR;
+                        case CustomVehicleType.Rustlux_HE:
+                            return PREFAB_RUSTLUX_HE;
+                        case CustomVehicleType.Rustlux_HV:
+                            return PREFAB_RUSTLUX_HV;
+                        case CustomVehicleType.Rustlux_MLRS:
+                            return PREFAB_RUSTLUX_MLRS;
+                        case CustomVehicleType.FireAmbulance:
+                            return PREFAB_FIREAMBULANCE;
+                        case CustomVehicleType.FireTruck:
+                            return PREFAB_FIRETRUCK;
+                        case CustomVehicleType.FireLightRescue:
+                            return PREFAB_FIRELIGHTRESCUE;
+                        case CustomVehicleType.FirePickupTruck:
+                            return PREFAB_FIREPICKUPTRUCK;
+                        case CustomVehicleType.Apache:
+                            return PREFAB_APACHE;
+                        case CustomVehicleType.PodRacerSky:
+                            return PREFAB_PODRACERSKY;
+                        case CustomVehicleType.Wedge:
+                            return PREFAB_WEDGE;
+                        case CustomVehicleType.CannonCar:
+                            return PREFAB_CANNONCAR;
+                        case CustomVehicleType.SharkSuit:
+                            return PREFAB_SHARKSUIT;
+                        case CustomVehicleType.SharkSuitArmed:
+                            return PREFAB_SHARKSUITARMED;
+                        case CustomVehicleType.SharkBoat:
+                            return PREFAB_SHARKBOAT;
+                        case CustomVehicleType.SharkBoatArmed:
+                            return PREFAB_SHARKBOATARMED;
+                        case CustomVehicleType.SharkBoatHuge:
+                            return PREFAB_SHARKBOATHUGE;
+                        case CustomVehicleType.StandSki:
+                            return PREFAB_STANDSKI;
+                        case CustomVehicleType.StandSki2:
+                            return PREFAB_STANDSKI2;
+                        case CustomVehicleType.StandSki3:
+                            return PREFAB_STANDSKI3;
+                        case CustomVehicleType.StandSki4:
+                            return PREFAB_STANDSKI4;
+                        case CustomVehicleType.StandSki5:
+                            return PREFAB_STANDSKI5;
+                        case CustomVehicleType.StandSki6:
+                            return PREFAB_STANDSKI6;
+                        case CustomVehicleType.JetSkiBlack:
+                            return PREFAB_JETSKIBLACK;
+                        case CustomVehicleType.JetSkiBlue:
+                            return PREFAB_JETSKIBLUE;
+                        case CustomVehicleType.JetSkiBlueRedStriped:
+                            return PREFAB_JETSKIBLUEREDSTRIPED;
+                        case CustomVehicleType.JetSkiBlueYellowStriped:
+                            return PREFAB_JETSKIBLUEYELLOWSTRIPED;
+                        case CustomVehicleType.JetSkiCamo:
+                            return PREFAB_JETSKICAMO;
+                        case CustomVehicleType.JetSkiGold:
+                            return PREFAB_JETSKIGOLD;
+                        case CustomVehicleType.JetSkiGreen:
+                            return PREFAB_JETSKIGREEN;
+                        case CustomVehicleType.JetSkiPink:
+                            return PREFAB_JETSKIPINK;
+                        case CustomVehicleType.JetSkiPolice:
+                            return PREFAB_JETSKIPOLICE;
+                        case CustomVehicleType.JetSkiPurple:
+                            return PREFAB_JETSKIPURPLE;
+                        case CustomVehicleType.JetSkiRed:
+                            return PREFAB_JETSKIRED;
+                        case CustomVehicleType.JetSkiYellow:
+                            return PREFAB_JETSKIYELLOW;
+                        case CustomVehicleType.WeedVan:
+                            return PREFAB_WEEDVAN;
+                        case CustomVehicleType.WarthogBlack:
+                            return PREFAB_WARTHOGBLACK;
+                        case CustomVehicleType.Transit:
+                            return PREFAB_TRANSIT;
+                        case CustomVehicleType.TransitDropside:
+                            return PREFAB_TRANSITDROPSIDE;
+                        case CustomVehicleType.TransitRecycling:
+                            return PREFAB_TRANSITRECYCLING;
+                        case CustomVehicleType.TransitBox:
+                            return PREFAB_TRANSITBOX;
+                        case CustomVehicleType.SentryCar:
+                            return PREFAB_SENTRYCAR;
+                        case CustomVehicleType.SentryCar2:
+                            return PREFAB_SENTRYCAR2;
+                        case CustomVehicleType.BarrelCarThing:
+                            return PREFAB_BARRELCARTHING;
+                        case CustomVehicleType.HumanCar:
+                            return PREFAB_HUMANCAR;
+                        case CustomVehicleType.HumanKart:
+                            return PREFAB_HUMANKART;
+                        case CustomVehicleType.MonsterBike:
+                            return PREFAB_MONSTERBIKE;
+                        case CustomVehicleType.Tire:
+                            return PREFAB_TIRE;
+                        case CustomVehicleType.Zergatron:
+                            return PREFAB_ZERGATRON;
+                        case CustomVehicleType.OxideMan:
+                            return PREFAB_OXIDEMAN;
+                        case CustomVehicleType.CoffinCar:
+                            return PREFAB_COFFINCAR;
+                        case CustomVehicleType.Stormwing:
+                            return PREFAB_STORMWING;
+                        case CustomVehicleType.MiniRHIB:
+                            return PREFAB_MINIRHIB;
+                        case CustomVehicleType.MiniPTBoat:
+                            return PREFAB_MINIPTBOAT;
+                        case CustomVehicleType.MiniSub:
+                            return PREFAB_MINISUB;
+                        case CustomVehicleType.MiniSub2:
+                            return PREFAB_MINISUB2;
+                        case CustomVehicleType.CPV_Grey:
+                            return PREFAB_CPV_GREY;
+                        case CustomVehicleType.CPV_Green:
+                            return PREFAB_CPV_GREEN;
                         default:
                             return null;
                     }
@@ -5740,6 +20513,16 @@ namespace Oxide.Plugins
                 PreSetupVehicle(entity, vehicle, player);
                 entity.Spawn();
                 SetupVehicle(entity, vehicle, player);
+
+                //Prevent horse spawning on floor above when inside building
+                var ridableHorse = entity as RidableHorse;
+                if (ridableHorse != null)
+                {
+                    var horsePosition = ridableHorse.transform.position;
+                    horsePosition.y -= 2.5f;
+                    ridableHorse.transform.position = horsePosition;
+                }
+
                 if (!entity.IsDestroyed)
                 {
                     Instance.CacheVehicleEntity(entity, vehicle, player);
@@ -5800,16 +20583,37 @@ namespace Oxide.Plugins
             {
                 if (entity is RidableHorse) // Thanks to Beee :)
                 {
-                    RidableHorse ridableHorse = entity as RidableHorse;
-                    string randBreed = configData.normalVehicles.ridableHorse.Breeds[Random.Range(0, configData.normalVehicles.ridableHorse.Breeds.Count)];
-                    int breedIndex;
-                    if (configData.normalVehicles.ridableHorse.BreedsRef.TryGetValue(randBreed, out breedIndex))
-                        ridableHorse.ApplyBreed(breedIndex);
-                    if (!configData.normalVehicles.ridableHorse.IsDoubleSaddle) return entity;
+                    var ridableHorse = entity as RidableHorse;
 
-                    ridableHorse.SetFlag(BaseEntity.Flags.Reserved9, false, networkupdate: false);
-                    ridableHorse.SetFlag(BaseEntity.Flags.Reserved10, true, networkupdate: false);
-                    ridableHorse.UpdateMountFlags();
+                    string randBreed = configData.normalVehicles.ridableHorse.Breeds[
+                        Random.Range(0, configData.normalVehicles.ridableHorse.Breeds.Count)
+                    ];
+                    if (configData.normalVehicles.ridableHorse.BreedsRef.TryGetValue(randBreed, out int breedIndex))
+                    {
+                        ridableHorse.ApplyBreed(breedIndex);
+                    }
+
+                    if (configData.normalVehicles.ridableHorse.IsDoubleSaddle)
+                    {
+                        ridableHorse.SetFlag(BaseEntity.Flags.Reserved9, false, networkupdate: false);
+                        ridableHorse.SetFlag(BaseEntity.Flags.Reserved10, true, networkupdate: false);
+                        ridableHorse.UpdateMountFlags();
+                    }
+
+                    string armorType = configData.normalVehicles.ridableHorse.ArmorType?.ToLower();
+                    if (!string.IsNullOrEmpty(armorType))
+                    {
+                        int armorItemId = GetHorseArmorItemId(armorType);
+                        if (armorItemId != 0 && ridableHorse.equipmentInventory != null)
+                        {
+                            Item armorItem = ItemManager.CreateByItemID(armorItemId);
+                            if (armorItem != null)
+                            {
+                                armorItem.MoveToContainer(ridableHorse.equipmentInventory);
+                                ridableHorse.EquipmentUpdate();
+                            }
+                        }
+                    }
 
                     return entity;
                 }
@@ -5844,7 +20648,8 @@ namespace Oxide.Plugins
                     HotAirBalloonEquipment equipment = GameManager.server.CreateEntity(component.Prefab.resourcePath, HAB.transform.position, HAB.transform.rotation) as HotAirBalloonEquipment;
                     equipment.SetParent(HAB, true);
                     equipment.Spawn();
-                    equipment.DelayNextUpgradeOnRemoveDuration = equipment.DelayNextUpgradeOnRemoveDuration;
+                    float delayNextUpgradeOnRemoveDuration = equipment.DelayNextUpgradeOnRemoveDuration;
+                    equipment.DelayNextUpgradeOnRemoveDuration = delayNextUpgradeOnRemoveDuration;
                     armor.UseItem();
                     HAB.SendNetworkUpdateImmediate();
                     return entity;
@@ -5871,6 +20676,19 @@ namespace Oxide.Plugins
                     return entity;
                 }
                 return entity;
+            }
+
+            int GetHorseArmorItemId(string armorType)
+            {
+                switch (armorType)
+                {
+                    case "wood":
+                        return 1659447559;
+                    case "roadsign":
+                        return 60528587;
+                    default:
+                        return 0;
+                }
             }
 
             #endregion Setup
@@ -5981,9 +20799,9 @@ namespace Oxide.Plugins
                 if (vehicle.Entity == null)
                 {
                     var prefab = GetVehiclePrefab(vehicle.VehicleType);
-                    
+
                     if (string.IsNullOrEmpty(prefab)) prefab = GetVehicleCustomPrefab(vehicle.VehicleType); // In case of custom vehicle.
-                    
+
                     if (!string.IsNullOrEmpty(prefab))
                     {
                         var trainEngine = GameManager.server.FindPrefab(prefab)?.GetComponent<TrainEngine>();
@@ -6203,77 +21021,102 @@ namespace Oxide.Plugins
             protected virtual void CorrectPositionAndRotation(BasePlayer player, Vehicle vehicle, Vector3 original, Quaternion rotation, out Vector3 spawnPos, out Quaternion spawnRot)
             {
                 spawnPos = original;
+
                 if (IsTrainVehicle)
                 {
                     var forward = player.eyes.HeadForward().WithY(0);
                     spawnRot = forward != Vector3.zero ? Quaternion.LookRotation(forward) : Quaternion.identity;
                     return;
                 }
+
                 if (configData.global.spawnLookingAt)
                 {
                     var needGetGround = true;
+
                     if (IsWaterVehicle)
                     {
                         RaycastHit hit;
                         if (Physics.Raycast(spawnPos, Vector3.up, out hit, 100, LAYER_GROUND) && hit.GetEntity() is StabilityEntity)
                         {
-                            needGetGround = false; //At the dock
+                            needGetGround = false; // At the dock
                         }
 
-                        if (IsWaterVehicle && (int)player.transform.position.y >= -1)
+                        float waterHeight = WaterLevel.GetWaterSurface(spawnPos, true, true, null);
+
+                        spawnPos.y = waterHeight;
+
+                        if ((int)player.transform.position.y >= -1)
                         {
-                            if (vehicle.VehicleType == "Tugboat" && Vector3.Distance(spawnPos, player.transform.position) < configData.normalVehicles.tugboat.Distance
-                               && spawnPos.y - player.transform.position.y < configData.normalVehicles.tugboat.Distance)
+                            if (vehicle.VehicleType == "Tugboat" &&
+                                Vector3.Distance(spawnPos, player.transform.position) < configData.normalVehicles.tugboat.Distance &&
+                                spawnPos.y - player.transform.position.y < configData.normalVehicles.tugboat.Distance)
                             {
                                 spawnPos += player.eyes.MovementForward() * configData.normalVehicles.tugboat.Distance;
                             }
-                            spawnPos.y = player.transform.position.y;
                         }
-                        else if (IsWaterVehicle && (int)player.transform.position.y < -1)
+                        else
                         {
-                            // Math.Abs(Math.Abs(spawnPos.y) - Math.Abs(player.transform.position.y)) >= configData.normalVehicles.tugboat.Distance
-                            if (vehicle.VehicleType == "Tugboat" && Vector3.Distance(spawnPos, player.transform.position)
-                                    < configData.normalVehicles.tugboat.Distance && spawnPos.y - player.transform.position.y < configData.normalVehicles.tugboat.Distance)
+                            if (vehicle.VehicleType == "Tugboat" &&
+                                Vector3.Distance(spawnPos, player.transform.position) < configData.normalVehicles.tugboat.Distance &&
+                                spawnPos.y - player.transform.position.y < configData.normalVehicles.tugboat.Distance)
                             {
                                 spawnPos += player.eyes.MovementForward() * configData.normalVehicles.tugboat.Distance;
                             }
-                            spawnPos.y = player.transform.position.y - 3;
                         }
                     }
                     else
                     {
                         if (TryGetCenterOfFloorNearby(ref spawnPos))
                         {
-                            needGetGround = false; //At the floor
-                            if (vehicle.VehicleType == "TransportHelicopter" && Vector3.Distance(spawnPos, player.transform.position)
-                               < configData.normalVehicles.transportHelicopter.Distance)
-                            { spawnPos += player.eyes.MovementForward() * configData.normalVehicles.transportHelicopter.Distance; }
+                            needGetGround = false; // At the floor
+
+                            if (vehicle.VehicleType == "TransportHelicopter" &&
+                                Vector3.Distance(spawnPos, player.transform.position) < configData.normalVehicles.transportHelicopter.Distance)
+                            {
+                                spawnPos += player.eyes.MovementForward() * configData.normalVehicles.transportHelicopter.Distance;
+                            }
                         }
                     }
+
                     if (needGetGround)
                     {
-                        spawnPos = GetGroundPosition(spawnPos);
-                        if (IsWaterVehicle && (int)player.transform.position.y >= -1 && spawnPos.y <= -1)
+                        spawnPos = GetGroundPosition(spawnPos, IsWaterVehicle);
+
+                        if (IsWaterVehicle)
                         {
-                            if (vehicle.VehicleType == "Tugboat" && Vector3.Distance(spawnPos, player.transform.position)
-                                < configData.normalVehicles.tugboat.Distance && spawnPos.y - player.transform.position.y < configData.normalVehicles.tugboat.Distance)
+                            float waterHeight = WaterLevel.GetWaterSurface(spawnPos, true, true, null);
+                            float verticalOffset = 1f;
+
+                            if (vehicle.VehicleType == "SkyBoat") verticalOffset = 2f;
+                            else if (vehicle.VehicleType == "Tugboat") verticalOffset = 1.5f;
+
+                            spawnPos.y = waterHeight + verticalOffset;
+
+                            if ((int)player.transform.position.y >= -1 && spawnPos.y <= -1)
                             {
-                                spawnPos += player.eyes.MovementForward() * configData.normalVehicles.tugboat.Distance;
+                                if (vehicle.VehicleType == "Tugboat" &&
+                                    Vector3.Distance(spawnPos, player.transform.position) < configData.normalVehicles.tugboat.Distance &&
+                                    spawnPos.y - player.transform.position.y < configData.normalVehicles.tugboat.Distance)
+                                {
+                                    spawnPos += player.eyes.MovementForward() * configData.normalVehicles.tugboat.Distance;
+                                }
                             }
-                            spawnPos.y = -1;
+                            else if ((int)player.transform.position.y < -1)
+                            {
+                                if (vehicle.VehicleType == "Tugboat" &&
+                                    Vector3.Distance(spawnPos, player.transform.position) < configData.normalVehicles.tugboat.Distance &&
+                                    spawnPos.y - player.transform.position.y < configData.normalVehicles.tugboat.Distance)
+                                {
+                                    spawnPos += player.eyes.MovementForward() * configData.normalVehicles.tugboat.Distance;
+                                }
+                            }
                         }
-                        else if (IsWaterVehicle && (int)player.transform.position.y < -1)
+
+                        if (vehicle.VehicleType == "TransportHelicopter" &&
+                            Vector3.Distance(spawnPos, player.transform.position) < configData.normalVehicles.transportHelicopter.Distance)
                         {
-                            if (vehicle.VehicleType == "Tugboat" && Vector3.Distance(spawnPos, player.transform.position)
-                                < configData.normalVehicles.tugboat.Distance && spawnPos.y - player.transform.position.y < configData.normalVehicles.tugboat.Distance)
-                            {
-                                spawnPos += player.eyes.MovementForward() * configData.normalVehicles.tugboat.Distance;
-                            }
-                            spawnPos.y = player.transform.position.y;
+                            spawnPos += player.eyes.MovementForward() * configData.normalVehicles.transportHelicopter.Distance;
                         }
-                        if (vehicle.VehicleType == "TransportHelicopter" && Vector3.Distance(spawnPos, player.transform.position)
-                            < configData.normalVehicles.transportHelicopter.Distance)
-                        { spawnPos += player.eyes.MovementForward() * configData.normalVehicles.transportHelicopter.Distance; }
                     }
                 }
                 else
@@ -6285,7 +21128,6 @@ namespace Oxide.Plugins
                 var angle = normalized != Vector3.zero ? Quaternion.LookRotation(normalized).eulerAngles.y : Random.Range(0f, 360f);
                 var rotationAngle = GetSpawnRotationAngle();
                 spawnRot = Quaternion.Euler(Vector3.up * (angle + rotationAngle));
-
             }
 
             private void GetPositionWithNoPlayersNearby(BasePlayer player, ref Vector3 spawnPos)
@@ -6305,7 +21147,7 @@ namespace Oxide.Plugins
                         break;
                     }
                 }
-                spawnPos = GetGroundPosition(spawnPos);
+                spawnPos = GetGroundPosition(spawnPos, IsWaterVehicle);
             }
 
             private bool TryGetCenterOfFloorNearby(ref Vector3 spawnPos)
@@ -6496,13 +21338,9 @@ namespace Oxide.Plugins
 
         #region VehicleSettings
 
-        public class PedalBikeSettings : BaseVehicleSettings
-        {
-        }
+        public class PedalBikeSettings : BaseVehicleSettings { }
 
-        public class PedalTrikeSettings : BaseVehicleSettings
-        {
-        }
+        public class PedalTrikeSettings : BaseVehicleSettings { }
 
         public class MotorBikeSettings : FuelVehicleSettings
         {
@@ -6526,6 +21364,8 @@ namespace Oxide.Plugins
             {
                 return (entity as Bike)?.GetFuelSystem();
             }
+
+            public override bool CustomVehicle => true;
         }
 
         public class RaceSofaSettings : FuelVehicleSettings
@@ -6534,6 +21374,8 @@ namespace Oxide.Plugins
             {
                 return (entity as Bike)?.GetFuelSystem();
             }
+
+            public override bool CustomVehicle => true;
         }
 
         public class KayakSettings : BaseVehicleSettings
@@ -6541,12 +21383,18 @@ namespace Oxide.Plugins
             public override bool IsWaterVehicle => true;
         }
 
-        public class SedanSettings : BaseVehicleSettings
-        {
-        }
+        public class SedanSettings : BaseVehicleSettings { }
 
-        public class ChinookSettings : BaseVehicleSettings
+        public class ChinookSettings : BaseVehicleSettings { }
+
+        public class DpvSettings : FuelVehicleSettings
         {
+            public override bool IsWaterVehicle => true;
+
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
+            {
+                return (entity as DiverPropulsionVehicle)?.GetFuelSystem();
+            }
         }
 
         public class RowboatSettings : InvFuelVehicleSettings
@@ -6564,9 +21412,23 @@ namespace Oxide.Plugins
             }
         }
 
-        public class RhibSettings : RowboatSettings
+        public class RhibSettings : RowboatSettings { }
+
+        public class PTBoatSettings : RowboatSettings { }
+
+        public class SiegeTowerSettings : BaseVehicleSettings { }
+
+        public class CatapultSettings : BaseVehicleSettings { }
+
+        public class BatteringramSettings : FuelVehicleSettings
         {
+            protected override IFuelSystem GetFuelSystem(BaseEntity entity)
+            {
+                return (entity as BatteringRam)?.GetFuelSystem();
+            }
         }
+
+        public class BallistaSettings : BaseVehicleSettings { }
 
         public class TugboatSettings : FuelVehicleSettings
         {
@@ -6603,9 +21465,7 @@ namespace Oxide.Plugins
             }
         }
 
-        public class ArmoredHotAirBalloonSettings : HotAirBalloonSettings
-        {
-        }
+        public class ArmoredHotAirBalloonSettings : HotAirBalloonSettings { }
 
         public class MiniCopterSettings : FuelVehicleSettings
         {
@@ -6709,131 +21569,131 @@ namespace Oxide.Plugins
             }
         }
 
-        public class WaterBirdSettings : BaseVehicleSettings
+        public class WaterHeliSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
 
             public override bool IsWaterVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class WarBirdSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class LittleBirdSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class FighterSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class OldFighterSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class FighterBusSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class WarBusSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class AirBusSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class PatrolHelicopterSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class RustWingSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class RustWingDetailedSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class RustWingDetailedOldSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class TinFighterSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class TinFighterDetailedSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class TinFighterDetailedOldSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class MarsFighterSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class MarsFighterDetailedSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class SkyPlaneSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
@@ -6842,7 +21702,7 @@ namespace Oxide.Plugins
             public override bool IsFightVehicle => true;
 
             public override bool IsWaterVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
@@ -6864,70 +21724,70 @@ namespace Oxide.Plugins
         public class SantaSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class WarSantaSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class WitchSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class MagicCarpetSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class Ah69tSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class Ah69rSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class Ah69aSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class MavikSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class HeavyFighterSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
         public class PorcelainCommanderSettings : BaseVehicleSettings
         {
             public override bool IsFightVehicle => true;
-            
+
             public override bool CustomVehicle => true;
         }
 
@@ -6971,6 +21831,1346 @@ namespace Oxide.Plugins
             public override bool CustomVehicle => true;
         }
 
+        public class F1Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class RustlergSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class RustlersSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SemiTruck_RedSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SemiTruck_YellowSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SemiTruck_GreenSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SemiTruck_BlueSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SemiTruck_WhiteSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SemiTrailer_OrangeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SemiTrailer_GreenSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SemiTrailer_YellowSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SemiTrailer_BlueSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SemiTrailer_FuelSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class WheelchairSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class CobraSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class MobileCasinoSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class DreadNoughtSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class DreadTrailerSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class ONYXSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class ONYXAASettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class ONYXIFVSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class LandBeetleSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class WingFighterSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class WingBomberSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class TimberWingSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class PartyTrailerSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class TractorSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class JetSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class BoatMobileSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class TricycleSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class ShoppingCartSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class ShoppingCartBlueSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SpookyShoppingCartSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BatBikeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SpookyBatBikeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SportsBikeBlackSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SportsBikeBlueSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SportsBikeGreenSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SportsBikeOrangeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SportsBikeRedSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class UfoDuoSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class UfoMotherShipSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class UfoSoloSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class UfoSpookySettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class TardisSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class DriftwoodSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class HailFireBikeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class LandSpeederSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class OppressorBikeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class HoverSledSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MoonBuggySettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MandoSpeederSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class PodSpeederSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class GliderSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+
+            public override bool CustomVehicle => true;
+        }
+
+        public class GliderArmedSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+
+            public override bool CustomVehicle => true;
+        }
+
+        public class UAP_DuoSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+
+            public override bool CustomVehicle => true;
+        }
+
+        public class UAP_SoloSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+
+            public override bool CustomVehicle => true;
+        }
+
+        public class UAP_PrototypeSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+
+            public override bool CustomVehicle => true;
+        }
+
+        public class UAP_XmasSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+
+            public override bool CustomVehicle => true;
+        }
+
+        public class StarfighterSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+
+            public override bool CustomVehicle => true;
+        }
+
+        public class WarchairSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class RaptorSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+
+            public override bool CustomVehicle => true;
+        }
+
+        public class TalonSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+
+            public override bool CustomVehicle => true;
+        }
+
+        public class HoverBatBikeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class FrostSledSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class ScooterSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class HoverScooterSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class DroneBackpackSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class HovercraftSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class HovercraftArmedSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class HeeliesSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class EhoverboardSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MonocycleSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SkyWingSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class MiniPlaneSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class WarPlaneSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class RaidPlaneSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class BradleyVehicleSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class F15SoloSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class F15DuoSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class A10Settings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class FlyingBoatSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class DroneBoardSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class GoblinGliderSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class HeliHatSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class HeliHatUnarmedSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class M939Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class M939EnclosedSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class M939DesertSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class M939EnclosedDesertSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class OppressorSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class TumblerSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class TumblerArmedSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class FalconSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class ImperialShuttleSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class BallistaCarSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class AirSpeederSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class GroundSpeederSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class RoadsterRPSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class AmbulanceSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MambaSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class BikeHellRiderSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class BatwingSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class BatwingDuoSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class MotorTrikeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SuperTrikeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SithSpeederSettings : BaseVehicleSettings
+        {
+            public override bool IsFightVehicle => true;
+            public override bool CustomVehicle => true;
+        }
+
+        public class Carriage1Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class Carriage2Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class Carriage3Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class Kart1Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class Kart2Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class Kart3Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class Kart4Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class Kart5Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class Kart6Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class Kart7Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class Kart8Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class HoverKart1Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MongooseSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class WarthogSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class WarthogSSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class WarthogTSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class DrumCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class PianoCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BoneCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class TableCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SlotsCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BeanCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BallCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class PoliceCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class PoliceBikeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SwatVanSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class AirBoatSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class AirBoat2Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class FlintMobileSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class NighthawkSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MiniNighthawkSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class HoverSharkSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class JeepSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class JeepJpSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class JeepCamoSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class JeepDesertSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class JeepAaSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MonsterTruckSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MonsterTruck2Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MonsterTruckBatSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MonsterTruckBeanSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MonsterTruckSemiSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BumperBlueSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BumperBlackSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BumperRedSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BumperOrangeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BumperGreenSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class LuggageCartSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class LuggageTrailerSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MinesweeperSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MiniDozerSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MiniTipperSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SteamrollerSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BigDumpTruckSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BigTractorSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class InvaderSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class OrlikSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class Ah69gSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class SchoolBus1Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SchoolBus2Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SchoolBusShortSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class PrisonBusSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class ScrapJetSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+
+            public override bool IsFightVehicle => true;
+        }
+
+        public class HoverscoutSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BadcoppiSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class LeviathanSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class KamikazeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class OppressorCopterSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SkycraneSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class HoverRacerSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class EggMobileSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class EggKartSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class DrillcarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class JetsonSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class ScoutSpeederSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MiniBikesSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class SuperBikesSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class TowTruckSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class BM21Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class PredatorSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+
+            public override bool IsFightVehicle => true;
+        }
+
+        public class SpookopterSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+
+            public override bool IsFightVehicle => true;
+        }
+
+        public class MIG17Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+
+            public override bool IsFightVehicle => true;
+        }
+
+        public class HarrierSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+
+            public override bool IsFightVehicle => true;
+        }
+
+        public class SU47Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+
+            public override bool IsFightVehicle => true;
+        }
+
+        public class TornadoSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+
+            public override bool IsFightVehicle => true;
+        }
+
+        public class CF105Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+
+            public override bool IsFightVehicle => true;
+        }
+
+        public class ShifterKartSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+        }
+
+        public class MH60XSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class AH001Settings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class BoltBucketSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class CrudeBirdSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class Stretch_BlackSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class Stretch_WhiteSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class Stretch_PinkSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class MotorhomeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class CybertruckSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class FunKartSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class ScrapBuggySettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class ScrapCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class ScrapTruckSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class DiabloSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class JetpackSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class Vehicle126PSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class TuktukSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class SantaSledSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class PortaPottySettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class SpaceBuggySettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class SpaceHeliSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class SpaceHeliArmedSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class ViperwingSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class NightwingSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class AssaultDroneSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class ChairCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class DeskCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class UmbrellaCopterSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class DeskCopterSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class UtilityTruckSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class SemiTandemAxleSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class ARESSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class FarmTrailerSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class RustluxSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class RustluxWeaponSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class FireVehicleSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class FoodTruckSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class ApacheSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class PodRacerSkySettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class WedgeSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class CannonCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+
+        }
+
+        public class SharkSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+            public override bool IsWaterVehicle => true;
+        }
+
+        public class StandSkiSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+            public override bool IsWaterVehicle => true;
+        }
+
+        public class JetSkiSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+            public override bool IsWaterVehicle => true;
+        }
+
+        public class TransitSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class SentryCarSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class FunVehicleSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => false;
+        }
+
+        public class StormwingSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+        }
+
+        public class CPVSettings : BaseVehicleSettings
+        {
+            public override bool CustomVehicle => true;
+            public override bool IsFightVehicle => true;
+            public override bool IsWaterVehicle => true;
+        }
+
         public class TransportHelicopterSettings : FuelVehicleSettings
         {
             public override bool IsFightVehicle => true;
@@ -6983,7 +23183,7 @@ namespace Oxide.Plugins
 
             [JsonProperty("Seconds to pause flyhack when dismount from Transport Scrap Helicopter.")]
             public int flyHackPause;
-            
+
             [JsonProperty("Instant Engine Start-up (instant take-off)")]
             public bool instantTakeoff;
 
@@ -6997,6 +23197,9 @@ namespace Oxide.Plugins
         {
             [JsonProperty("Spawn with Double Saddle")]
             public bool IsDoubleSaddle { get; set; }
+
+            [JsonProperty("Armor Type (wood, roadsign)")]
+            public string ArmorType { get; set; } = "";
 
             [JsonProperty("Breeds")]
             public List<string> Breeds { get; set; }
@@ -7029,8 +23232,6 @@ namespace Oxide.Plugins
                 if (ridableHorse != null)
                 {
                     ridableHorse.TryLeaveHitch();
-                    // Broke on update, not sure what the replacement is or if one is needed
-                    // ridableHorse.DropToGround(ridableHorse.transform.position, ridableHorse.transform.rotation, true); //ridableHorse.UpdateDropToGroundForDuration(2f);
                 }
             }
 
@@ -7818,7 +24019,6 @@ namespace Oxide.Plugins
                 configData.normalVehicles.submarineSolo.BypassCostPermission = "vehiclelicence.submarinesolofree";
                 configData.normalVehicles.submarineDuo.BypassCostPermission = "vehiclelicence.submarineduofree";
                 configData.normalVehicles.snowmobile.BypassCostPermission = "vehiclelicence.snowmobilefree";
-                configData.normalVehicles.tomahaSnowmobile.BypassCostPermission = "vehiclelicence.tomahasnowmobilefree";
 
                 configData.modularVehicles["SmallCar"].BypassCostPermission = "vehiclelicence.smallmodularcarfree";
                 configData.modularVehicles["MediumCar"].BypassCostPermission = "vehiclelicence.mediumodularcarfree";
@@ -7934,7 +24134,7 @@ namespace Oxide.Plugins
                     {
                         var settings = new TrainVehicleSettings
                         {
-                            Purchasable = true,
+                            Purchasable = false,
                             DisplayName = "Locomotive",
                             Distance = 12,
                             MinDistanceForPlayers = 6,
@@ -8219,6 +24419,7 @@ namespace Oxide.Plugins
                     return false;
                 }
                 Instance.SaveData();
+                Interface.CallHook("OnLicensedVehicleRemoved", playerId, vehicleType); // Added Hook For Snaplatack
                 return true;
             }
 
@@ -8374,7 +24575,23 @@ namespace Oxide.Plugins
             }
         }
 
+        void ManualWipe()
+        {
+            ClearData();
+            Puts("Data wiped successfully");
+        }
         #endregion DataFile
+
+        #region Manual Wipe Command
+        [ConsoleCommand("vl_wipe")]
+        void ManualWipeCMD(ConsoleSystem.Arg arg)
+        {
+            if (arg.Args != null)
+            {
+                ManualWipe();
+            }
+        }
+        #endregion
 
         #region LanguageFile
 
@@ -8472,6 +24689,7 @@ namespace Oxide.Plugins
                 ["TooFarTrainTrack"] = "You are too far from the train track.",
                 ["TooCloseTrainBarricadeOrWorkCart"] = "You are too close to the train barricade or work cart.",
                 ["NotSpawnedOrRecalled"] = "For some reason, your <color=#009EFF>{0}</color> vehicle was not spawned/recalled",
+                ["NoSpawnInDeepSea"] = "No spawning in the deepsea.",
 
                 ["CantUse"] = "Sorry! This {0} belongs to {1}. You cannot use it.",
                 ["CantPush"] = "Sorry! This {0} belongs to {1}. You cannot push it.",
@@ -8537,6 +24755,7 @@ namespace Oxide.Plugins
                 ["TooFarTrainTrack"] = "您距离铁路轨道太远了",
                 ["TooCloseTrainBarricadeOrWorkCart"] = "您距离铁轨障碍物或其它火车太近了",
                 ["NotSpawnedOrRecalled"] = "由于某些原因，您的 <color=#009EFF>{0}</color> 载具无法生成或召回",
+                ["NoSpawnInDeepSea"] = "不会在深海生成。",
 
                 ["CantUse"] = "您不能使用它，这个 {0} 属于 {1}",
                 ["CantPush"] = "您无法推送此内容，它 {0} 属于 {1}.",
@@ -8602,12 +24821,12 @@ namespace Oxide.Plugins
                 ["TooFarTrainTrack"] = "Вы слишком далеко от железнодорожных путей",
                 ["TooCloseTrainBarricadeOrWorkCart"] = "Вы слишком близко к железнодорожной баррикаде или рабочей тележке",
                 ["NotSpawnedOrRecalled"] = "По какой-то причине ваш <color=#009EFF>{0}</color>  автомобилей не был вызван / отозван",
+                ["NoSpawnInDeepSea"] = "Не появляется в глубоком море.",
 
                 ["CantUse"] = "Простите! Этот {0} принадлежит {1}. Вы не можете его использовать.",
                 ["CantPush"] = "Простите! Этот {0} принадлежит {1}. Вы не можете его подтолкнуть.",
             }, this, "ru");
         }
-
         #endregion LanguageFile
     }
 }
