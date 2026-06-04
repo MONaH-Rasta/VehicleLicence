@@ -23,7 +23,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.8.9")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.9.0")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -5321,14 +5321,14 @@ namespace Oxide.Plugins
         {
             if (arg.IsAdmin && arg.Args != null && arg.Args.Length == 2)
             {
-                var option = arg.Args[0];
+                var option = arg.Args[0].ToString();
                 string vehicleType;
                 if (!IsValidVehicleType(option, out vehicleType))
                 {
                     Print(arg, $"{option} is not a valid vehicle type");
                     return;
                 }
-                switch (arg.Args[1].ToLower())
+                switch (arg.Args[1].ToString().ToLower())
                 {
                     case "*":
                     case "all":
@@ -5341,10 +5341,10 @@ namespace Oxide.Plugins
 
                     default:
                         {
-                            var target = RustCore.FindPlayer(arg.Args[1]);
+                            var target = RustCore.FindPlayer(arg.GetString(1));
                             if (target == null)
                             {
-                                Print(arg, $"Player '{arg.Args[1]}' not found");
+                                Print(arg, $"Player '{arg.GetString(1)}' not found");
                                 return;
                             }
 
@@ -5386,14 +5386,14 @@ namespace Oxide.Plugins
         {
             if (arg.IsAdmin && arg.Args != null && arg.Args.Length == 2)
             {
-                var option = arg.Args[0];
+                var option = arg.Args[0].ToString();
                 string vehicleType;
                 if (!IsValidVehicleType(option, out vehicleType))
                 {
                     Print(arg, $"{option} is not a valid vehicle type");
                     return;
                 }
-                switch (arg.Args[1].ToLower())
+                switch (arg.Args[1].ToString().ToLower())
                 {
                     case "*":
                     case "all":
@@ -5406,7 +5406,7 @@ namespace Oxide.Plugins
 
                     default:
                         {
-                            var target = RustCore.FindPlayer(arg.Args[1]);
+                            var target = RustCore.FindPlayer(arg.Args[1].ToString());
                             if (target == null)
                             {
                                 Print(arg, $"Player '{arg.Args[1]}' not found");
@@ -5439,7 +5439,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private void CmdBuyVehicle(BasePlayer player, string command, string[] args)
+        private void CmdBuyVehicle(BasePlayer player, string command, StringView[] args)
         {
             if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE))
             {
@@ -5471,7 +5471,7 @@ namespace Oxide.Plugins
             }
             string vehicleType;
 
-            if (IsValidOption(player, args[0], out vehicleType))
+            if (IsValidOption(player, args[0].ToString(), out vehicleType))
             {
                 BuyVehicle(player, vehicleType);
             }
@@ -5522,7 +5522,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private void CmdSpawnVehicle(BasePlayer player, string command, string[] args)
+        private void CmdSpawnVehicle(BasePlayer player, string command, StringView[] args)
         {
             if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE))
             {
@@ -5553,10 +5553,10 @@ namespace Oxide.Plugins
                 return;
             }
             string vehicleType;
-            if (IsValidOption(player, args[0], out vehicleType))
+            if (IsValidOption(player, args[0].ToString(), out vehicleType))
             {
-                var bypassCooldown = args.Length > 1 && IsValidBypassCooldownOption(args[1]);
-                SpawnVehicle(player, vehicleType, bypassCooldown, command + " " + args[0]);
+                var bypassCooldown = args.Length > 1 && IsValidBypassCooldownOption(args[1].ToString());
+                SpawnVehicle(player, vehicleType, bypassCooldown, command + " " + args[0].ToString());
             }
         }
 
@@ -5712,7 +5712,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private void CmdRecallVehicle(BasePlayer player, string command, string[] args)
+        private void CmdRecallVehicle(BasePlayer player, string command, StringView[] args)
         {
             if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE))
             {
@@ -5743,10 +5743,10 @@ namespace Oxide.Plugins
                 return;
             }
             string vehicleType;
-            if (IsValidOption(player, args[0], out vehicleType))
+            if (IsValidOption(player, args[0].ToString(), out vehicleType))
             {
-                var bypassCooldown = args.Length > 1 && IsValidBypassCooldownOption(args[1]);
-                RecallVehicle(player, vehicleType, bypassCooldown, command + " " + args[0]);
+                var bypassCooldown = args.Length > 1 && IsValidBypassCooldownOption(args[1].ToString());
+                RecallVehicle(player, vehicleType, bypassCooldown, command + " " + args[0].ToString());
             }
         }
 
@@ -5900,7 +5900,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private void CmdKillVehicle(BasePlayer player, string command, string[] args)
+        private void CmdKillVehicle(BasePlayer player, string command, StringView[] args)
         {
             if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE))
             {
@@ -5930,7 +5930,7 @@ namespace Oxide.Plugins
                 return;
             }
 
-            HandleKillCmd(player, args[0]);
+            HandleKillCmd(player, args[0].ToString());
         }
 
         private void HandleKillCmd(BasePlayer player, string option)
