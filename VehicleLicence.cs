@@ -23,7 +23,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.9.0")]
+    [Info("Vehicle Licence", "Sorrow/TheDoc/Arainrr", "1.9.1")]
     [Description("Allows players to buy vehicles and then spawn or store it")]
     public class VehicleLicence : RustPlugin
     {
@@ -5435,11 +5435,11 @@ namespace Oxide.Plugins
             }
             else
             {
-                CmdBuyVehicle(player, arg.cmd.FullName, arg.Args);
+                CmdBuyVehicle(player, arg.cmd.FullName, arg.Args.ToString().Split(' '));
             }
         }
 
-        private void CmdBuyVehicle(BasePlayer player, string command, StringView[] args)
+        private void CmdBuyVehicle(BasePlayer player, string command, string[] args)
         {
             if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE))
             {
@@ -5518,11 +5518,11 @@ namespace Oxide.Plugins
             }
             else
             {
-                CmdSpawnVehicle(player, arg.cmd.FullName, arg.Args);
+                CmdSpawnVehicle(player, arg.cmd.FullName, arg.Args.ToString().Split(' '));
             }
         }
 
-        private void CmdSpawnVehicle(BasePlayer player, string command, StringView[] args)
+        private void CmdSpawnVehicle(BasePlayer player, string command, string[] args)
         {
             if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE))
             {
@@ -5708,11 +5708,11 @@ namespace Oxide.Plugins
             }
             else
             {
-                CmdRecallVehicle(player, arg.cmd.FullName, arg.Args);
+                CmdRecallVehicle(player, arg.cmd.FullName, arg.Args.ToString().Split(' '));
             }
         }
 
-        private void CmdRecallVehicle(BasePlayer player, string command, StringView[] args)
+        private void CmdRecallVehicle(BasePlayer player, string command, string[] args)
         {
             if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE))
             {
@@ -5896,11 +5896,11 @@ namespace Oxide.Plugins
             }
             else
             {
-                CmdKillVehicle(player, arg.cmd.FullName, arg.Args);
+                CmdKillVehicle(player, arg.cmd.FullName, arg.Args.ToString().Split(' '));
             }
         }
 
-        private void CmdKillVehicle(BasePlayer player, string command, StringView[] args)
+        private void CmdKillVehicle(BasePlayer player, string command, string[] args)
         {
             if (!permission.UserHasPermission(player.UserIDString, PERMISSION_USE))
             {
