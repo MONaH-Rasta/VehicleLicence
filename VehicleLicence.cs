@@ -24,7 +24,7 @@ using Random = UnityEngine.Random;
 
 namespace Oxide.Plugins
 {
-    [Info("Vehicle Licence", "Mabel", "1.9.3")]
+    [Info("Vehicle Licence", "Mabel", "1.9.4")]
     [Description("Allows players to buy vehicles and then spawn or store it. (Originally Maintained By Sorrow/TheDoc/Arainrr/Bugman)")]
     public class VehicleLicence : RustPlugin
     {
@@ -50,9 +50,9 @@ namespace Oxide.Plugins
 
         /// <summary>
         /// 
-        /// 34 normal vehicles
+        /// 34 vanilla vehicles
         /// 
-        /// 469 custom vehicles
+        /// 499 custom vehicles
         /// 
         /// </summary> 
 
@@ -1305,7 +1305,7 @@ namespace Oxide.Plugins
         private void OnServerInitialized()
         {
             ServerMgr.Instance.StartCoroutine(UpdatePlayerData(TimeEx.currentTimestamp));
-            if (configData.global.preventMounting)
+            if (configData.global.preventMounting || configData.global.preventDriverSeat)
             {
                 Subscribe(nameof(CanMountEntity));
             }
@@ -1490,12 +1490,18 @@ namespace Oxide.Plugins
                 foreach (var mountPointInfo in vehicleParent.allMountPoints)
                 {
                     if (mountPointInfo == null || mountPointInfo.mountable != entity) continue;
+
                     if (!mountPointInfo.isDriver)
                     {
                         return null;
                     }
+
                     break;
                 }
+            }
+            else if (!configData.global.preventMounting)
+            {
+                return null;
             }
             if (HasAdminPermission(friend))
             {
